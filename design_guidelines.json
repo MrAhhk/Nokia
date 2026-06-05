@@ -1,0 +1,82 @@
+{
+  "design_manifest": {
+    "identity": "The Tactical Retro-Minimalist Launcher",
+    "archetype": "Archetype 4 (Swiss & High-Contrast) + Terminal Brutalism",
+    "vibe": "Nostalgic, physical, brutalist, precise, distraction-free.",
+    "theme": "Dark"
+  },
+  "colors": {
+    "background_primary": "#000000",
+    "background_secondary": "#050505",
+    "surface_key": "#111111",
+    "surface_key_active": "#FFFFFF",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#808080",
+    "text_inverse": "#000000",
+    "accent": "#FFFFFF",
+    "divider": "rgba(255, 255, 255, 0.15)"
+  },
+  "typography": {
+    "screen_font": "Space Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    "keypad_font": "IBM Plex Sans, Helvetica Neue, Arial, sans-serif",
+    "rules": {
+      "h1": "text-2xl tracking-tighter uppercase font-bold",
+      "list_item": "text-lg uppercase tracking-tight",
+      "key_number": "text-3xl font-light tracking-tighter",
+      "key_letters": "text-[10px] uppercase tracking-widest text-secondary"
+    }
+  },
+  "layout": {
+    "global": "h-[100dvh] w-full flex flex-col overflow-hidden bg-black text-white select-none",
+    "top_screen": {
+      "container": "h-[50dvh] w-full p-4 relative flex flex-col bg-black border-b border-white/20",
+      "inner_display": "flex-1 overflow-hidden relative flex flex-col gap-4"
+    },
+    "bottom_keypad": {
+      "container": "h-[50dvh] w-full p-4 md:p-6 bg-[#050505] flex items-center justify-center",
+      "grid": "grid grid-cols-3 grid-rows-4 gap-3 md:gap-4 h-full w-full max-w-[400px]"
+    }
+  },
+  "components": {
+    "screen_list_item": {
+      "default": "flex items-center gap-3 p-3 border-b border-white/10 text-white/70 transition-none",
+      "selected": "flex items-center gap-3 p-3 bg-white text-black font-bold transition-none scale-100"
+    },
+    "keypad_button": {
+      "base": "relative flex flex-col items-center justify-center rounded-md border border-white/10 bg-[#111] shadow-[0_4px_0_rgba(255,255,255,0.05)] active:translate-y-[4px] active:shadow-none active:bg-white active:text-black transition-all duration-75",
+      "number": "text-2xl md:text-3xl font-medium",
+      "letters": "text-[9px] md:text-xs font-bold tracking-widest mt-1 opacity-60"
+    },
+    "status_bar": {
+      "container": "flex justify-between items-center pb-2 border-b border-white/20 text-xs md:text-sm font-mono opacity-80"
+    }
+  },
+  "icons": {
+    "library": "lucide-react",
+    "usage": "Use sharp, un-rounded icons. Battery, Signal, Wifi for status bar. Minimalist stroke icons for apps."
+  },
+  "interactions_and_motion": {
+    "philosophy": "Zero-latency physical feel. No slow fades. Hardware responds instantly.",
+    "transitions": "Use duration-75 or transition-none. When a key is pressed, it must immediately invert colors.",
+    "navigation_logic": "T9 acts as D-Pad in menus: 2 (Up), 8 (Down), 4 (Left), 6 (Right), 5 (Select/Action)."
+  },
+  "app_categorization": {
+    "important_apps": "Render with bold typography, prominent icons, pushed to top of lists. Examples: Maps, WhatsApp, Messages, Phone.",
+    "unimportant_apps": "Render smaller, lower opacity (text-secondary). Examples: Games, YouTube, TikTok, Facebook."
+  },
+  "testing_attributes": {
+    "rules": "All interactive elements MUST have data-testid attributes.",
+    "examples": [
+      "data-testid='keypad-btn-5'",
+      "data-testid='app-list-item-whatsapp'",
+      "data-testid='status-time'"
+    ]
+  },
+  "instructions_to_main_agent": {
+    "1": "Construct the UI strictly for mobile proportions locking height to 100dvh. Prevent scrolling on the body.",
+    "2": "Top 50% must purely act as the 'screen'. Use a React state manager to track the 'selected_index' of the currently highlighted app or menu item.",
+    "3": "Implement the keypad so it conditionally handles navigation (D-Pad via 2,4,6,8 and Select via 5) when browsing lists, and T9 typing when in an input field.",
+    "4": "The active/selected item in the screen menu should use the 'selected' styling (inverted black-on-white) to clearly show cursor position without touch.",
+    "5": "Do NOT use rounded-xl or soft UI. Stay true to the Swiss Brutalist / Retro hardware design: sharp borders, crisp monochrome contrasts."
+  }
+}

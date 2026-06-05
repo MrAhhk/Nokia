@@ -23,7 +23,7 @@ function App() {
     };
 
     fetchApps();
-  }, []);
+  }, [API]);
 
   if (loading) {
     return (

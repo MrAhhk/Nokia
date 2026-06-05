@@ -35,11 +35,15 @@ const NokiaLauncher = ({ apps }) => {
   // Handle navigation
   const handleNavigation = useCallback(
     (direction) => {
-      if (direction === "up") {
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : menuItems.length - 1));
-      } else if (direction === "down") {
-        setSelectedIndex((prev) => (prev < menuItems.length - 1 ? prev + 1 : 0));
-      }
+      setSelectedIndex((prev) => {
+        const currentLength = menuItems.length;
+        if (direction === "up") {
+          return prev > 0 ? prev - 1 : currentLength - 1;
+        } else if (direction === "down") {
+          return prev < currentLength - 1 ? prev + 1 : 0;
+        }
+        return prev;
+      });
     },
     [menuItems.length]
   );

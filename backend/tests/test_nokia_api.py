@@ -77,6 +77,6 @@ def test_save_preferences_and_verify(api):
     prefs = r2.json()["preferences"]
     match = [p for p in prefs if p.get("app_id") == "TEST_youtube"]
     assert len(match) >= 1
-    assert match[0]["is_hidden"] is True
+    assert match[0]["is_hidden"]
     # No mongodb _id leakage
     assert "_id" not in match[0]

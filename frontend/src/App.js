@@ -1,7 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import "@/App.css";
 import axios from "axios";
 import NokiaLauncher from "@/components/NokiaLauncher";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfService from "@/pages/TermsOfService";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -33,7 +36,15 @@ function App() {
     );
   }
 
-  return <NokiaLauncher apps={apps} />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<NokiaLauncher apps={apps} />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
 export default App;

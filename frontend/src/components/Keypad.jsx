@@ -1,28 +1,26 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 
-const Keypad = ({ onNavigation, onSelect, onBack }) => {
+const Keypad = ({ onKeypadPress }) => {
   const [activeKey, setActiveKey] = useState(null);
 
   const keys = [
     { number: "1", letters: "", testId: "keypad-btn-1" },
-    { number: "2", letters: "ABC", testId: "keypad-btn-2", action: () => onNavigation("up") },
+    { number: "2", letters: "ABC", testId: "keypad-btn-2" },
     { number: "3", letters: "DEF", testId: "keypad-btn-3" },
-    { number: "4", letters: "GHI", testId: "keypad-btn-4", action: () => onNavigation("left") },
-    { number: "5", letters: "JKL", testId: "keypad-btn-5", action: () => onSelect() },
-    { number: "6", letters: "MNO", testId: "keypad-btn-6", action: () => onNavigation("right") },
+    { number: "4", letters: "GHI", testId: "keypad-btn-4" },
+    { number: "5", letters: "JKL", testId: "keypad-btn-5" },
+    { number: "6", letters: "MNO", testId: "keypad-btn-6" },
     { number: "7", letters: "PQRS", testId: "keypad-btn-7" },
-    { number: "8", letters: "TUV", testId: "keypad-btn-8", action: () => onNavigation("down") },
+    { number: "8", letters: "TUV", testId: "keypad-btn-8" },
     { number: "9", letters: "WXYZ", testId: "keypad-btn-9" },
     { number: "*", letters: "+", testId: "keypad-btn-star" },
     { number: "0", letters: "_", testId: "keypad-btn-0" },
-    { number: "#", letters: "", testId: "keypad-btn-hash", action: () => onBack() },
+    { number: "#", letters: "", testId: "keypad-btn-hash" },
   ];
 
   const handleKeyPress = (key) => {
     setActiveKey(key.number);
-    if (key.action) {
-      key.action();
-    }
+    onKeypadPress(key.number);
     setTimeout(() => setActiveKey(null), 75);
   };
 
@@ -56,4 +54,4 @@ const Keypad = ({ onNavigation, onSelect, onBack }) => {
   );
 };
 
-export default Keypad;
+export default memo(Keypad);

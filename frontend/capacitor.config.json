@@ -1,5 +1,8 @@
 {
   "appId": "com.nokialauncher.app",
   "appName": "Nokia Launcher",
-  "webDir": "build"
+  "webDir": "build",
+  "android": {
+    "buildOptions": {}
+  }
 }

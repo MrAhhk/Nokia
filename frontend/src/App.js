@@ -1,32 +1,29 @@
 import { useState, useEffect } from "react";
 import "@/App.css";
-import axios from "axios";
 import NokiaLauncher from "@/components/NokiaLauncher";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfService from "@/pages/TermsOfService";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { getInstalledApps } from "@/lib/launcherApps";
 
 function App() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchApps = async () => {
+    const loadApps = async () => {
       try {
-        const response = await axios.get(`${API}/apps`);
-        setApps(response.data.apps);
+        setApps(await getInstalledApps());
       } catch (error) {
-        console.error("Error fetching apps:", error);
+        console.error("Error loading installed apps:", error);
+        setApps([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchApps();
-  }, [API]);
+    loadApps();
+  }, []);
 
   if (loading) {
     return (

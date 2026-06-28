@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.net.Uri;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -40,12 +41,18 @@ public class LauncherAppsPlugin extends Plugin {
                 continue;
             }
 
-            String label = resolveInfo.loadLabel(packageManager).toString().trim();
+            CharSequence labelSeq = resolveInfo.loadLabel(packageManager);
+            String label = labelSeq != null ? labelSeq.toString().trim() : "";
             if (label.isEmpty()) {
                 label = packageName;
             }
 
-            launcherApps.add(new LauncherAppInfo(resolveInfo, label, packageName, resolveInfo.activityInfo.name));
+            String activityName = resolveInfo.activityInfo.name;
+            if (activityName == null) {
+                activityName = "";
+            }
+
+            launcherApps.add(new LauncherAppInfo(resolveInfo, label, packageName, activityName));
         }
 
         Collator collator = Collator.getInstance(Locale.getDefault());
@@ -96,6 +103,27 @@ public class LauncherAppsPlugin extends Plugin {
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
         getContext().startActivity(launchIntent);
         call.resolve();
+    }
+
+    @PluginMethod
+    public void makePhoneCall(PluginCall call) {
+        String number = call.getString("number");
+        if (number == null || number.trim().isEmpty()) {
+            call.reject("Phone number is required");
+            return;
+        }
+
+        try {
+            Uri uri = Uri.parse("tel:" + number.trim());
+            Intent intent = new Intent(Intent.ACTION_CALL, uri);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (SecurityException e) {
+            call.reject("CALL_PHONE permission denied or not granted", e);
+        } catch (Exception e) {
+            call.reject("Failed to make phone call: " + e.getMessage(), e);
+        }
     }
 
     private boolean isSystemApp(ResolveInfo resolveInfo) {

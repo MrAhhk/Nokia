@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Screen from "./Screen";
 import Keypad from "./Keypad";
-import { launchInstalledApp } from "@/lib/launcherApps";
+import { launchInstalledApp, makePhoneCall } from "@/lib/launcherApps";
 
 // Multi-tap cycle: letters first, number at the end (classic Nokia)
 const MULTI_TAP_CYCLES = {
@@ -37,6 +37,10 @@ const NokiaLauncher = ({ apps }) => {
   // committedText: fully confirmed characters | pendingChar: character being cycled right now
   const [committedText, setCommittedText] = useState("");
   const [pendingChar, setPendingChar] = useState("");
+
+  // Dialer state for home screen numbers
+  const [dialActive, setDialActive] = useState(false);
+  const [dialNumber, setDialNumber] = useState("");
 
   // Multi-tap refs — avoid stale closure bugs by keeping mutable values in refs
   const activeKeyRef = useRef(null);   // key currently being cycled
@@ -110,6 +114,7 @@ const NokiaLauncher = ({ apps }) => {
     setSelectedIndex(0);
   }, [fullInput]);
 
+  // Search box display text
   const searchPreviewText = useMemo(() => {
     return fullInput.toUpperCase();
   }, [fullInput]);
@@ -137,10 +142,10 @@ const NokiaLauncher = ({ apps }) => {
   const handleSelect = useCallback(() => {
     if (currentView === "home" && menuItems[selectedIndex]) {
       menuItems[selectedIndex].action();
-    } else if (!searchActive && currentView === "menu" && visibleMenuItems[selectedIndex]) {
+    } else if (currentView === "menu" && visibleMenuItems[selectedIndex]) {
       handleOpenApp(visibleMenuItems[selectedIndex]);
     }
-  }, [currentView, selectedIndex, menuItems, searchActive, visibleMenuItems, handleOpenApp]);
+  }, [currentView, selectedIndex, menuItems, visibleMenuItems, handleOpenApp]);
 
   const handleBack = useCallback(() => {
     if (currentView === "menu") {
@@ -211,26 +216,97 @@ const NokiaLauncher = ({ apps }) => {
         return true;
       }
 
-      // ── Launch (0) ──
+      // ── Space (0) ──
       if (key === "0") {
         commitPending();
-        handleOpenApp(visibleMenuItems[selectedIndex]);
+        setCommittedText((t) => t + " ");
         return true;
       }
 
       return false;
     },
-    [commitPending, handleOpenApp, visibleMenuItems, selectedIndex]
+    [commitPending]
   );
 
-  // ── Main keypad dispatcher ─────────────────────────────────────────────────
+  // ─── Main keypad dispatcher ─────────────────────────────────────────────────
   const handleKeypadPress = useCallback(
     (key) => {
-      // Auto-activate search when any letter key (2–9) is pressed in menu view
-      // This way the user doesn't need to press 1 first — just start typing
+      // ─── Handle Call / Hangup / Select keys globally first ───
+      if (key === "SEND") {
+        if (dialActive && dialNumber) {
+          makePhoneCall(dialNumber);
+        } else if (currentView === "menu" && visibleMenuItems[selectedIndex]) {
+          handleOpenApp(visibleMenuItems[selectedIndex]);
+        }
+        return;
+      }
+
+      if (key === "END") {
+        if (dialActive) {
+          setDialNumber("");
+          setDialActive(false);
+          return;
+        }
+        if (fullInput) {
+          setCommittedText("");
+          clearPending();
+          return;
+        }
+        if (searchActive) {
+          searchActiveRef.current = false;
+          setSearchActive(false);
+          return;
+        }
+        if (currentView === "menu") {
+          setCurrentView("home");
+          return;
+        }
+        return;
+      }
+
+      if (key === "SELECT") {
+        handleSelect();
+        return;
+      }
+
+      // ─── Direct Dialer mode inputs ───
+      if (dialActive) {
+        if (key >= "0" && key <= "9") {
+          setDialNumber((prev) => prev + key);
+          return;
+        }
+        if (key === "*") {
+          setDialNumber((prev) => {
+            const next = prev.slice(0, -1);
+            if (!next) {
+              setDialActive(false);
+            }
+            return next;
+          });
+          return;
+        }
+        if (key === "#") {
+          setDialNumber((prev) => prev + "#");
+          return;
+        }
+      }
+
+      // ─── Home Screen Digit input starts Dialing ───
+      if (currentView === "home" && key >= "0" && key <= "9") {
+        setDialActive(true);
+        setDialNumber(key);
+        return;
+      }
+
+      // ─── Home Screen * opens Menu ───
+      if (currentView === "home" && key === "*") {
+        setCurrentView("menu");
+        return;
+      }
+
+      // ─── Auto-activate search in menu when typing letters ───
       if (currentView === "menu" && MULTI_TAP_CYCLES[key] && !searchActiveRef.current) {
         activateSearch();
-        // searchActiveRef.current is now synchronously true, so handleMultiTapInput will work
       }
 
       // Try multi-tap (fires when searchActive ref is true)
@@ -253,7 +329,22 @@ const NokiaLauncher = ({ apps }) => {
         handleBack();
       }
     },
-    [currentView, activateSearch, handleMultiTapInput, handleNavigation, handleSelect, handleBack]
+    [
+      currentView,
+      dialActive,
+      dialNumber,
+      fullInput,
+      searchActive,
+      selectedIndex,
+      visibleMenuItems,
+      activateSearch,
+      handleMultiTapInput,
+      handleNavigation,
+      handleSelect,
+      handleBack,
+      clearPending,
+      handleOpenApp
+    ]
   );
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -271,6 +362,8 @@ const NokiaLauncher = ({ apps }) => {
           searchPreviewText={searchPreviewText}
           onSearchFocus={activateSearch}
           onAppClick={handleOpenApp}
+          dialActive={dialActive}
+          dialNumber={dialNumber}
         />
       </div>
 

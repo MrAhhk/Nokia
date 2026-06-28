@@ -17,6 +17,8 @@ const Screen = ({
   searchPreviewText,
   onSearchFocus,
   onAppClick,
+  dialActive,
+  dialNumber,
 }) => {
   const menuScrollRef = useRef(null);
 
@@ -75,6 +77,28 @@ const Screen = ({
 
     return searchPreviewText || searchQuery;
   }, [searchActive, searchQuery, searchPreviewText]);
+
+  // Render Direct Dialing Screen
+  if (dialActive) {
+    return (
+      <div className="flex-1 overflow-hidden relative flex flex-col justify-between p-2" data-testid="screen-dial">
+        <div className="text-xs text-white/50 font-mono tracking-wider text-center uppercase">
+          Dialing
+        </div>
+
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-4xl md:text-5xl font-mono font-bold tracking-tight text-center break-all w-full select-text text-green-400">
+            {dialNumber}
+          </div>
+        </div>
+
+        <div className="flex justify-between text-[10px] md:text-xs font-bold tracking-wider font-mono opacity-80 border-t border-white/10 pt-2 px-1">
+          <span className="text-green-500 uppercase">📞 CALL (SEND)</span>
+          <span className="text-red-500 uppercase">⌫ CLEAR (END)</span>
+        </div>
+      </div>
+    );
+  }
 
   if (currentView === "home") {
     return (
@@ -179,6 +203,10 @@ AppRow.displayName = "AppRow";
 
 const areScreenPropsEqual = (previous, next) => {
   if (previous.currentView !== next.currentView) {
+    return false;
+  }
+
+  if (previous.dialActive !== next.dialActive || previous.dialNumber !== next.dialNumber) {
     return false;
   }
 

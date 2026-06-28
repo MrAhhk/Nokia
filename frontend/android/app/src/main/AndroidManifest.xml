@@ -46,6 +46,20 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Nokia System Keyboard Input Method Service -->
+        <service
+            android:name="com.nokialauncher.app.NokiaIME"
+            android:label="Nokia System Keyboard"
+            android:permission="android.permission.BIND_INPUT_METHOD"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/method" />
+        </service>
     </application>
 
     <!-- Permissions -->
@@ -57,4 +71,10 @@
     
     <!-- Post notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
+    <!-- Launcher app permissions to query all installed packages (Android 11+) -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    
+    <!-- Direct call permission -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
 </manifest>

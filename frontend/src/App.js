@@ -5,8 +5,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfService from "@/pages/TermsOfService";
 import { getInstalledApps } from "@/lib/launcherApps";
+import NokiaSystemKeyboard from "@/components/NokiaSystemKeyboard";
 
-function App() {
+function MainApp() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,6 +43,18 @@ function App() {
       </Routes>
     </BrowserRouter>
   );
+}
+
+function App() {
+  // Check if we are running in System Keyboard mode (IME WebView)
+  const isKeyboardView = typeof window !== "undefined" && 
+    new URLSearchParams(window.location.search).get("view") === "keyboard";
+
+  if (isKeyboardView) {
+    return <NokiaSystemKeyboard />;
+  }
+
+  return <MainApp />;
 }
 
 export default App;

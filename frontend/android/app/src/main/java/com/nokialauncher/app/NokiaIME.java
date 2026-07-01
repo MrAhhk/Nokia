@@ -100,11 +100,34 @@ public class NokiaIME extends InputMethodService {
         super.onStartInput(attribute, restarting);
         mForceVisible = true; // Reset force-visibility when a new input session starts
         
-        requestShowSelf(0);
+        // If the active target is our own Nokia Launcher, hide the system keyboard
+        // to prevent rendering duplicate keypads on the Home screen.
+        if (attribute != null && "com.nokialauncher.app".equals(attribute.packageName)) {
+            mForceVisible = false;
+            requestHideSelf(0);
+            mForceVisible = true;
+            return;
+        }
+
+        // Only request showing the soft keyboard on fresh app/window switches.
+        // Skipping on restarting (typing/selection changes) completely prevents lag.
+        if (!restarting) {
+            requestShowSelf(0);
+        }
 
         // Reset any temporary state in WebView when starting a new typing session
         if (mWebView != null) {
             mWebView.evaluateJavascript("if(window.resetNokiaKeyboard) { window.resetNokiaKeyboard(); }", null);
+        }
+    }
+
+    @Override
+    public void onComputeInsets(InputMethodService.Insets outInsets) {
+        super.onComputeInsets(outInsets);
+        if (!isFullscreenMode()) {
+            // Restore contentTopInsets to visibleTopInsets to correctly signal
+            // the top boundary of the keyboard to force resizing instead of fullscreen/panning.
+            outInsets.contentTopInsets = outInsets.visibleTopInsets;
         }
     }
 

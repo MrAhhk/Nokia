@@ -349,9 +349,9 @@ const NokiaLauncher = ({ apps }) => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="h-[100dvh] w-full flex flex-col overflow-hidden bg-black text-white select-none" data-testid="nokia-launcher">
+    <div className="h-full w-full flex flex-col overflow-hidden bg-black text-white select-none" data-testid="nokia-launcher">
       {/* Top Screen - 50% */}
-      <div className="h-[50dvh] w-full p-4 relative flex flex-col bg-black border-b border-white/20">
+      <div className="h-1/2 w-full p-4 relative flex flex-col bg-black border-b border-white/20">
         <Screen
           currentView={currentView}
           menuItems={visibleMenuItems}
@@ -368,7 +368,7 @@ const NokiaLauncher = ({ apps }) => {
       </div>
 
       {/* Bottom Keypad - 50% */}
-      <div className="h-[50dvh] w-full px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-6 md:pt-6 md:pb-[calc(1.5rem+env(safe-area-inset-bottom))] bg-[#050505] flex items-center justify-center">
+      <div className="h-1/2 w-full px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-6 md:pt-6 md:pb-[calc(1.5rem+env(safe-area-inset-bottom))] bg-[#050505] flex items-center justify-center">
         <Keypad onKeypadPress={handleKeypadPress} />
       </div>
     </div>

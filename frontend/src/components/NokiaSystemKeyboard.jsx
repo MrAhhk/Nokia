@@ -207,7 +207,7 @@ const NokiaSystemKeyboard = () => {
   }, [commitPending, isNavMode]);
 
   return (
-    <div className="h-[100dvh] w-full flex flex-col bg-[#050505] p-2 md:p-4 select-none" data-testid="nokia-system-keyboard">
+    <div className="h-full w-full flex flex-col bg-[#050505] p-2 md:p-4 select-none" data-testid="nokia-system-keyboard">
       {/* Mode Status Bar */}
       <div className="flex justify-between items-center text-[10px] md:text-xs font-mono font-bold tracking-widest text-white/50 border-b border-white/10 pb-1.5 mb-2 px-1">
         <span className={isNavMode ? "text-blue-400" : "text-green-400"}>

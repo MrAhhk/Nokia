@@ -131,3 +131,28 @@ export const makePhoneCall = async (number) => {
   });
 };
 
+export const showKeyboardSettings = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps) {
+    console.log("Mock showKeyboardSettings");
+    if (typeof window !== "undefined") {
+      window.alert("Mock showKeyboardSettings: Open Android Settings to enable keyboard");
+    }
+    return;
+  }
+  await launcherApps.showKeyboardSettings();
+};
+
+export const showKeyboardPicker = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps) {
+    console.log("Mock showKeyboardPicker");
+    if (typeof window !== "undefined") {
+      window.alert("Mock showKeyboardPicker: Open Keyboard selection menu");
+    }
+    return;
+  }
+  await launcherApps.showKeyboardPicker();
+};
+
+

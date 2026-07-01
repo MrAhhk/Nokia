@@ -1,11 +1,14 @@
 package com.nokialauncher.app;
 
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.provider.Settings;
+import android.view.inputmethod.InputMethodManager;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -124,9 +127,37 @@ public class LauncherAppsPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Failed to make phone call: " + e.getMessage(), e);
         }
+     }
+
+    @PluginMethod
+    public void showKeyboardSettings(PluginCall call) {
+        try {
+            Intent intent = new Intent(Settings.ACTION_INPUT_METHOD_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Failed to open keyboard settings: " + e.getMessage(), e);
+        }
     }
 
-    private boolean isSystemApp(ResolveInfo resolveInfo) {
+    @PluginMethod
+    public void showKeyboardPicker(PluginCall call) {
+        try {
+            InputMethodManager imm = (InputMethodManager) 
+                getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showInputMethodPicker();
+                call.resolve();
+            } else {
+                call.reject("InputMethodManager not available");
+            }
+        } catch (Exception e) {
+            call.reject("Failed to show keyboard picker: " + e.getMessage(), e);
+        }
+    }
+
+     private boolean isSystemApp(ResolveInfo resolveInfo) {
         ApplicationInfo applicationInfo = resolveInfo.activityInfo.applicationInfo;
         return (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
     }

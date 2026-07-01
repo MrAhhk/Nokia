@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Screen from "./Screen";
 import Keypad from "./Keypad";
-import { launchInstalledApp, makePhoneCall } from "@/lib/launcherApps";
+import { launchInstalledApp, makePhoneCall, showKeyboardSettings, showKeyboardPicker } from "@/lib/launcherApps";
 
 // Multi-tap cycle: letters first, number at the end (classic Nokia)
 const MULTI_TAP_CYCLES = {
@@ -57,9 +57,9 @@ const NokiaLauncher = ({ apps }) => {
   useEffect(() => {
     if (currentView === "home") {
       setMenuItems([
-        { id: "menu",     label: "Menu",     action: () => setCurrentView("menu") },
-        { id: "contacts", label: "Contacts", action: () => console.log("Contacts") },
-        { id: "messages", label: "Messages", action: () => console.log("Messages") },
+        { id: "menu",       label: "Menu",             action: () => setCurrentView("menu") },
+        { id: "setup_kbd",  label: "Enable Keyboard",  action: () => showKeyboardSettings() },
+        { id: "select_kbd", label: "Select Keyboard", action: () => showKeyboardPicker() },
       ]);
       setSelectedIndex(0);
     } else if (currentView === "menu") {

@@ -15,6 +15,7 @@ const MULTI_TAP_CYCLES = {
 const MULTI_TAP_DELAY = 250;
 
 const NokiaSystemKeyboard = () => {
+  const [isNavMode, setIsNavMode] = useState(false);
   const activeKeyRef = useRef(null);
   const cycleIndexRef = useRef(0);
   const commitTimerRef = useRef(null);
@@ -64,6 +65,32 @@ const NokiaSystemKeyboard = () => {
   const handleKeyPress = useCallback((key) => {
     const bridge = getIMEBridge();
 
+    // ─── Mode Toggle via '#' Key ───
+    if (key === "#") {
+      commitPending();
+      setIsNavMode((prev) => !prev);
+      return;
+    }
+
+    // ─── D-PAD NAVIGATION MODE ───
+    if (isNavMode) {
+      if (bridge) {
+        if (key === "2") bridge.sendDpadKey("UP");
+        else if (key === "8") bridge.sendDpadKey("DOWN");
+        else if (key === "4") bridge.sendDpadKey("LEFT");
+        else if (key === "6") bridge.sendDpadKey("RIGHT");
+        else if (key === "5" || key === "SELECT") bridge.sendDpadKey("SELECT");
+        else if (key === "*") bridge.sendDpadKey("BACK");
+        else if (key === "SEND") bridge.sendDpadKey("SELECT");
+        else if (key === "END") bridge.hideKeyboard();
+      } else {
+        console.log(`IME mock Nav key: ${key}`);
+      }
+      return;
+    }
+
+    // ─── STANDARD TEXT TYPING MODE ───
+
     // ─── SEND (Green Key) -> Commit enter ───
     if (key === "SEND") {
       commitPending();
@@ -75,7 +102,7 @@ const NokiaSystemKeyboard = () => {
       return;
     }
 
-    // ─── END (Red Key) -> Hide keyboard ───
+    // ─── END (Red Key) -> Send Back event (like classic Nokia exit) ───
     if (key === "END") {
       if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
       activeKeyRef.current = null;
@@ -83,9 +110,9 @@ const NokiaSystemKeyboard = () => {
       pendingCharRef.current = "";
       
       if (bridge) {
-        bridge.hideKeyboard();
+        bridge.sendDpadKey("BACK");
       } else {
-        console.log("IME mock hide keyboard");
+        console.log("IME mock send BACK");
       }
       return;
     }
@@ -138,16 +165,10 @@ const NokiaSystemKeyboard = () => {
       return;
     }
 
-    // ─── Keypad navigation keys when not text-input (1, 2, 4, 5, 6, 8, #) ───
-    // For standard system typing, we can treat them as their literal values or symbols
+    // ─── Litereal punctuation keys (1) ───
     if (key === "1") {
       commitPending();
       if (bridge) bridge.commitText(".");
-      return;
-    }
-    if (key === "#") {
-      commitPending();
-      if (bridge) bridge.commitText("#");
       return;
     }
 
@@ -183,11 +204,22 @@ const NokiaSystemKeyboard = () => {
       // Automatically commit character after 250ms of inactivity
       commitTimerRef.current = setTimeout(commitPending, MULTI_TAP_DELAY);
     }
-  }, [commitPending]);
+  }, [commitPending, isNavMode]);
 
   return (
-    <div className="h-[100dvh] w-full p-4 bg-[#050505] flex items-center justify-center select-none" data-testid="nokia-system-keyboard">
-      <Keypad onKeypadPress={handleKeyPress} />
+    <div className="h-[100dvh] w-full flex flex-col bg-[#050505] p-2 md:p-4 select-none" data-testid="nokia-system-keyboard">
+      {/* Mode Status Bar */}
+      <div className="flex justify-between items-center text-[10px] md:text-xs font-mono font-bold tracking-widest text-white/50 border-b border-white/10 pb-1.5 mb-2 px-1">
+        <span className={isNavMode ? "text-blue-400" : "text-green-400"}>
+          {isNavMode ? "🧭 DPAD NAV MODE" : "🔤 T9 TEXT MODE"}
+        </span>
+        <span className="text-white/30">PRESS [#] TO TOGGLE</span>
+      </div>
+
+      {/* Keypad Container */}
+      <div className="flex-1 flex items-center justify-center">
+        <Keypad onKeypadPress={handleKeyPress} />
+      </div>
     </div>
   );
 };

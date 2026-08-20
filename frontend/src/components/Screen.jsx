@@ -1,6 +1,15 @@
 import { memo, useEffect, useMemo, useRef } from "react";
+import { Search, Phone, MessageSquare, MapPin, Camera } from "lucide-react";
+
+const HOME_ICONS = {
+  phone: Phone,
+  messages: MessageSquare,
+  maps: MapPin,
+  camera: Camera,
+};
 
 const getAppDisplayName = (app) =>
+  app?.displayName ||
   app?.name ||
   app?.label ||
   app?.title ||
@@ -14,16 +23,19 @@ const Screen = ({
   currentTime,
   searchActive,
   searchQuery,
-  searchPreviewText,
   onSearchFocus,
   onAppClick,
+  onOpenMenu,
+  onOpenSettings,
+  onSettingClick,
+  onBack,
   dialActive,
   dialNumber,
 }) => {
   const menuScrollRef = useRef(null);
 
   useEffect(() => {
-    if (currentView !== "menu") {
+    if (currentView !== "menu" && currentView !== "settings") {
       return;
     }
 
@@ -34,8 +46,9 @@ const Screen = ({
     }
 
     const frame = requestAnimationFrame(() => {
+      const rowTop = selectedRow.offsetTop - container.offsetTop;
       const targetTop =
-        selectedRow.offsetTop -
+        rowTop -
         container.clientHeight / 2 +
         selectedRow.clientHeight / 2;
       const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
@@ -57,26 +70,6 @@ const Screen = ({
       hour12: false,
     });
   }, [currentTime]);
-
-  const formattedDate = useMemo(() => {
-    return currentTime.toLocaleDateString("en-US", {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-    });
-  }, [currentTime]);
-
-  const resolvedSearchLabel = useMemo(() => {
-    if (!searchActive && !searchQuery) {
-      return "SEARCH APPS";
-    }
-
-    if (!searchQuery) {
-      return "TYPE APP NAME";
-    }
-
-    return searchPreviewText || searchQuery;
-  }, [searchActive, searchQuery, searchPreviewText]);
 
   // Render Direct Dialing Screen
   if (dialActive) {
@@ -102,77 +95,97 @@ const Screen = ({
 
   if (currentView === "home") {
     return (
-      <div className="flex-1 overflow-hidden relative flex flex-col" data-testid="screen-home">
-        {/* Large Clock Display */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-2">
-          <div className="text-5xl md:text-6xl font-mono font-light tracking-tighter" data-testid="home-time">
-            {formattedTime}
-          </div>
-          <div className="text-sm md:text-base font-mono text-white/60 uppercase tracking-wider" data-testid="home-date">
-            {formattedDate}
-          </div>
+      <div className="lcd-screen" data-testid="screen-home">
+        <div className="lcd-status" aria-label="Signal strong, battery full">
+          <span className="lcd-signal" aria-hidden="true">
+            <i /><i /><i /><i /><i />
+          </span>
+          <span className="lcd-battery" aria-hidden="true"><i /><i /><i /></span>
         </div>
 
-        {/* Menu Options */}
-        <div className="flex flex-col gap-1 mt-4" data-testid="home-menu">
+        <div className="lcd-time" data-testid="home-time">
+            {formattedTime}
+        </div>
+
+        <button
+          type="button"
+          className="lcd-search"
+          data-testid="home-search"
+          aria-label="Search apps"
+          onClick={onSearchFocus}
+        >
+          <Search aria-hidden="true" />
+        </button>
+
+        <div className="lcd-shortcuts" data-testid="home-menu">
           {menuItems.map((item, index) => (
-            <div
+            <HomeShortcut
               key={item.id}
-              data-testid={`home-menu-item-${item.id}`}
-              className={`
-                flex items-center gap-3 p-3 border-b border-white/10 transition-none
-                ${selectedIndex === index ? "bg-white text-black font-bold" : "text-white/70"}
-              `}
-            >
-              <span className="text-lg uppercase tracking-tight">{item.label}</span>
-            </div>
+              item={item}
+              isSelected={selectedIndex === index}
+              onClick={() => onAppClick(item.app)}
+            />
           ))}
+        </div>
+
+        <div className="lcd-softkeys" aria-label="Home screen actions">
+          <span>Ready</span>
+          <button type="button" onClick={onOpenMenu}>Menu</button>
+          <button type="button" onClick={onOpenSettings}>Settings</button>
         </div>
       </div>
     );
   }
 
-  if (currentView === "menu") {
-    return (
-      <div
-        ref={menuScrollRef}
-        className="flex-1 overflow-y-auto relative flex flex-col gap-4 mt-4"
-        data-testid="screen-menu"
-      >
-        <button
-          type="button"
-          className={`
-            flex h-10 w-full items-center border px-3 text-left font-mono text-lg font-bold uppercase tracking-tight
-            ${searchActive ? "border-white bg-white text-black" : "border-white/30 bg-black text-white"}
-          `}
-          data-testid="app-search-box"
-          onClick={onSearchFocus}
-        >
-          <span className="block min-w-0 flex-1 truncate">
-            {resolvedSearchLabel}
-          </span>
-        </button>
+  if (currentView === "menu" || currentView === "settings") {
+    const isSettings = currentView === "settings";
 
-        <div className="flex flex-col">
+    return (
+      <div className="lcd-screen lcd-list-screen" data-testid={isSettings ? "screen-settings" : "screen-menu"}>
+        <LcdStatus />
+        <div className="lcd-list-time">{formattedTime}</div>
+        <div className="lcd-list-title">{isSettings ? "Settings" : "Menu"}</div>
+
+        <div
+          ref={menuScrollRef}
+          className="lcd-list"
+          data-search-active={!isSettings && searchActive ? "true" : undefined}
+          data-search-query={!isSettings && searchQuery ? searchQuery : undefined}
+        >
           {menuItems.length === 0 && (
-            <div className="p-3 text-lg uppercase tracking-tight text-white/50" data-testid="app-search-empty">
-              NO MATCHES
+            <div className="lcd-list-empty" data-testid="app-search-empty">
+              No matches
             </div>
           )}
 
-          {menuItems.map((app, index) => {
+          {menuItems.map((item, index) => {
             const isSelected = selectedIndex === index;
 
             return (
-              <AppRow
-                key={app.id}
-                app={app}
+              <ListRow
+                key={item.id}
+                item={item}
                 isSelected={isSelected}
-                onClick={() => onAppClick(app)}
+                testId={isSettings ? `settings-item-${item.id}` : `app-list-item-${item.id}`}
+                onClick={() => isSettings ? onSettingClick(item) : onAppClick(item)}
               />
             );
           })}
         </div>
+
+        {isSettings ? (
+          <div className="lcd-list-softkeys lcd-list-softkeys--settings">
+            <span aria-hidden="true" />
+            <button type="button" onClick={() => onSettingClick(menuItems[selectedIndex])}>Select</button>
+            <button type="button" onClick={onBack}>Back</button>
+          </div>
+        ) : (
+          <div className="lcd-list-softkeys">
+            <span>Ready</span>
+            <button type="button" onClick={onOpenMenu}>Menu</button>
+            <button type="button" onClick={onOpenSettings}>Settings</button>
+          </div>
+        )}
       </div>
     );
   }
@@ -180,26 +193,51 @@ const Screen = ({
   return null;
 };
 
-const AppRow = memo(({ app, isSelected, onClick }) => {
-  const appName = getAppDisplayName(app) || "Unknown app";
+const LcdStatus = memo(() => (
+  <div className="lcd-status" aria-label="Signal strong, battery full">
+    <span className="lcd-signal" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+    <span className="lcd-battery" aria-hidden="true"><i /><i /><i /></span>
+  </div>
+));
+
+LcdStatus.displayName = "LcdStatus";
+
+const HomeShortcut = memo(({ item, isSelected, onClick }) => {
+  const Icon = HOME_ICONS[item.id] || Phone;
+
+  return (
+    <button
+      type="button"
+      data-testid={`home-menu-item-${item.id}`}
+      className={`lcd-shortcut ${isSelected ? "is-selected" : ""}`}
+      onClick={onClick}
+      aria-label={`Open ${item.label}`}
+    >
+      <span className="lcd-shortcut__icon"><Icon aria-hidden="true" /></span>
+      <span>{item.label}</span>
+    </button>
+  );
+});
+
+HomeShortcut.displayName = "HomeShortcut";
+
+const ListRow = memo(({ item, isSelected, onClick, testId }) => {
+  const itemName = getAppDisplayName(item) || "Unknown item";
 
   return (
     <button
       type="button"
       data-selected-app-row={isSelected ? "true" : undefined}
-      data-testid={`app-list-item-${app.id}`}
+      data-testid={testId}
       onClick={onClick}
-      className={`
-        flex h-12 min-h-12 w-full items-center p-3 border-b border-white/10 text-left transition-none
-        ${isSelected ? "border-l-4 border-white bg-white/15 text-white font-bold scale-100" : "text-white font-medium"}
-      `}
+      className={`lcd-list-row ${isSelected ? "is-selected" : ""}`}
     >
-      <span className="text-lg uppercase tracking-tight truncate">{appName}</span>
+      <span>{itemName}</span>
     </button>
   );
 });
 
-AppRow.displayName = "AppRow";
+ListRow.displayName = "ListRow";
 
 const areScreenPropsEqual = (previous, next) => {
   if (previous.currentView !== next.currentView) {
@@ -210,13 +248,12 @@ const areScreenPropsEqual = (previous, next) => {
     return false;
   }
 
-  if (next.currentView === "menu") {
+  if (next.currentView === "menu" || next.currentView === "settings") {
     return (
       previous.menuItems === next.menuItems &&
       previous.selectedIndex === next.selectedIndex &&
       previous.searchActive === next.searchActive &&
-      previous.searchQuery === next.searchQuery &&
-      previous.searchPreviewText === next.searchPreviewText
+      previous.searchQuery === next.searchQuery
     );
   }
 

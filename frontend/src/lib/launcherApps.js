@@ -13,6 +13,7 @@ const STATIC_FALLBACK_APPS = [
   { id: "gallery", name: "Gallery", icon: "Image", category: "important", is_system: true },
   { id: "clock", name: "Clock", icon: "Clock", category: "important", is_system: true },
   { id: "calendar", name: "Calendar", icon: "Calendar", category: "important", is_system: true },
+  { id: "calculator", name: "Calculator", icon: "Calculator", category: "important", is_system: true },
   { id: "settings", name: "Settings", icon: "Settings", category: "important", is_system: true },
   { id: "youtube", name: "YouTube", icon: "Youtube", category: "unimportant", is_system: false },
   { id: "facebook", name: "Facebook", icon: "Facebook", category: "unimportant", is_system: false },

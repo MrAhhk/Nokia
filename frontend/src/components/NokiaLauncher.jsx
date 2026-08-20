@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Screen from "./Screen";
 import Keypad from "./Keypad";
-import { launchInstalledApp, makePhoneCall, showKeyboardSettings, showKeyboardPicker } from "@/lib/launcherApps";
+import { launchInstalledApp, makePhoneCall, showKeyboardSettings } from "@/lib/launcherApps";
+import { createMultiTapComposer } from "@/domain/multiTapComposer";
+import {
+  SETTINGS_ITEMS,
+  createHomeShortcuts,
+  findMatchingApp,
+  orderDrawerApps,
+} from "@/domain/launcherMenus";
+import "./NokiaLauncher.css";
 
 // Multi-tap cycle: letters first, number at the end (classic Nokia)
 const MULTI_TAP_CYCLES = {
@@ -19,7 +27,7 @@ const MULTI_TAP_CYCLES = {
 const MULTI_TAP_DELAY = 250;
 
 const getAppDisplayName = (app) =>
-  app?.name || app?.label || app?.title || app?.packageName || "";
+  app?.displayName || app?.name || app?.label || app?.title || app?.packageName || "";
 
 const getAppSearchText = (app) =>
   `${getAppDisplayName(app)} ${app.packageName || ""}`.toLowerCase();
@@ -28,7 +36,7 @@ const NokiaLauncher = ({ apps }) => {
   const [currentView, setCurrentView] = useState("home");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [menuItems, setMenuItems] = useState([]);
+  const [settingsReturnView, setSettingsReturnView] = useState("home");
 
   // searchActive as both state (for UI re-render) and ref (for sync reads inside callbacks)
   const [searchActive, setSearchActive] = useState(false);
@@ -42,10 +50,16 @@ const NokiaLauncher = ({ apps }) => {
   const [dialActive, setDialActive] = useState(false);
   const [dialNumber, setDialNumber] = useState("");
 
-  // Multi-tap refs — avoid stale closure bugs by keeping mutable values in refs
-  const activeKeyRef = useRef(null);   // key currently being cycled
-  const cycleIndexRef = useRef(0);     // position in that key's cycle array
-  const commitTimerRef = useRef(null); // auto-commit timeout handle
+  // Shared multi-tap module keeps timing/cycling out of the launcher controller.
+  const multiTapComposerRef = useRef(null);
+  if (multiTapComposerRef.current === null) {
+    multiTapComposerRef.current = createMultiTapComposer({
+      cycles: MULTI_TAP_CYCLES,
+      delay: MULTI_TAP_DELAY,
+      onPreview: setPendingChar,
+      onCommit: (character) => setCommittedText((text) => text + character),
+    });
+  }
 
   // ── Clock ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -53,42 +67,42 @@ const NokiaLauncher = ({ apps }) => {
     return () => clearInterval(timer);
   }, []);
 
-  // ── Menu items ─────────────────────────────────────────────────────────────
+  const homeShortcuts = useMemo(
+    () => createHomeShortcuts(apps),
+    [apps]
+  );
+
+  const drawerApps = useMemo(() => orderDrawerApps(apps), [apps]);
+
+  const settingsApp = useMemo(
+    () => findMatchingApp(apps, ["settings", "android settings"]),
+    [apps]
+  );
+
+  const menuItems = currentView === "home"
+    ? homeShortcuts
+    : currentView === "settings"
+      ? SETTINGS_ITEMS
+      : drawerApps;
+
+  // Reset selection whenever the active screen changes.
   useEffect(() => {
-    if (currentView === "home") {
-      setMenuItems([
-        { id: "menu",       label: "Menu",             action: () => setCurrentView("menu") },
-        { id: "setup_kbd",  label: "Enable Keyboard",  action: () => showKeyboardSettings() },
-        { id: "select_kbd", label: "Select Keyboard", action: () => showKeyboardPicker() },
-      ]);
-      setSelectedIndex(0);
-    } else if (currentView === "menu") {
-      setMenuItems(apps);
-      setSelectedIndex(0);
-    }
-  }, [currentView, apps]);
+    setSelectedIndex(0);
+  }, [currentView]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   // Clears pending state WITHOUT committing (used on cancel / deactivate)
   const clearPending = useCallback(() => {
-    if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-    activeKeyRef.current = null;
-    cycleIndexRef.current = 0;
-    setPendingChar("");
+    multiTapComposerRef.current.reset();
   }, []);
 
-  // Commits whatever is currently pending by reading directly from refs (no stale closures)
+  // Commits whatever character is currently pending.
   const commitPending = useCallback(() => {
-    if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-    if (activeKeyRef.current !== null) {
-      const char = MULTI_TAP_CYCLES[activeKeyRef.current]?.[cycleIndexRef.current];
-      if (char) setCommittedText((t) => t + char);
-    }
-    activeKeyRef.current = null;
-    cycleIndexRef.current = 0;
-    setPendingChar("");
+    multiTapComposerRef.current.commit();
   }, []);
+
+  useEffect(() => () => multiTapComposerRef.current?.dispose(), []);
 
   // Activates search mode — sync both the state and the ref
   const activateSearch = useCallback(() => {
@@ -98,6 +112,20 @@ const NokiaLauncher = ({ apps }) => {
     clearPending();
     setSelectedIndex(0);
   }, [clearPending]);
+
+  const openSearch = useCallback(() => {
+    setCurrentView("menu");
+    activateSearch();
+  }, [activateSearch]);
+
+  const openSettings = useCallback((returnView = currentView) => {
+    searchActiveRef.current = false;
+    setSearchActive(false);
+    setCommittedText("");
+    clearPending();
+    setSettingsReturnView(returnView === "settings" ? "home" : returnView);
+    setCurrentView("settings");
+  }, [clearPending, currentView]);
 
   // ── Visible/filtered menu items ────────────────────────────────────────────
   const fullInput = committedText + pendingChar; // what the user has typed so far
@@ -114,24 +142,27 @@ const NokiaLauncher = ({ apps }) => {
     setSelectedIndex(0);
   }, [fullInput]);
 
-  // Search box display text
-  const searchPreviewText = useMemo(() => {
-    return fullInput.toUpperCase();
-  }, [fullInput]);
-
   // ── Navigation ─────────────────────────────────────────────────────────────
   const handleNavigation = useCallback(
     (direction) => {
-      if (searchActive) return;
       setSelectedIndex((prev) => {
         const len = visibleMenuItems.length;
         if (len === 0) return 0;
+        if (currentView === "home") {
+          if (direction === "left" || direction === "up") {
+            return prev > 0 ? prev - 1 : len - 1;
+          }
+          if (direction === "right" || direction === "down") {
+            return prev < len - 1 ? prev + 1 : 0;
+          }
+          return prev;
+        }
         if (direction === "up")   return prev > 0       ? prev - 1 : len - 1;
         if (direction === "down") return prev < len - 1 ? prev + 1 : 0;
         return prev;
       });
     },
-    [searchActive, visibleMenuItems.length]
+    [currentView, visibleMenuItems.length]
   );
 
   const handleOpenApp = useCallback((app) => {
@@ -141,11 +172,33 @@ const NokiaLauncher = ({ apps }) => {
 
   const handleSelect = useCallback(() => {
     if (currentView === "home" && menuItems[selectedIndex]) {
-      menuItems[selectedIndex].action();
+      handleOpenApp(menuItems[selectedIndex].app);
     } else if (currentView === "menu" && visibleMenuItems[selectedIndex]) {
       handleOpenApp(visibleMenuItems[selectedIndex]);
+    } else if (currentView === "settings" && menuItems[selectedIndex]) {
+      const setting = menuItems[selectedIndex];
+      if (setting.id === "keyboard") {
+        showKeyboardSettings().catch((error) =>
+          console.error("Error opening keyboard settings:", error)
+        );
+      } else {
+        handleOpenApp(settingsApp);
+      }
     }
-  }, [currentView, selectedIndex, menuItems, visibleMenuItems, handleOpenApp]);
+  }, [currentView, selectedIndex, menuItems, visibleMenuItems, handleOpenApp, settingsApp]);
+
+  const handleSettingClick = useCallback((setting) => {
+    if (!setting) return;
+    const index = SETTINGS_ITEMS.findIndex((item) => item.id === setting.id);
+    if (index >= 0) setSelectedIndex(index);
+    if (setting.id === "keyboard") {
+      showKeyboardSettings().catch((error) =>
+        console.error("Error opening keyboard settings:", error)
+      );
+    } else {
+      handleOpenApp(settingsApp);
+    }
+  }, [handleOpenApp, settingsApp]);
 
   const handleBack = useCallback(() => {
     if (currentView === "menu") {
@@ -157,8 +210,12 @@ const NokiaLauncher = ({ apps }) => {
         return;
       }
       setCurrentView("home");
+      return;
     }
-  }, [currentView, searchActive, committedText, pendingChar, clearPending]);
+    if (currentView === "settings") {
+      setCurrentView(settingsReturnView);
+    }
+  }, [currentView, searchActive, committedText, pendingChar, clearPending, settingsReturnView]);
 
   // Deactivate search → reset everything
   useEffect(() => {
@@ -178,38 +235,12 @@ const NokiaLauncher = ({ apps }) => {
 
       // ── Letter/number keys (2–9) ──
       if (cycle) {
-        if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-
-        if (activeKeyRef.current === key) {
-          // Same key → advance cycle
-          cycleIndexRef.current = (cycleIndexRef.current + 1) % cycle.length;
-        } else {
-          // Different key → commit the previous pending char (read from refs, not stale state)
-          if (activeKeyRef.current !== null) {
-            const prevChar = MULTI_TAP_CYCLES[activeKeyRef.current]?.[cycleIndexRef.current];
-            if (prevChar) setCommittedText((t) => t + prevChar);
-          }
-          activeKeyRef.current = key;
-          cycleIndexRef.current = 0;
-        }
-
-        const newChar = cycle[cycleIndexRef.current];
-        setPendingChar(newChar);
-
-        // Auto-commit after delay
-        commitTimerRef.current = setTimeout(commitPending, MULTI_TAP_DELAY);
-        return true;
+        return multiTapComposerRef.current.press(key);
       }
 
       // ── Backspace (*) ──
       if (key === "*") {
-        if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-        if (activeKeyRef.current !== null) {
-          // Cancel the current pending char
-          activeKeyRef.current = null;
-          cycleIndexRef.current = 0;
-          setPendingChar("");
-        } else {
+        if (!multiTapComposerRef.current.cancelPending()) {
           // Delete last committed character
           setCommittedText((t) => t.slice(0, -1));
         }
@@ -261,11 +292,20 @@ const NokiaLauncher = ({ apps }) => {
           setCurrentView("home");
           return;
         }
+        if (currentView === "settings") {
+          setCurrentView(settingsReturnView);
+          return;
+        }
         return;
       }
 
       if (key === "SELECT") {
         handleSelect();
+        return;
+      }
+
+      if (["UP", "DOWN", "LEFT", "RIGHT"].includes(key)) {
+        handleNavigation(key.toLowerCase());
         return;
       }
 
@@ -337,6 +377,7 @@ const NokiaLauncher = ({ apps }) => {
       searchActive,
       selectedIndex,
       visibleMenuItems,
+      settingsReturnView,
       activateSearch,
       handleMultiTapInput,
       handleNavigation,
@@ -349,9 +390,9 @@ const NokiaLauncher = ({ apps }) => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden bg-black text-white select-none" data-testid="nokia-launcher">
+    <div className="nokia-launcher h-full w-full flex flex-col overflow-hidden select-none" data-testid="nokia-launcher">
       {/* Top Screen - 50% */}
-      <div className="h-1/2 w-full p-4 relative flex flex-col bg-black border-b border-white/20">
+      <div className="nokia-launcher__screen h-1/2 w-full relative flex flex-col">
         <Screen
           currentView={currentView}
           menuItems={visibleMenuItems}
@@ -359,17 +400,20 @@ const NokiaLauncher = ({ apps }) => {
           currentTime={currentTime}
           searchActive={searchActive}
           searchQuery={fullInput}
-          searchPreviewText={searchPreviewText}
-          onSearchFocus={activateSearch}
+          onSearchFocus={currentView === "home" ? openSearch : activateSearch}
           onAppClick={handleOpenApp}
+          onOpenMenu={() => setCurrentView("menu")}
+          onOpenSettings={() => openSettings(currentView)}
+          onSettingClick={handleSettingClick}
+          onBack={handleBack}
           dialActive={dialActive}
           dialNumber={dialNumber}
         />
       </div>
 
       {/* Bottom Keypad - 50% */}
-      <div className="h-1/2 w-full px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-6 md:pt-6 md:pb-[calc(1.5rem+env(safe-area-inset-bottom))] bg-[#050505] flex items-center justify-center">
-        <Keypad onKeypadPress={handleKeypadPress} />
+      <div className="nokia-launcher__keypad h-1/2 w-full flex items-center justify-center">
+        <Keypad variant="launcher" onKeypadPress={handleKeypadPress} />
       </div>
     </div>
   );

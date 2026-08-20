@@ -10,7 +10,7 @@ import {
   Delete 
 } from "lucide-react";
 
-const Keypad = ({ onKeypadPress }) => {
+const Keypad = ({ onKeypadPress, variant = "default" }) => {
   const [activeKey, setActiveKey] = useState(null);
 
   const keys = [
@@ -33,6 +33,15 @@ const Keypad = ({ onKeypadPress }) => {
     onKeypadPress(keyNumber);
     setTimeout(() => setActiveKey(null), 75);
   };
+
+  if (variant === "launcher") {
+    return (
+      <LauncherKeypad
+        activeKey={activeKey}
+        onPress={handleKeyPress}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3 md:gap-4 h-full w-full max-w-[400px]" data-testid="keypad">
@@ -160,5 +169,65 @@ const Keypad = ({ onKeypadPress }) => {
     </div>
   );
 };
+
+const LAUNCHER_NUMBER_KEYS = [
+  { number: "1", letters: "◡◡" },
+  { number: "2", letters: "ABC" },
+  { number: "3", letters: "DEF" },
+  { number: "4", letters: "GHI" },
+  { number: "5", letters: "JKL" },
+  { number: "6", letters: "MNO" },
+  { number: "7", letters: "PQRS" },
+  { number: "8", letters: "TUV" },
+  { number: "9", letters: "WXYZ" },
+  { number: "*", letters: "+" },
+  { number: "0", letters: "▔" },
+  { number: "#", letters: "▧" },
+];
+
+const LauncherKeypad = ({ activeKey, onPress }) => (
+  <div className="hardware-keypad" data-testid="keypad">
+    <div className="hardware-controls">
+      <button
+        type="button"
+        className={`hardware-call hardware-button ${activeKey === "SEND" ? "is-active" : ""}`}
+        data-testid="keypad-btn-send"
+        onClick={() => onPress("SEND")}
+        aria-label="Call"
+      ><span /></button>
+
+      <div className="hardware-dpad" aria-label="Directional pad">
+        <button type="button" className="dpad-up" onClick={() => onPress("UP")} aria-label="Up">⌃</button>
+        <button type="button" className="dpad-left" onClick={() => onPress("LEFT")} aria-label="Left">‹</button>
+        <button type="button" className="dpad-select" data-testid="keypad-btn-select" onClick={() => onPress("SELECT")} aria-label="Select" />
+        <button type="button" className="dpad-right" onClick={() => onPress("RIGHT")} aria-label="Right">›</button>
+        <button type="button" className="dpad-down" onClick={() => onPress("DOWN")} aria-label="Down">⌄</button>
+      </div>
+
+      <button
+        type="button"
+        className={`hardware-end hardware-button ${activeKey === "END" ? "is-active" : ""}`}
+        data-testid="keypad-btn-end"
+        onClick={() => onPress("END")}
+        aria-label="End call"
+      ><span /></button>
+    </div>
+
+    <div className="hardware-numbers">
+      {LAUNCHER_NUMBER_KEYS.map((key) => (
+        <button
+          type="button"
+          key={key.number}
+          data-testid={`keypad-btn-${key.number === "*" ? "star" : key.number === "#" ? "hash" : key.number}`}
+          className={`hardware-number ${activeKey === key.number ? "is-active" : ""}`}
+          onClick={() => onPress(key.number)}
+        >
+          <strong>{key.number}</strong>
+          <small>{key.letters}</small>
+        </button>
+      ))}
+    </div>
+  </div>
+);
 
 export default memo(Keypad);

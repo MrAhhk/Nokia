@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Keypad from "./Keypad";
+import { createMultiTapComposer } from "@/domain/multiTapComposer";
 
 const MULTI_TAP_CYCLES = {
   "2": ["a", "b", "c", "2"],
@@ -14,29 +15,47 @@ const MULTI_TAP_CYCLES = {
 
 const MULTI_TAP_DELAY = 250;
 
+const getIMEBridge = () => {
+  return typeof window !== "undefined" && window.NokiaIMEBridge
+    ? window.NokiaIMEBridge
+    : null;
+};
+
 const NokiaSystemKeyboard = () => {
   const [isNavMode, setIsNavMode] = useState(false);
-  const activeKeyRef = useRef(null);
-  const cycleIndexRef = useRef(0);
-  const commitTimerRef = useRef(null);
-  const pendingCharRef = useRef("");
-
-  // Helper to check if native bridge exists
-  const getIMEBridge = () => {
-    return typeof window !== "undefined" && window.NokiaIMEBridge ? window.NokiaIMEBridge : null;
-  };
+  const multiTapComposerRef = useRef(null);
+  if (multiTapComposerRef.current === null) {
+    multiTapComposerRef.current = createMultiTapComposer({
+      cycles: MULTI_TAP_CYCLES,
+      delay: MULTI_TAP_DELAY,
+      onPreview: (character) => {
+        const bridge = getIMEBridge();
+        if (bridge) {
+          bridge.setComposingText(character);
+        } else if (character) {
+          console.log(`IME mock composingText: "${character}"`);
+        }
+      },
+      onCommit: (character) => {
+        const bridge = getIMEBridge();
+        if (bridge) {
+          bridge.commitText(character);
+        } else {
+          console.log(`IME mock commitText: "${character}"`);
+        }
+      },
+    });
+  }
 
   // Safe global reset function callable from native Java code (NokiaIME.java)
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.resetNokiaKeyboard = () => {
-        if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-        activeKeyRef.current = null;
-        cycleIndexRef.current = 0;
-        pendingCharRef.current = "";
+        multiTapComposerRef.current.reset();
       };
     }
     return () => {
+      multiTapComposerRef.current?.dispose();
       if (typeof window !== "undefined") {
         window.resetNokiaKeyboard = null;
       }
@@ -44,22 +63,7 @@ const NokiaSystemKeyboard = () => {
   }, []);
 
   const commitPending = useCallback(() => {
-    if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-    
-    const bridge = getIMEBridge();
-    const finalChar = pendingCharRef.current;
-    
-    if (finalChar) {
-      if (bridge) {
-        bridge.commitText(finalChar);
-      } else {
-        console.log(`IME mock commitText: "${finalChar}"`);
-      }
-    }
-    
-    activeKeyRef.current = null;
-    cycleIndexRef.current = 0;
-    pendingCharRef.current = "";
+    multiTapComposerRef.current.commit();
   }, []);
 
   const handleKeyPress = useCallback((key) => {
@@ -104,10 +108,7 @@ const NokiaSystemKeyboard = () => {
 
     // ─── END (Red Key) -> Send Back event (like classic Nokia exit) ───
     if (key === "END") {
-      if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-      activeKeyRef.current = null;
-      cycleIndexRef.current = 0;
-      pendingCharRef.current = "";
+      multiTapComposerRef.current.reset();
       
       if (bridge) {
         bridge.sendDpadKey("BACK");
@@ -141,20 +142,7 @@ const NokiaSystemKeyboard = () => {
 
     // ─── Backspace (*) ───
     if (key === "*") {
-      if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-      
-      if (activeKeyRef.current !== null) {
-        // Cancel the current pending composition
-        activeKeyRef.current = null;
-        cycleIndexRef.current = 0;
-        pendingCharRef.current = "";
-        
-        if (bridge) {
-          bridge.setComposingText("");
-        } else {
-          console.log("IME mock cancel composition");
-        }
-      } else {
+      if (!multiTapComposerRef.current.cancelPending()) {
         // Delete last character
         if (bridge) {
           bridge.deleteSurroundingText(1, 0);
@@ -173,37 +161,7 @@ const NokiaSystemKeyboard = () => {
     }
 
     // ─── Multi-tap character keys (2-9) ───
-    const cycle = MULTI_TAP_CYCLES[key];
-    if (cycle) {
-      if (commitTimerRef.current) clearTimeout(commitTimerRef.current);
-
-      if (activeKeyRef.current === key) {
-        // Cycle active key characters
-        cycleIndexRef.current = (cycleIndexRef.current + 1) % cycle.length;
-      } else {
-        // Commit previous pending composition
-        if (activeKeyRef.current !== null && pendingCharRef.current) {
-          if (bridge) {
-            bridge.commitText(pendingCharRef.current);
-          }
-        }
-        activeKeyRef.current = key;
-        cycleIndexRef.current = 0;
-      }
-
-      const nextChar = cycle[cycleIndexRef.current];
-      pendingCharRef.current = nextChar;
-
-      // Show the composing character underlined in text field
-      if (bridge) {
-        bridge.setComposingText(nextChar);
-      } else {
-        console.log(`IME mock composingText: "${nextChar}"`);
-      }
-
-      // Automatically commit character after 250ms of inactivity
-      commitTimerRef.current = setTimeout(commitPending, MULTI_TAP_DELAY);
-    }
+    multiTapComposerRef.current.press(key);
   }, [commitPending, isNavMode]);
 
   return (

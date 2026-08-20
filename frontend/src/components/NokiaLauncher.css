@@ -1,0 +1,444 @@
+.nokia-launcher {
+  --shell: #111516;
+  --shell-raised: #1a1e1f;
+  --shell-edge: #020303;
+  --lcd: #9da84d;
+  --lcd-dark: #858f3f;
+  --ink: #111803;
+  background: var(--shell);
+  color: var(--ink);
+  font-family: "Courier New", "Lucida Console", monospace;
+}
+
+.nokia-launcher button {
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nokia-launcher__screen {
+  padding: clamp(9px, 2.4vw, 15px);
+  background: linear-gradient(100deg, #0d1011, #191d1e 48%, #0b0d0e);
+  border-bottom: 2px solid #030404;
+  box-shadow: inset 0 -1px rgba(255, 255, 255, 0.08);
+}
+
+.lcd-screen {
+  position: relative;
+  display: grid;
+  grid-template-rows: 20px 40% 38px minmax(74px, 1fr) 26px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(10px, 3vw, 18px) clamp(11px, 3.6vw, 22px) 8px;
+  overflow: hidden;
+  border: 1px solid #aeb862;
+  border-radius: 8px;
+  background-color: var(--lcd);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(17, 24, 3, 0.045) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(17, 24, 3, 0.035) 0 1px, transparent 1px 3px),
+    radial-gradient(circle at 50% 30%, #a8b358 0, var(--lcd) 58%, var(--lcd-dark) 120%);
+  box-shadow:
+    inset 0 0 24px rgba(56, 65, 13, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+  -webkit-font-smoothing: none;
+}
+
+.lcd-status {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.lcd-signal {
+  display: flex;
+  height: 17px;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.lcd-signal i {
+  display: block;
+  width: 3px;
+  background: var(--ink);
+}
+
+.lcd-signal i:nth-child(1) { height: 5px; }
+.lcd-signal i:nth-child(2) { height: 8px; }
+.lcd-signal i:nth-child(3) { height: 11px; }
+.lcd-signal i:nth-child(4) { height: 14px; }
+.lcd-signal i:nth-child(5) { height: 18px; }
+
+.lcd-battery {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  width: 27px;
+  height: 15px;
+  padding: 2px;
+  border: 2px solid var(--ink);
+}
+
+.lcd-battery::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: -5px;
+  width: 3px;
+  height: 6px;
+  background: var(--ink);
+}
+
+.lcd-battery i {
+  flex: 1;
+  background: var(--ink);
+}
+
+.lcd-time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  font-family: "Lucida Console", "Courier New", monospace;
+  font-size: clamp(44px, 14vw, 72px);
+  font-weight: 400;
+  line-height: 0.85;
+  letter-spacing: 0.04em;
+  transform: scaleX(0.88);
+  text-shadow: 1px 0 var(--ink);
+}
+
+.lcd-search {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 34px;
+  padding: 4px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.lcd-search svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 3;
+}
+
+.lcd-search:focus-visible,
+.lcd-shortcut:focus-visible,
+.lcd-softkeys button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.lcd-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+  padding-top: 7px;
+}
+
+.lcd-shortcut {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: clamp(10px, 3.2vw, 15px);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lcd-shortcut__icon {
+  display: grid;
+  width: clamp(30px, 9vw, 43px);
+  height: clamp(30px, 9vw, 43px);
+  place-items: center;
+}
+
+.lcd-shortcut__icon svg {
+  width: 88%;
+  height: 88%;
+  fill: var(--ink);
+  stroke: var(--ink);
+  stroke-width: 2.8;
+}
+
+.lcd-shortcut.is-selected .lcd-shortcut__icon svg {
+  filter: drop-shadow(1px 0 0 var(--ink));
+}
+
+.lcd-softkeys {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: end;
+  font-size: clamp(11px, 3.4vw, 16px);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lcd-softkeys > :nth-child(2) { text-align: center; }
+.lcd-softkeys > :last-child { text-align: right; }
+.lcd-softkeys button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.lcd-list-screen {
+  grid-template-rows: 20px 62px 35px minmax(0, 1fr) 26px;
+}
+
+.lcd-list-time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Lucida Console", "Courier New", monospace;
+  font-size: clamp(38px, 11vw, 58px);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  transform: scaleX(0.88);
+  text-shadow: 1px 0 var(--ink);
+}
+
+.lcd-list-title {
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+  font-size: clamp(15px, 4.2vw, 21px);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lcd-list {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+
+.lcd-list::-webkit-scrollbar {
+  display: none;
+}
+
+.lcd-list-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 41px;
+  min-height: 41px;
+  align-items: center;
+  padding: 4px 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: clamp(17px, 4.6vw, 23px);
+  font-weight: 700;
+  line-height: 1;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lcd-list-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lcd-list-row.is-selected {
+  background: var(--ink);
+  color: var(--lcd);
+}
+
+.lcd-list-row:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -4px;
+}
+
+.lcd-list-empty {
+  padding: 8px;
+  font-size: clamp(17px, 4.6vw, 23px);
+  font-weight: 700;
+}
+
+.lcd-list-softkeys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: end;
+  font-size: clamp(11px, 3.4vw, 16px);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lcd-list-softkeys > :nth-child(2) { text-align: center; }
+.lcd-list-softkeys > :last-child { text-align: right; }
+
+.lcd-list-softkeys button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.lcd-list-softkeys button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.nokia-launcher__keypad {
+  padding: 12px 13px max(12px, env(safe-area-inset-bottom));
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.025), transparent 12%, transparent 88%, rgba(255,255,255,0.025)),
+    linear-gradient(120deg, #171b1c, #0c0f10 54%, #171a1b);
+}
+
+.hardware-keypad {
+  display: grid;
+  grid-template-rows: minmax(82px, 1.15fr) minmax(0, 2.6fr);
+  gap: 11px;
+  width: 100%;
+  height: 100%;
+  max-width: 430px;
+  color: #eef0f0;
+}
+
+.hardware-controls {
+  display: grid;
+  grid-template-columns: 1fr 1.45fr 1fr;
+  align-items: center;
+  gap: 13px;
+}
+
+.hardware-button,
+.hardware-number,
+.hardware-dpad,
+.hardware-dpad button {
+  border: 1px solid #000;
+  background: linear-gradient(#1b1f20, #111415);
+  color: #eef0f0;
+  box-shadow:
+    inset 0 1px rgba(255,255,255,0.08),
+    inset 0 -2px rgba(0,0,0,0.65),
+    0 2px 3px rgba(0,0,0,0.75);
+}
+
+.hardware-button {
+  height: 42px;
+  border-radius: 10px;
+}
+
+.hardware-button span {
+  display: block;
+  width: 38%;
+  height: 3px;
+  margin: auto;
+  border-radius: 5px;
+}
+
+.hardware-call span { background: #45b82f; box-shadow: 0 0 2px #45b82f; }
+.hardware-end span { background: #ed302d; box-shadow: 0 0 2px #ed302d; }
+
+.hardware-dpad {
+  position: relative;
+  align-self: stretch;
+  min-height: 68px;
+  border-radius: 18px;
+}
+
+.hardware-dpad button {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-family: Arial, sans-serif;
+  font-size: 29px;
+  font-weight: 300;
+}
+
+.dpad-up { top: 0; left: 34%; width: 32%; height: 33%; }
+.dpad-down { bottom: 0; left: 34%; width: 32%; height: 33%; }
+.dpad-left { top: 33%; left: 0; width: 34%; height: 34%; }
+.dpad-right { top: 33%; right: 0; width: 34%; height: 34%; }
+.hardware-dpad .dpad-select {
+  top: 31%;
+  left: 34%;
+  width: 32%;
+  height: 38%;
+  border: 1px solid #050606;
+  border-radius: 8px;
+  background: linear-gradient(#202425, #111415);
+  box-shadow: inset 0 1px rgba(255,255,255,0.06), 0 2px 2px #050606;
+}
+
+.hardware-numbers {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 7px 10px;
+}
+
+.hardware-number {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 9px;
+  line-height: 1;
+}
+
+.hardware-number strong {
+  font-family: Arial, sans-serif;
+  font-size: clamp(20px, 6.2vw, 32px);
+  font-weight: 300;
+}
+
+.hardware-number small {
+  min-height: 0.8em;
+  margin-top: 2px;
+  font-family: Arial, sans-serif;
+  font-size: clamp(8px, 2.6vw, 13px);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.hardware-button:active,
+.hardware-button.is-active,
+.hardware-number:active,
+.hardware-number.is-active,
+.hardware-dpad button:active {
+  transform: translateY(1px);
+  filter: brightness(1.28);
+}
+
+@media (min-width: 600px) {
+  .nokia-launcher__screen { padding: 18px 9%; }
+  .nokia-launcher__keypad { padding-left: 9%; padding-right: 9%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nokia-launcher * { scroll-behavior: auto !important; }
+}

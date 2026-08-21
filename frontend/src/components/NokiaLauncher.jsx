@@ -2,15 +2,26 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Screen from "./Screen";
 import Keypad from "./Keypad";
 import CameraFeature from "@/features/camera/CameraFeature";
-import { launchInstalledApp, makePhoneCall, openWebUrl, showKeyboardSettings } from "@/lib/launcherApps";
+import {
+  getDeviceStatus,
+  launchInstalledApp,
+  makePhoneCall,
+  openDefaultMaps,
+  openDefaultPhone,
+  openNotificationAccessSettings,
+  openSystemSetting,
+  openWebUrl,
+  showKeyboardSettings,
+} from "@/lib/launcherApps";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
 import {
   HOME_FOCUS_TARGETS,
   SETTINGS_ITEMS,
   createHomeShortcuts,
-  findMatchingApp,
   moveHomeFocus,
   orderDrawerApps,
+  rankSearchResults,
+  resolveHomeShortcut,
 } from "@/domain/launcherMenus";
 import "./NokiaLauncher.css";
 
@@ -28,12 +39,6 @@ const MULTI_TAP_CYCLES = {
 
 // How long (ms) of inactivity before the pending char is auto-committed
 const MULTI_TAP_DELAY = 250;
-
-const getAppDisplayName = (app) =>
-  app?.displayName || app?.name || app?.label || app?.title || app?.packageName || "";
-
-const getAppSearchText = (app) =>
-  `${getAppDisplayName(app)} ${app.packageName || ""}`.toLowerCase();
 
 const NokiaLauncher = ({ apps }) => {
   const [currentView, setCurrentView] = useState("home");
@@ -56,6 +61,7 @@ const NokiaLauncher = ({ apps }) => {
   // Dialer state for home screen numbers
   const [dialActive, setDialActive] = useState(false);
   const [dialNumber, setDialNumber] = useState("");
+  const [deviceStatus, setDeviceStatus] = useState(null);
 
   // Shared multi-tap module keeps timing/cycling out of the launcher controller.
   const multiTapComposerRef = useRef(null);
@@ -74,17 +80,28 @@ const NokiaLauncher = ({ apps }) => {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const refresh = () => getDeviceStatus()
+      .then((status) => active && setDeviceStatus(status))
+      .catch((error) => console.warn("Device status unavailable:", error));
+    refresh();
+    const timer = setInterval(refresh, 5000);
+    const onVisible = () => document.visibilityState === "visible" && refresh();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
   const homeShortcuts = useMemo(
     () => createHomeShortcuts(apps),
     [apps]
   );
 
   const drawerApps = useMemo(() => orderDrawerApps(apps), [apps]);
-
-  const settingsApp = useMemo(
-    () => findMatchingApp(apps, ["settings", "android settings"]),
-    [apps]
-  );
 
   const menuItems = currentView === "home"
     ? homeShortcuts
@@ -141,15 +158,13 @@ const NokiaLauncher = ({ apps }) => {
   const fullInput = committedText + pendingChar; // what the user has typed so far
 
   const visibleMenuItems = useMemo(() => {
-    if (currentView !== "menu" || !fullInput) return menuItems;
-    return menuItems.filter((app) =>
-      getAppSearchText(app).includes(fullInput.toLowerCase())
-    );
+    if (!(["menu", "settings"].includes(currentView)) || !fullInput) return menuItems;
+    return rankSearchResults(menuItems, fullInput);
   }, [currentView, menuItems, fullInput]);
 
   // Reset selection whenever the filtered list changes
   useEffect(() => {
-    if (currentView === "menu") {
+    if (currentView === "menu" || currentView === "settings") {
       setSelectedIndex(0);
     }
   }, [currentView, fullInput]);
@@ -173,6 +188,14 @@ const NokiaLauncher = ({ apps }) => {
 
   const handleOpenApp = useCallback((app) => {
     if (!app) return;
+    if (app.action === "default-phone") {
+      openDefaultPhone().catch((err) => console.error("Error opening phone:", err));
+      return;
+    }
+    if (app.action === "default-maps") {
+      openDefaultMaps().catch((err) => console.error("Error opening maps:", err));
+      return;
+    }
     if (app.action === "built-in-camera") {
       setCameraReturnView(currentView === "camera" ? "home" : currentView);
       setCurrentView("camera");
@@ -187,21 +210,23 @@ const NokiaLauncher = ({ apps }) => {
       if (target === "search") {
         openGoogleSearch();
       } else {
-        handleOpenApp(homeShortcuts.find((item) => item.id === target)?.app);
+        handleOpenApp(resolveHomeShortcut(homeShortcuts, target));
       }
     } else if (currentView === "menu" && visibleMenuItems[selectedIndex]) {
       handleOpenApp(visibleMenuItems[selectedIndex]);
-    } else if (currentView === "settings" && menuItems[selectedIndex]) {
-      const setting = menuItems[selectedIndex];
+    } else if (currentView === "settings" && visibleMenuItems[selectedIndex]) {
+      const setting = visibleMenuItems[selectedIndex];
       if (setting.id === "keyboard") {
         showKeyboardSettings().catch((error) =>
           console.error("Error opening keyboard settings:", error)
         );
       } else {
-        handleOpenApp(settingsApp);
+        openSystemSetting(setting.id).catch((error) =>
+          console.error(`Error opening ${setting.id} settings:`, error)
+        );
       }
     }
-  }, [currentView, selectedIndex, menuItems, visibleMenuItems, handleOpenApp, homeShortcuts, openGoogleSearch, settingsApp]);
+  }, [currentView, selectedIndex, visibleMenuItems, handleOpenApp, homeShortcuts, openGoogleSearch]);
 
   const handleSettingClick = useCallback((setting) => {
     if (!setting) return;
@@ -212,9 +237,11 @@ const NokiaLauncher = ({ apps }) => {
         console.error("Error opening keyboard settings:", error)
       );
     } else {
-      handleOpenApp(settingsApp);
+      openSystemSetting(setting.id).catch((error) =>
+        console.error(`Error opening ${setting.id} settings:`, error)
+      );
     }
-  }, [handleOpenApp, settingsApp]);
+  }, []);
 
   const handleBack = useCallback(() => {
     if (currentView === "menu") {
@@ -229,6 +256,13 @@ const NokiaLauncher = ({ apps }) => {
       return;
     }
     if (currentView === "settings") {
+      if (pendingChar) { clearPending(); return; }
+      if (committedText) { setCommittedText(""); return; }
+      if (searchActive) {
+        searchActiveRef.current = false;
+        setSearchActive(false);
+        return;
+      }
       setCurrentView(settingsReturnView);
     }
   }, [currentView, searchActive, committedText, pendingChar, clearPending, settingsReturnView]);
@@ -371,7 +405,7 @@ const NokiaLauncher = ({ apps }) => {
       }
 
       // ─── Auto-activate search in menu when typing letters ───
-      if (currentView === "menu" && MULTI_TAP_CYCLES[key] && !searchActiveRef.current) {
+      if ((currentView === "menu" || currentView === "settings") && MULTI_TAP_CYCLES[key] && !searchActiveRef.current) {
         activateSearch();
       }
 
@@ -438,9 +472,13 @@ const NokiaLauncher = ({ apps }) => {
           onOpenMenu={() => setCurrentView("menu")}
           onOpenSettings={() => openSettings(currentView)}
           onSettingClick={handleSettingClick}
+          onListSearchFocus={activateSearch}
           onBack={handleBack}
           dialActive={dialActive}
           dialNumber={dialNumber}
+          deviceStatus={deviceStatus}
+          onNotificationStatusClick={openNotificationAccessSettings}
+          onStatusIconClick={openSystemSetting}
         />}
       </div>
 

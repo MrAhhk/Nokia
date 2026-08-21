@@ -6,6 +6,7 @@ export const createCameraState = () => ({
   mode: CAMERA_MODES.PHOTO,
   lens: "back",
   flash: "auto",
+  grid: true,
   recording: false,
   finalizing: false,
   exitAfterFinalize: false,
@@ -22,6 +23,8 @@ export const reduceCameraState = (state, action) => {
       return state.recording || state.finalizing ? state : { ...state, lens: action.lens };
     case "SET_FLASH":
       return state.finalizing ? state : { ...state, flash: action.flash };
+    case "TOGGLE_GRID":
+      return state.recording || state.finalizing ? state : { ...state, grid: !state.grid };
     case "RECORDING_STARTED":
       return { ...state, recording: true, finalizing: false, error: null };
     case "RECORDING_STOPPING":

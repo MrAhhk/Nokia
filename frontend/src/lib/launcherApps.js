@@ -27,6 +27,26 @@ const STATIC_FALLBACK_APPS = [
 
 let installedAppsCache = null;
 let installedAppsRequest = null;
+const INSTALLED_APPS_STORAGE_KEY = "nokia-launcher.installed-apps.v1";
+
+export const getCachedInstalledApps = () => {
+  if (typeof window === "undefined") return [];
+  try {
+    const cached = JSON.parse(window.localStorage.getItem(INSTALLED_APPS_STORAGE_KEY) || "[]");
+    return Array.isArray(cached) ? cached : [];
+  } catch (_error) {
+    return [];
+  }
+};
+
+const persistInstalledApps = (apps) => {
+  if (typeof window === "undefined" || !Array.isArray(apps) || apps.length === 0) return;
+  try {
+    window.localStorage.setItem(INSTALLED_APPS_STORAGE_KEY, JSON.stringify(apps));
+  } catch (_error) {
+    // Storage can be unavailable in restricted WebViews; in-memory caching still works.
+  }
+};
 
 export const getInstalledApps = async () => {
   if (installedAppsCache) {
@@ -60,6 +80,7 @@ export const getInstalledApps = async () => {
         if (installedAppsCache.length === 0) {
           installedAppsCache = STATIC_FALLBACK_APPS;
         }
+        persistInstalledApps(installedAppsCache);
         return installedAppsCache;
       })
       .catch((error) => {
@@ -83,6 +104,7 @@ export const getInstalledApps = async () => {
         console.warn("Native LauncherApps plugin returned 0 apps. Falling back to static mock apps.");
         installedAppsCache = STATIC_FALLBACK_APPS;
       }
+      persistInstalledApps(installedAppsCache);
       return installedAppsCache;
     })
     .catch((error) => {
@@ -200,6 +222,64 @@ export const setCameraLens = (lens) =>
 
 export const setCameraFlash = (mode) =>
   callCameraMethod("setCameraFlash", { mode }, { mode });
+
+export const setCameraMode = (mode) =>
+  callCameraMethod("setCameraMode", { mode }, { mode });
+
+export const setCameraGrid = (enabled) =>
+  callCameraMethod("setCameraGrid", { enabled }, { enabled });
+
+export const addCameraControlListener = async (handler) => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.addListener) return { remove: async () => {} };
+  return launcherApps.addListener("cameraControl", handler);
+};
+
+export const openDefaultPhone = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps) return;
+  await launcherApps.openDefaultPhone();
+};
+
+export const openDefaultMaps = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps) {
+    if (typeof window !== "undefined") window.open("https://maps.google.com", "_blank", "noopener,noreferrer");
+    return;
+  }
+  await launcherApps.openDefaultMaps();
+};
+
+export const getDeviceStatus = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.getDeviceStatus) {
+    return {
+      wifi: navigator.onLine,
+      bluetooth: null,
+      vpn: false,
+      charging: false,
+      powerSave: false,
+      silent: false,
+      batteryLevel: 100,
+      notificationCount: 0,
+      notificationAccess: false,
+    };
+  }
+  return launcherApps.getDeviceStatus();
+};
+
+export const openNotificationAccessSettings = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.openNotificationAccessSettings) return;
+  await launcherApps.openNotificationAccessSettings();
+};
+
+export const openSystemSetting = async (setting) => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.openSystemSetting) return;
+  await launcherApps.openSystemSetting({ setting });
+};
+
 
 export const showCameraMedia = (media) =>
   callCameraMethod("showCameraMedia", media, { shown: false });

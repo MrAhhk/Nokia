@@ -5,6 +5,8 @@ import {
   findMatchingApp,
   moveHomeFocus,
   orderDrawerApps,
+  resolveHomeShortcut,
+  rankSearchResults,
 } from "./launcherMenus";
 
 const apps = [
@@ -48,6 +50,15 @@ describe("launcher menu models", () => {
     });
   });
 
+  test("preserves home shortcut actions when selected by D-pad", () => {
+    const shortcuts = createHomeShortcuts(apps);
+
+    expect(resolveHomeShortcut(shortcuts, "phone")).toMatchObject({ action: "default-phone" });
+    expect(resolveHomeShortcut(shortcuts, "maps")).toMatchObject({ action: "default-maps" });
+    expect(resolveHomeShortcut(shortcuts, "camera")).toMatchObject({ action: "built-in-camera" });
+    expect(resolveHomeShortcut(shortcuts, "messages")).toEqual(apps.find((app) => app.id === "messages"));
+  });
+
   test("marks the prioritized Camera drawer item as built-in without changing other apps", () => {
     const ordered = orderDrawerApps(apps);
     expect(ordered.find((item) => (item.displayName || item.name) === "Camera")).toMatchObject({
@@ -82,5 +93,21 @@ describe("launcher menu models", () => {
     expect(moveHomeFocus(1, "up")).toBe(0);
     expect(moveHomeFocus(0, "left")).toBe(4);
     expect(moveHomeFocus(4, "right")).toBe(0);
+  });
+
+  test("ranks early name-prefix matches ahead of substring and package matches", () => {
+    const results = rankSearchResults([
+      { name: "My Phone Tools", packageName: "example.tools" },
+      { name: "Contacts", packageName: "com.phone.contacts" },
+      { name: "Phone", packageName: "com.android.dialer" },
+      { name: "Photos", packageName: "com.photos" },
+    ], "ph");
+
+    expect(results.map((item) => item.name)).toEqual([
+      "Phone",
+      "Photos",
+      "My Phone Tools",
+      "Contacts",
+    ]);
   });
 });

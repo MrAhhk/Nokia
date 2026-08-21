@@ -9,18 +9,21 @@ import {
 } from "react";
 import {
   captureCameraPhoto,
+  addCameraControlListener,
   controlCameraMedia,
   hideCameraMedia,
   listCameraMedia,
   setCameraFlash,
+  setCameraGrid,
   setCameraLens,
+  setCameraMode,
   showCameraMedia,
   startBuiltInCamera,
   startCameraVideo,
   stopBuiltInCamera,
   stopCameraVideo,
 } from "@/lib/launcherApps";
-import { getCameraCommand } from "./cameraCommands";
+import { getCameraCommand, getCameraTouchCommand } from "./cameraCommands";
 import { CAMERA_MODES, CAMERA_VIEWS, createCameraState, reduceCameraState } from "./cameraState";
 import "./camera.css";
 
@@ -43,11 +46,12 @@ const CameraFeature = forwardRef(({ onExit }, ref) => {
   const [media, setMedia] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [status, setStatus] = useState("Starting camera");
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [busy, setBusy] = useState(false);
   const surfaceRef = useRef(null);
-  const cameraConfigRef = useRef({ lens: state.lens, mode: state.mode });
-  cameraConfigRef.current = { lens: state.lens, mode: state.mode };
+  const cameraConfigRef = useRef({ lens: state.lens, mode: state.mode, grid: state.grid });
+  const stateRef = useRef(state);
+  cameraConfigRef.current = { lens: state.lens, mode: state.mode, grid: state.grid };
+  stateRef.current = state;
 
   const startPreview = useCallback(async () => {
     const bounds = getNativeBounds(surfaceRef.current);
@@ -68,16 +72,6 @@ const CameraFeature = forwardRef(({ onExit }, ref) => {
     const frame = requestAnimationFrame(startPreview);
     return () => cancelAnimationFrame(frame);
   }, [state.view, startPreview]);
-
-  useEffect(() => {
-    if (!state.recording) {
-      setRecordingSeconds(0);
-      return undefined;
-    }
-    const started = Date.now();
-    const timer = setInterval(() => setRecordingSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
-    return () => clearInterval(timer);
-  }, [state.recording]);
 
   useEffect(() => () => {
     stopBuiltInCamera().catch(() => {});
@@ -181,8 +175,21 @@ const CameraFeature = forwardRef(({ onExit }, ref) => {
         break;
       case "TOGGLE_MODE": {
         const mode = state.mode === CAMERA_MODES.PHOTO ? CAMERA_MODES.VIDEO : CAMERA_MODES.PHOTO;
+        await setCameraMode(mode);
         dispatch({ type: "SET_MODE", mode });
         setStatus(mode === CAMERA_MODES.PHOTO ? "Photo mode" : "Video mode");
+        break;
+      }
+      case "SET_MODE": {
+        await setCameraMode(command.mode);
+        dispatch({ type: "SET_MODE", mode: command.mode });
+        setStatus(command.mode === CAMERA_MODES.PHOTO ? "Photo mode" : "Video mode");
+        break;
+      }
+      case "TOGGLE_GRID": {
+        const enabled = !state.grid;
+        await setCameraGrid(enabled);
+        dispatch({ type: "TOGGLE_GRID" });
         break;
       }
       case "CYCLE_FLASH": {
@@ -229,15 +236,29 @@ const CameraFeature = forwardRef(({ onExit }, ref) => {
       default:
         break;
     }
-  }, [busy, loadGallery, media, onExit, selectedIndex, state.flash, state.lens, state.mode, stopRecording]);
+  }, [busy, loadGallery, media, onExit, selectedIndex, state.flash, state.grid, state.lens, state.mode, stopRecording]);
+
+  const executeCommandRef = useRef(executeCommand);
+  executeCommandRef.current = executeCommand;
+
+  useEffect(() => {
+    let listener;
+    let disposed = false;
+    addCameraControlListener(({ control }) => {
+      executeCommandRef.current(getCameraTouchCommand(stateRef.current, control));
+    }).then((handle) => {
+      if (disposed) handle.remove();
+      else listener = handle;
+    }).catch(() => {});
+    return () => {
+      disposed = true;
+      listener?.remove();
+    };
+  }, []);
 
   useImperativeHandle(ref, () => ({
     handleKey: (key) => executeCommand(getCameraCommand(state, key)),
   }), [executeCommand, state]);
-
-  const modeLabel = state.recording
-    ? `REC ${String(Math.floor(recordingSeconds / 60)).padStart(2, "0")}:${String(recordingSeconds % 60).padStart(2, "0")}`
-    : state.mode.toUpperCase();
 
   if (state.view === CAMERA_VIEWS.GALLERY) {
     return (
@@ -274,15 +295,7 @@ const CameraFeature = forwardRef(({ onExit }, ref) => {
 
   return (
     <div className="lcd-screen camera-screen" data-testid="screen-camera">
-      <CameraHeader title={modeLabel} status={status} recording={state.recording} />
-      <div ref={surfaceRef} className="camera-native-slot">
-        <span className="camera-native-slot__fallback">CAMERA</span>
-      </div>
-      <div className="camera-readout">
-        <span>{state.lens === "back" ? "REAR" : "FRONT"}</span>
-        <span>FLASH {state.flash.toUpperCase()}</span>
-      </div>
-      <div className="camera-softkeys"><span>Gallery</span><span>{state.mode === CAMERA_MODES.PHOTO ? "Capture" : state.recording ? "Stop" : "Record"}</span><span>Back</span></div>
+      <div ref={surfaceRef} className="camera-native-slot camera-native-slot--full" aria-label="Camera preview" />
     </div>
   );
 });

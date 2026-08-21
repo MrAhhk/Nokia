@@ -1,6 +1,6 @@
 # Built-in Camera Architecture
 
-The built-in camera is a finite, local-first utility inside the existing Nokia launcher shell. The React LCD and reusable keypad remain the interaction layer; CameraX supplies native preview, photo capture, video recording, and media playback.
+The built-in camera is a finite, local-first utility inside the existing Nokia launcher shell. The reusable keypad remains the primary interaction layer; CameraX supplies a full-LCD preview, native camera HUD, photo capture, video recording, tap-to-focus, and media playback.
 
 ## Boundaries
 
@@ -18,6 +18,11 @@ The built-in camera is a finite, local-first utility inside the existing Nokia l
 - Up/down: Photo/Video.
 - Left: flash mode.
 - Right: lens switch.
+- `*`: composition grid.
+- Touching the live image: focus and exposure metering at that point.
+- Touching the visible flash, mode, shutter, latest-capture, or lens controls invokes the same guarded command path as the keypad.
+
+The live preview fills the entire mini-screen. Functional camera chrome is drawn by the native controller above the preview without full-width opacity bands, so controls and recording feedback do not shrink or mask the image. The latest app capture is decoded off the UI thread and center-cropped into the gallery control. Instructional softkey labels are deliberately absent from the camera view.
 
 ## Storage and privacy
 

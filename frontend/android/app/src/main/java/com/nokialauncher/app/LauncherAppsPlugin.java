@@ -4,10 +4,20 @@ import android.Manifest;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
+import android.media.AudioManager;
+import android.os.BatteryManager;
+import android.os.Build;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.inputmethod.InputMethodManager;
 import com.getcapacitor.JSObject;
@@ -30,7 +40,8 @@ import org.json.JSONArray;
     name = "LauncherApps",
     permissions = {
         @Permission(alias = "camera", strings = { Manifest.permission.CAMERA }),
-        @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO })
+        @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO }),
+        @Permission(alias = "phone", strings = { Manifest.permission.CALL_PHONE })
     }
 )
 public class LauncherAppsPlugin extends Plugin {
@@ -38,7 +49,11 @@ public class LauncherAppsPlugin extends Plugin {
 
     private BuiltInCameraController cameraController() {
         if (cameraController == null) {
-            cameraController = new BuiltInCameraController(getActivity());
+            cameraController = new BuiltInCameraController(getActivity(), control -> {
+                JSObject event = new JSObject();
+                event.put("control", control);
+                notifyListeners("cameraControl", event);
+            });
         }
         return cameraController;
     }
@@ -135,16 +150,189 @@ public class LauncherAppsPlugin extends Plugin {
             return;
         }
 
+        if (getPermissionState("phone") != PermissionState.GRANTED) {
+            requestPermissionForAlias("phone", call, "phonePermissionCallback");
+            return;
+        }
+
+        placeDirectCall(call, number);
+     }
+
+    @PermissionCallback
+    private void phonePermissionCallback(PluginCall call) {
+        if (getPermissionState("phone") != PermissionState.GRANTED) {
+            call.reject("phone_permission_denied");
+            return;
+        }
+
+        String number = call.getString("number");
+        if (number == null || number.trim().isEmpty()) {
+            call.reject("Phone number is required");
+            return;
+        }
+        placeDirectCall(call, number);
+    }
+
+    private void placeDirectCall(PluginCall call, String number) {
         try {
             Uri uri = Uri.parse("tel:" + number.trim());
-            Intent intent = new Intent(Intent.ACTION_DIAL, uri);
+            Intent intent = new Intent(Intent.ACTION_CALL, uri);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
             call.resolve();
         } catch (Exception e) {
             call.reject("Failed to make phone call: " + e.getMessage(), e);
         }
-     }
+    }
+
+    @PluginMethod
+    public void openDefaultPhone(PluginCall call) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_DIAL);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Failed to open phone app: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
+    public void openDefaultMaps(PluginCall call) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q="));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception primaryError) {
+            try {
+                Intent fallback = new Intent(Intent.ACTION_VIEW, Uri.parse("https://maps.google.com"));
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(fallback);
+                call.resolve();
+            } catch (Exception fallbackError) {
+                call.reject("Failed to open maps app: " + fallbackError.getMessage(), fallbackError);
+            }
+        }
+    }
+
+    @PluginMethod
+    public void getDeviceStatus(PluginCall call) {
+        Context context = getContext();
+        JSObject result = new JSObject();
+
+        boolean wifi = false;
+        boolean vpn = false;
+        ConnectivityManager connectivity = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivity != null) {
+            Network activeNetwork = connectivity.getActiveNetwork();
+            NetworkCapabilities capabilities = connectivity.getNetworkCapabilities(activeNetwork);
+            if (capabilities != null) {
+                wifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+                vpn = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN);
+            }
+        }
+
+        Boolean bluetooth = null;
+        BluetoothManager bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+        BluetoothAdapter adapter = bluetoothManager != null ? bluetoothManager.getAdapter() : null;
+        if (adapter != null) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                bluetooth = adapter.isEnabled();
+            } else {
+                bluetooth = Settings.Global.getInt(context.getContentResolver(), "bluetooth_on", 0) == 1;
+            }
+        }
+
+        Intent battery = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        int level = battery != null ? battery.getIntExtra(BatteryManager.EXTRA_LEVEL, 100) : 100;
+        int scale = battery != null ? battery.getIntExtra(BatteryManager.EXTRA_SCALE, 100) : 100;
+        int batteryLevel = scale > 0 ? Math.round(level * 100f / scale) : 100;
+        int plugged = battery != null ? battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) : 0;
+
+        PowerManager power = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        AudioManager audio = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+
+        result.put("wifi", wifi);
+        result.put("vpn", vpn);
+        result.put("bluetooth", bluetooth);
+        result.put("batteryLevel", batteryLevel);
+        result.put("charging", plugged != 0);
+        result.put("powerSave", power != null && power.isPowerSaveMode());
+        result.put("silent", audio != null && audio.getRingerMode() != AudioManager.RINGER_MODE_NORMAL);
+        result.put("notificationCount", NokiaNotificationListener.getActiveNotificationCount());
+        result.put("notificationAccess", NokiaNotificationListener.hasAccess(context));
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void openNotificationAccessSettings(PluginCall call) {
+        try {
+            Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Failed to open notification access settings: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
+    public void openSystemSetting(PluginCall call) {
+        String setting = call.getString("setting", "settings");
+        Intent intent;
+
+        switch (setting) {
+            case "display":
+                intent = new Intent(Settings.ACTION_DISPLAY_SETTINGS);
+                break;
+            case "sound":
+                intent = new Intent(Settings.ACTION_SOUND_SETTINGS);
+                break;
+            case "privacy":
+                intent = new Intent(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                    ? Settings.ACTION_PRIVACY_SETTINGS
+                    : Settings.ACTION_SECURITY_SETTINGS);
+                break;
+            case "digital-wellbeing":
+                intent = getContext().getPackageManager().getLaunchIntentForPackage("com.google.android.apps.wellbeing");
+                if (intent == null) intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+                break;
+            case "wifi":
+                intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
+                break;
+            case "bluetooth":
+                intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+                break;
+            case "vpn":
+                intent = new Intent(Settings.ACTION_VPN_SETTINGS);
+                break;
+            case "battery":
+                intent = new Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS);
+                break;
+            case "network":
+                intent = new Intent(Settings.ACTION_WIRELESS_SETTINGS);
+                break;
+            default:
+                intent = new Intent(Settings.ACTION_SETTINGS);
+                break;
+        }
+
+        try {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception primaryError) {
+            try {
+                Intent fallback = new Intent(Settings.ACTION_SETTINGS);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(fallback);
+                call.resolve();
+            } catch (Exception fallbackError) {
+                call.reject("Failed to open " + setting + " settings: " + fallbackError.getMessage(), fallbackError);
+            }
+        }
+    }
 
     @PluginMethod
     public void openWebUrl(PluginCall call) {
@@ -241,6 +429,16 @@ public class LauncherAppsPlugin extends Plugin {
     @PluginMethod
     public void setCameraFlash(PluginCall call) {
         cameraController().setFlash(call);
+    }
+
+    @PluginMethod
+    public void setCameraMode(PluginCall call) {
+        cameraController().setMode(call);
+    }
+
+    @PluginMethod
+    public void setCameraGrid(PluginCall call) {
+        cameraController().setGrid(call);
     }
 
     @PluginMethod

@@ -9,13 +9,21 @@ import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
+import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
 import android.graphics.Matrix;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.view.View;
@@ -25,11 +33,15 @@ import android.view.TextureView;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
+import androidx.camera.core.FocusMeteringAction;
+import androidx.camera.core.MeteringPoint;
 import androidx.camera.core.Preview;
+import androidx.camera.core.SurfaceOrientedMeteringPointFactory;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.video.FallbackStrategy;
 import androidx.camera.video.FileOutputOptions;
@@ -56,10 +68,15 @@ import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 public final class BuiltInCameraController {
+    public interface CameraControlListener {
+        void onControl(String control);
+    }
+
     private static final String PREFS = "nokia_camera_catalog";
     private static final String PREF_MEDIA = "media";
     private static final String RELATIVE_IMAGES = Environment.DIRECTORY_DCIM + "/Nokia Launcher";
@@ -69,9 +86,12 @@ public final class BuiltInCameraController {
     private final ExecutorService cameraExecutor = Executors.newSingleThreadExecutor();
     private final SharedPreferences preferences;
     private final ContentResolver contentResolver;
+    private final CameraControlListener controlListener;
 
     private ProcessCameraProvider cameraProvider;
+    private FrameLayout previewContainer;
     private PreviewView previewView;
+    private CameraChromeView cameraChromeView;
     private View mediaView;
     private ImageCapture imageCapture;
     private VideoCapture<Recorder> videoCapture;
@@ -80,13 +100,16 @@ public final class BuiltInCameraController {
     private Camera camera;
     private int lensFacing = CameraSelector.LENS_FACING_BACK;
     private int flashMode = ImageCapture.FLASH_MODE_AUTO;
+    private String cameraMode = "photo";
+    private boolean gridEnabled = true;
     private int surfaceX;
     private int surfaceY;
     private int surfaceWidth;
     private int surfaceHeight;
 
-    public BuiltInCameraController(Activity activity) {
+    public BuiltInCameraController(Activity activity, CameraControlListener controlListener) {
         this.activity = activity;
+        this.controlListener = controlListener;
         this.preferences = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         this.contentResolver = activity.getContentResolver();
     }
@@ -95,6 +118,8 @@ public final class BuiltInCameraController {
         lensFacing = "front".equals(call.getString("lens", "back"))
             ? CameraSelector.LENS_FACING_FRONT
             : CameraSelector.LENS_FACING_BACK;
+        cameraMode = "video".equals(call.getString("mode", "photo")) ? "video" : "photo";
+        gridEnabled = call.getBoolean("grid", true);
         updateBounds(call);
         activity.runOnUiThread(() -> attachPreviewAndBind(call));
     }
@@ -102,7 +127,7 @@ public final class BuiltInCameraController {
     public void updateSurfaceBounds(PluginCall call) {
         updateBounds(call);
         activity.runOnUiThread(() -> {
-            View target = mediaView != null ? mediaView : previewView;
+            View target = mediaView != null ? mediaView : previewContainer;
             if (target != null) applyBounds(target);
             JSObject result = new JSObject();
             result.put("updated", target != null);
@@ -115,6 +140,7 @@ public final class BuiltInCameraController {
         lensFacing = "front".equals(requested)
             ? CameraSelector.LENS_FACING_FRONT
             : CameraSelector.LENS_FACING_BACK;
+        if (cameraChromeView != null) cameraChromeView.setLens(requested);
         if (cameraProvider == null || previewView == null) {
             call.reject("camera_not_started");
             return;
@@ -135,6 +161,23 @@ public final class BuiltInCameraController {
         }
         JSObject result = new JSObject();
         result.put("mode", requested);
+        call.resolve(result);
+        if (cameraChromeView != null) cameraChromeView.setFlash(requested);
+    }
+
+    public void setMode(PluginCall call) {
+        cameraMode = "video".equals(call.getString("mode", "photo")) ? "video" : "photo";
+        if (cameraChromeView != null) cameraChromeView.setMode(cameraMode);
+        JSObject result = new JSObject();
+        result.put("mode", cameraMode);
+        call.resolve(result);
+    }
+
+    public void setGrid(PluginCall call) {
+        gridEnabled = call.getBoolean("enabled", true);
+        if (cameraChromeView != null) cameraChromeView.setGridEnabled(gridEnabled);
+        JSObject result = new JSObject();
+        result.put("enabled", gridEnabled);
         call.resolve(result);
     }
 
@@ -171,6 +214,7 @@ public final class BuiltInCameraController {
                     return;
                 }
                 JSObject media = addCatalogRecord(uri, "photo", 0L, false);
+                updateLatestThumbnail(uri.toString(), "photo");
                 JSObject response = new JSObject();
                 response.put("media", media);
                 call.resolve(response);
@@ -222,6 +266,7 @@ public final class BuiltInCameraController {
                 long duration = finalize.getRecordingStats().getRecordedDurationNanos() / 1_000_000L;
                 Recording finished = activeRecording;
                 activeRecording = null;
+                if (cameraChromeView != null) cameraChromeView.setRecording(false);
                 if (finalize.hasError() || uri == null || Uri.EMPTY.equals(uri)) {
                     if (pendingStopCall != null) {
                         pendingStopCall.reject("video_recording_failed");
@@ -231,6 +276,7 @@ public final class BuiltInCameraController {
                     return;
                 }
                 JSObject media = addCatalogRecord(uri, "video", duration, hasAudio);
+                updateLatestThumbnail(uri.toString(), "video");
                 if (pendingStopCall != null) {
                     JSObject response = new JSObject();
                     response.put("media", media);
@@ -240,6 +286,7 @@ public final class BuiltInCameraController {
                 if (finished != null) finished.close();
             }
         });
+        if (cameraChromeView != null) cameraChromeView.setRecording(true);
         JSObject result = new JSObject();
         result.put("recording", true);
         result.put("audioEnabled", hasAudio);
@@ -360,14 +407,39 @@ public final class BuiltInCameraController {
 
     private void attachPreviewAndBind(PluginCall call) {
         removeMediaView();
+        if (previewContainer == null) {
+            previewContainer = new FrameLayout(activity);
+            GradientDrawable clipShape = new GradientDrawable();
+            clipShape.setColor(Color.BLACK);
+            clipShape.setCornerRadius(dp(10));
+            previewContainer.setBackground(clipShape);
+            previewContainer.setClipToOutline(true);
+        }
         if (previewView == null) {
             previewView = new PreviewView(activity);
             previewView.setImplementationMode(PreviewView.ImplementationMode.COMPATIBLE);
             previewView.setScaleType(PreviewView.ScaleType.FILL_CENTER);
             previewView.setClickable(false);
             previewView.setFocusable(false);
+            previewContainer.addView(previewView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ));
         }
-        attachToRoot(previewView);
+        if (cameraChromeView == null) {
+            cameraChromeView = new CameraChromeView(activity);
+            cameraChromeView.setMode(cameraMode);
+            cameraChromeView.setGridEnabled(gridEnabled);
+            cameraChromeView.setLens(lensFacing == CameraSelector.LENS_FACING_FRONT ? "front" : "back");
+            cameraChromeView.setFlash(flashName());
+            previewContainer.addView(cameraChromeView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ));
+            loadLatestThumbnail();
+        }
+        previewContainer.setOnTouchListener((view, event) -> handlePreviewTouch(event));
+        attachToRoot(previewContainer);
         ListenableFuture<ProcessCameraProvider> future = ProcessCameraProvider.getInstance(activity);
         future.addListener(() -> {
             try {
@@ -416,6 +488,7 @@ public final class BuiltInCameraController {
             result.put("sessionId", UUID.randomUUID().toString());
             result.put("lens", lensFacing == CameraSelector.LENS_FACING_FRONT ? "front" : "back");
             result.put("hasFlash", camera.getCameraInfo().hasFlashUnit());
+            if (cameraChromeView != null) cameraChromeView.setHasFlash(camera.getCameraInfo().hasFlashUnit());
             call.resolve(result);
         } catch (Exception exception) {
             call.reject("camera_bind_failed", exception);
@@ -444,11 +517,68 @@ public final class BuiltInCameraController {
         view.setLayoutParams(params);
     }
 
-    private void removePreview() {
-        if (previewView != null && previewView.getParent() instanceof ViewGroup) {
-            ((ViewGroup) previewView.getParent()).removeView(previewView);
+    private boolean handlePreviewTouch(MotionEvent event) {
+        if (event.getAction() != MotionEvent.ACTION_UP || previewContainer == null) return true;
+        float width = previewContainer.getWidth();
+        float height = previewContainer.getHeight();
+        float topChrome = previewContainer.getHeight() * 0.12f;
+        float bottomChrome = previewContainer.getHeight() * 0.24f;
+        if (event.getY() < topChrome) {
+            if (event.getX() < width * 0.32f) emitControl("flash");
+            else if (event.getX() > width * 0.68f) emitControl("flip");
+            return true;
         }
+        if (event.getY() > height - bottomChrome) {
+            float modeBoundary = height - bottomChrome + dp(48);
+            if (event.getY() < modeBoundary) {
+                emitControl(event.getX() < width / 2f ? "mode-video" : "mode-photo");
+            } else if (event.getX() < width * 0.30f) {
+                emitControl("gallery");
+            } else if (event.getX() > width * 0.70f) {
+                emitControl("flip");
+            } else {
+                emitControl("shutter");
+            }
+            return true;
+        }
+        if (camera == null) return true;
+        SurfaceOrientedMeteringPointFactory factory = new SurfaceOrientedMeteringPointFactory(
+            Math.max(1, previewContainer.getWidth()),
+            Math.max(1, previewContainer.getHeight())
+        );
+        MeteringPoint point = factory.createPoint(event.getX(), event.getY());
+        FocusMeteringAction action = new FocusMeteringAction.Builder(
+            point,
+            FocusMeteringAction.FLAG_AF | FocusMeteringAction.FLAG_AE
+        ).setAutoCancelDuration(3, TimeUnit.SECONDS).build();
+        camera.getCameraControl().startFocusAndMetering(action);
+        if (cameraChromeView != null) cameraChromeView.showFocus(event.getX(), event.getY());
+        return true;
+    }
+
+    private void emitControl(String control) {
+        if (controlListener != null) controlListener.onControl(control);
+    }
+
+    private String flashName() {
+        if (flashMode == ImageCapture.FLASH_MODE_ON) return "on";
+        if (flashMode == ImageCapture.FLASH_MODE_OFF) return "off";
+        return "auto";
+    }
+
+    private float dp(float value) {
+        return value * activity.getResources().getDisplayMetrics().density;
+    }
+
+    private void removePreview() {
+        if (previewContainer != null && previewContainer.getParent() instanceof ViewGroup) {
+            ((ViewGroup) previewContainer.getParent()).removeView(previewContainer);
+        }
+        if (previewContainer != null) previewContainer.removeAllViews();
+        previewContainer = null;
         previewView = null;
+        if (cameraChromeView != null) cameraChromeView.release();
+        cameraChromeView = null;
     }
 
     private void removeMediaView() {
@@ -457,6 +587,261 @@ public final class BuiltInCameraController {
             ((ViewGroup) mediaView.getParent()).removeView(mediaView);
         }
         mediaView = null;
+    }
+
+    private void loadLatestThumbnail() {
+        cameraExecutor.execute(() -> {
+            JSONArray catalog = readCatalog();
+            JSONObject latest = catalog.optJSONObject(catalog.length() - 1);
+            if (latest != null) updateLatestThumbnail(latest.optString("uri"), latest.optString("type"));
+        });
+    }
+
+    private void updateLatestThumbnail(String uri, String type) {
+        cameraExecutor.execute(() -> {
+            Bitmap thumbnail = createThumbnailBitmap(uri, type, 320);
+            if (thumbnail == null) return;
+            activity.runOnUiThread(() -> {
+                if (cameraChromeView != null) cameraChromeView.setGalleryThumbnail(thumbnail);
+                else thumbnail.recycle();
+            });
+        });
+    }
+
+    /** Full-screen, non-verbal camera chrome drawn above the native preview. */
+    private static final class CameraChromeView extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path path = new Path();
+        private final float density;
+        private String mode = "photo";
+        private String lens = "back";
+        private String flash = "auto";
+        private boolean hasFlash = true;
+        private boolean gridEnabled = true;
+        private boolean recording;
+        private long recordingStartedAt;
+        private float focusX = -1f;
+        private float focusY = -1f;
+        private long focusUntil;
+        private Bitmap galleryThumbnail;
+
+        CameraChromeView(Context context) {
+            super(context);
+            density = context.getResources().getDisplayMetrics().density;
+            setClickable(false);
+            setFocusable(false);
+        }
+
+        void setMode(String value) { mode = value; invalidate(); }
+        void setLens(String value) { lens = value; invalidate(); }
+        void setFlash(String value) { flash = value; invalidate(); }
+        void setHasFlash(boolean value) { hasFlash = value; invalidate(); }
+        void setGridEnabled(boolean value) { gridEnabled = value; invalidate(); }
+        void setGalleryThumbnail(Bitmap value) {
+            if (galleryThumbnail != null && galleryThumbnail != value && !galleryThumbnail.isRecycled()) galleryThumbnail.recycle();
+            galleryThumbnail = value;
+            invalidate();
+        }
+
+        void release() {
+            if (galleryThumbnail != null && !galleryThumbnail.isRecycled()) galleryThumbnail.recycle();
+            galleryThumbnail = null;
+        }
+
+        void setRecording(boolean value) {
+            recording = value;
+            if (value) recordingStartedAt = SystemClock.elapsedRealtime();
+            invalidate();
+        }
+
+        void showFocus(float x, float y) {
+            focusX = x;
+            focusY = y;
+            focusUntil = SystemClock.elapsedRealtime() + 1800L;
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float width = getWidth();
+            float height = getHeight();
+            float top = height * 0.12f;
+            float bottom = height * 0.24f;
+            float previewBottom = height - bottom;
+
+            if (gridEnabled) drawGrid(canvas, width, top, previewBottom);
+            drawFocus(canvas, width, top, previewBottom);
+            drawTopBar(canvas, width, top);
+            drawBottomBar(canvas, width, height, bottom);
+
+            if (recording || SystemClock.elapsedRealtime() < focusUntil) postInvalidateDelayed(200L);
+        }
+
+        private void drawGrid(Canvas canvas, float width, float top, float bottom) {
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(0.7f));
+            paint.setColor(0x58ffffff);
+            for (int index = 1; index < 3; index++) {
+                float x = width * index / 3f;
+                float y = top + (bottom - top) * index / 3f;
+                canvas.drawLine(x, top, x, bottom, paint);
+                canvas.drawLine(0, y, width, y, paint);
+            }
+        }
+
+        private void drawFocus(Canvas canvas, float width, float top, float bottom) {
+            boolean tapped = SystemClock.elapsedRealtime() < focusUntil;
+            float x = tapped ? focusX : width / 2f;
+            float y = tapped ? focusY : top + (bottom - top) / 2f;
+            float radius = dp(tapped ? 24f : 18f);
+            float corner = radius * 0.48f;
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(tapped ? 1.8f : 1.2f));
+            paint.setColor(tapped ? 0xffffffff : 0xb8ffffff);
+            canvas.drawLine(x - radius, y - radius, x - radius + corner, y - radius, paint);
+            canvas.drawLine(x - radius, y - radius, x - radius, y - radius + corner, paint);
+            canvas.drawLine(x + radius, y - radius, x + radius - corner, y - radius, paint);
+            canvas.drawLine(x + radius, y - radius, x + radius, y - radius + corner, paint);
+            canvas.drawLine(x - radius, y + radius, x - radius + corner, y + radius, paint);
+            canvas.drawLine(x - radius, y + radius, x - radius, y + radius - corner, paint);
+            canvas.drawLine(x + radius, y + radius, x + radius - corner, y + radius, paint);
+            canvas.drawLine(x + radius, y + radius, x + radius, y + radius - corner, paint);
+            canvas.drawLine(x - dp(3), y, x + dp(3), y, paint);
+            canvas.drawLine(x, y - dp(3), x, y + dp(3), paint);
+        }
+
+        private void drawTopBar(Canvas canvas, float width, float top) {
+            float centerY = top / 2f;
+            drawControlBackdrop(canvas, dp(24), centerY, dp(18));
+            drawBolt(canvas, dp(22), centerY);
+            if (hasFlash) drawText(canvas, flash.toUpperCase(), dp(36), centerY + dp(4), dp(9), Paint.Align.LEFT, 0xffffffff);
+
+            if (recording) {
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(0xffe9424a);
+                canvas.drawCircle(width / 2f - dp(22), centerY, dp(3.5f), paint);
+                drawText(canvas, "REC", width / 2f - dp(14), centerY + dp(4), dp(10), Paint.Align.LEFT, 0xffffffff);
+            } else {
+                drawText(canvas, "video".equals(mode) ? "FHD" : "4:3", width / 2f, centerY + dp(4), dp(10), Paint.Align.CENTER, 0xffffffff);
+            }
+            drawControlBackdrop(canvas, width - dp(24), centerY, dp(18));
+            drawFlipIcon(canvas, width - dp(24), centerY, dp(12));
+        }
+
+        private void drawBottomBar(Canvas canvas, float width, float height, float bottom) {
+            float modeY = height - bottom + dp(22);
+            int dim = 0x99ffffff;
+            int active = 0xffffffff;
+            float modeOffset = dp(30);
+            drawText(canvas, "VIDEO", width / 2f - modeOffset, modeY, dp(8), Paint.Align.CENTER, "video".equals(mode) ? active : dim);
+            drawText(canvas, "PHOTO", width / 2f + modeOffset, modeY, dp(8), Paint.Align.CENTER, "photo".equals(mode) ? active : dim);
+
+            float controlY = height - bottom * 0.38f;
+            float shutterRadius = Math.min(dp(24), bottom * 0.21f);
+            drawControlBackdrop(canvas, width / 2f, controlY, shutterRadius + dp(10));
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(2.2f));
+            paint.setColor(0xffffffff);
+            canvas.drawCircle(width / 2f, controlY, shutterRadius + dp(4), paint);
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor("video".equals(mode) ? 0xffe9424a : 0xfff4f5f2);
+            canvas.drawCircle(width / 2f, controlY, recording ? shutterRadius * 0.58f : shutterRadius, paint);
+
+            float iconSize = dp(28);
+            float galleryLeft = dp(22);
+            RectF galleryBox = new RectF(galleryLeft, controlY - iconSize / 2f, galleryLeft + iconSize, controlY + iconSize / 2f);
+            drawControlBackdrop(canvas, galleryBox.centerX(), galleryBox.centerY(), dp(22));
+            if (galleryThumbnail != null && !galleryThumbnail.isRecycled()) {
+                drawCenterCrop(canvas, galleryThumbnail, galleryBox);
+            }
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(1.5f));
+            paint.setColor(0xffffffff);
+            canvas.drawRoundRect(galleryBox, dp(2), dp(2), paint);
+            drawControlBackdrop(canvas, width - dp(37), controlY, dp(22));
+            drawFlipIcon(canvas, width - dp(37), controlY, dp(15));
+
+            if (recording) {
+                long elapsed = Math.max(0L, SystemClock.elapsedRealtime() - recordingStartedAt) / 1000L;
+                String timer = String.format(java.util.Locale.US, "%02d:%02d", elapsed / 60L, elapsed % 60L);
+                drawText(canvas, timer, width - dp(18), height - bottom - dp(10), dp(9), Paint.Align.RIGHT, 0xffffffff);
+            }
+        }
+
+        private void drawBolt(Canvas canvas, float x, float y) {
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(hasFlash && !"off".equals(flash) ? 0xffffffff : 0x88ffffff);
+            path.reset();
+            path.moveTo(x + dp(2), y - dp(11));
+            path.lineTo(x - dp(5), y + dp(1));
+            path.lineTo(x, y + dp(1));
+            path.lineTo(x - dp(2), y + dp(11));
+            path.lineTo(x + dp(7), y - dp(3));
+            path.lineTo(x + dp(2), y - dp(3));
+            path.close();
+            canvas.drawPath(path, paint);
+        }
+
+        private void drawFlipIcon(Canvas canvas, float x, float y, float radius) {
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(2f));
+            paint.setStrokeCap(Paint.Cap.ROUND);
+            paint.setColor(0xffffffff);
+            RectF orbit = new RectF(x - radius * 0.72f, y - radius * 0.72f, x + radius * 0.72f, y + radius * 0.72f);
+            canvas.drawArc(orbit, 205, 125, false, paint);
+            canvas.drawArc(orbit, 25, 125, false, paint);
+            paint.setStyle(Paint.Style.FILL);
+            path.reset();
+            path.moveTo(x - radius * 0.85f, y - radius * 0.12f);
+            path.lineTo(x - radius * 0.28f, y - radius * 0.20f);
+            path.lineTo(x - radius * 0.52f, y + radius * 0.30f);
+            path.close();
+            canvas.drawPath(path, paint);
+            path.reset();
+            path.moveTo(x + radius * 0.85f, y + radius * 0.12f);
+            path.lineTo(x + radius * 0.28f, y + radius * 0.20f);
+            path.lineTo(x + radius * 0.52f, y - radius * 0.30f);
+            path.close();
+            canvas.drawPath(path, paint);
+            paint.setStrokeCap(Paint.Cap.BUTT);
+        }
+
+        private void drawControlBackdrop(Canvas canvas, float x, float y, float radius) {
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(0x52000000);
+            canvas.drawCircle(x, y, radius, paint);
+        }
+
+        private void drawCenterCrop(Canvas canvas, Bitmap bitmap, RectF destination) {
+            paint.setAlpha(255);
+            float sourceRatio = (float) bitmap.getWidth() / Math.max(1, bitmap.getHeight());
+            float targetRatio = destination.width() / Math.max(1f, destination.height());
+            Rect source;
+            if (sourceRatio > targetRatio) {
+                int sourceWidth = Math.round(bitmap.getHeight() * targetRatio);
+                int left = (bitmap.getWidth() - sourceWidth) / 2;
+                source = new Rect(left, 0, left + sourceWidth, bitmap.getHeight());
+            } else {
+                int sourceHeight = Math.round(bitmap.getWidth() / targetRatio);
+                int top = (bitmap.getHeight() - sourceHeight) / 2;
+                source = new Rect(0, top, bitmap.getWidth(), top + sourceHeight);
+            }
+            canvas.drawBitmap(bitmap, source, destination, paint);
+        }
+
+        private void drawText(Canvas canvas, String text, float x, float baseline, float size, Paint.Align align, int color) {
+            paint.setStyle(Paint.Style.FILL);
+            paint.setTypeface(android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD));
+            paint.setTextSize(size);
+            paint.setTextAlign(align);
+            paint.setColor(0xc9000000);
+            canvas.drawText(text, x + dp(1), baseline + dp(1), paint);
+            paint.setColor(color);
+            canvas.drawText(text, x, baseline, paint);
+        }
+
+        private float dp(float value) { return value * density; }
     }
 
     /**
@@ -596,14 +981,28 @@ public final class BuiltInCameraController {
     }
 
     private String createThumbnail(String uriText, String type) {
+        Bitmap bitmap = createThumbnailBitmap(uriText, type, 240);
+        if (bitmap == null) return null;
+        try {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 72, output);
+            bitmap.recycle();
+            return "data:image/jpeg;base64," + Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP);
+        } catch (Exception ignored) {
+            if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
+            return null;
+        }
+    }
+
+    private Bitmap createThumbnailBitmap(String uriText, String type, int targetWidth) {
         Bitmap bitmap = null;
+        MediaMetadataRetriever retriever = null;
         try {
             Uri uri = Uri.parse(uriText);
             if ("video".equals(type)) {
-                MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                retriever = new MediaMetadataRetriever();
                 retriever.setDataSource(activity, uri);
                 bitmap = retriever.getFrameAtTime(0);
-                retriever.release();
             } else {
                 try (InputStream stream = contentResolver.openInputStream(uri)) {
                     bitmap = BitmapFactory.decodeStream(stream);
@@ -618,17 +1017,18 @@ public final class BuiltInCameraController {
                 }
             }
             if (bitmap == null) return null;
-            int targetWidth = 240;
-            int targetHeight = Math.max(1, bitmap.getHeight() * targetWidth / Math.max(1, bitmap.getWidth()));
-            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true);
-            ByteArrayOutputStream output = new ByteArrayOutputStream();
-            scaled.compress(Bitmap.CompressFormat.JPEG, 65, output);
-            if (scaled != bitmap) scaled.recycle();
-            bitmap.recycle();
-            return "data:image/jpeg;base64," + Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP);
+            int width = Math.max(1, Math.min(targetWidth, bitmap.getWidth()));
+            int height = Math.max(1, bitmap.getHeight() * width / Math.max(1, bitmap.getWidth()));
+            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, width, height, true);
+            if (scaled != bitmap) bitmap.recycle();
+            return scaled;
         } catch (Exception ignored) {
             if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
             return null;
+        } finally {
+            if (retriever != null) {
+                try { retriever.release(); } catch (Exception ignored) {}
+            }
         }
     }
 

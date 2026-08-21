@@ -1,5 +1,18 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import { Search, Phone, MessageSquare, MapPin, Camera } from "lucide-react";
+import {
+  BatteryCharging,
+  Bell,
+  BellOff,
+  Bluetooth,
+  Camera,
+  MapPin,
+  MessageSquare,
+  Phone,
+  Search,
+  ShieldCheck,
+  VolumeX,
+  Wifi,
+} from "lucide-react";
 
 const HOME_ICONS = {
   phone: Phone,
@@ -29,9 +42,13 @@ const Screen = ({
   onOpenMenu,
   onOpenSettings,
   onSettingClick,
+  onListSearchFocus,
   onBack,
   dialActive,
   dialNumber,
+  deviceStatus,
+  onNotificationStatusClick,
+  onStatusIconClick,
 }) => {
   const menuScrollRef = useRef(null);
 
@@ -75,20 +92,14 @@ const Screen = ({
   // Render Direct Dialing Screen
   if (dialActive) {
     return (
-      <div className="flex-1 overflow-hidden relative flex flex-col justify-between p-2" data-testid="screen-dial">
-        <div className="text-xs text-white/50 font-mono tracking-wider text-center uppercase">
-          Dialing
-        </div>
-
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="text-4xl md:text-5xl font-mono font-bold tracking-tight text-center break-all w-full select-text text-green-400">
-            {dialNumber}
-          </div>
-        </div>
-
-        <div className="flex justify-between text-[10px] md:text-xs font-bold tracking-wider font-mono opacity-80 border-t border-white/10 pt-2 px-1">
-          <span className="text-green-500 uppercase">📞 CALL (SEND)</span>
-          <span className="text-red-500 uppercase">⌫ CLEAR (END)</span>
+      <div className="lcd-screen lcd-dial-screen" data-testid="screen-dial">
+        <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationStatusClick} onStatusClick={onStatusIconClick} />
+        <div className="lcd-dial-label">Enter number</div>
+        <div className="lcd-dial-number" aria-live="polite">{dialNumber}</div>
+        <div className="lcd-dial-rule" aria-hidden="true" />
+        <div className="lcd-dial-softkeys">
+          <span>Call</span>
+          <span>Clear</span>
         </div>
       </div>
     );
@@ -97,12 +108,7 @@ const Screen = ({
   if (currentView === "home") {
     return (
       <div className="lcd-screen" data-testid="screen-home">
-        <div className="lcd-status" aria-label="Signal strong, battery full">
-          <span className="lcd-signal" aria-hidden="true">
-            <i /><i /><i /><i /><i />
-          </span>
-          <span className="lcd-battery" aria-hidden="true"><i /><i /><i /></span>
-        </div>
+        <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationStatusClick} onStatusClick={onStatusIconClick} />
 
         <div className="lcd-time" data-testid="home-time">
             {formattedTime}
@@ -153,9 +159,21 @@ const Screen = ({
 
     return (
       <div className="lcd-screen lcd-list-screen" data-testid={isSettings ? "screen-settings" : "screen-menu"}>
-        <LcdStatus />
+        <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationStatusClick} onStatusClick={onStatusIconClick} />
         <div className="lcd-list-time">{formattedTime}</div>
-        <div className="lcd-list-title">{isSettings ? "Settings" : "Menu"}</div>
+        <div className="lcd-list-header">
+          <div className="lcd-list-title">{isSettings ? "Settings" : "Menu"}</div>
+          <button
+            type="button"
+            className={`lcd-list-search ${searchActive ? "is-active" : ""}`}
+            onClick={onListSearchFocus}
+            aria-label={`Search ${isSettings ? "settings" : "apps"}`}
+          >
+            <Search aria-hidden="true" />
+            <span>{searchQuery || "Search"}</span>
+            {searchActive && !searchQuery && <i aria-hidden="true" />}
+          </button>
+        </div>
 
         <div
           ref={menuScrollRef}
@@ -204,12 +222,41 @@ const Screen = ({
   return null;
 };
 
-const LcdStatus = memo(() => (
-  <div className="lcd-status" aria-label="Signal strong, battery full">
-    <span className="lcd-signal" aria-hidden="true"><i /><i /><i /><i /><i /></span>
-    <span className="lcd-battery" aria-hidden="true"><i /><i /><i /></span>
+const LcdStatus = memo(({ status, onNotificationsClick, onStatusClick }) => (
+  <div className="lcd-status" aria-label="Live device status">
+    <span className="lcd-status__left">
+      <StatusButton label="Open network settings" onClick={() => onStatusClick("network")}>
+        <span className="lcd-signal" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+      </StatusButton>
+      {status?.wifi && <StatusButton label="Open Wi-Fi settings" onClick={() => onStatusClick("wifi")}><Wifi /></StatusButton>}
+      {status?.bluetooth && <StatusButton label="Open Bluetooth settings" onClick={() => onStatusClick("bluetooth")}><Bluetooth /></StatusButton>}
+      {status?.vpn && <StatusButton label="Open VPN settings" onClick={() => onStatusClick("vpn")}><ShieldCheck /></StatusButton>}
+      {status?.silent && <StatusButton label="Open sound settings" onClick={() => onStatusClick("sound")}><VolumeX /></StatusButton>}
+    </span>
+    <span className="lcd-status__right">
+      <button
+        type="button"
+        className="lcd-notifications"
+        onClick={onNotificationsClick}
+        aria-label={status?.notificationAccess ? `${status.notificationCount || 0} active notifications` : "Enable notification access"}
+      >
+        {status?.notificationAccess ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+        {!!status?.notificationCount && <b>{Math.min(status.notificationCount, 99)}</b>}
+      </button>
+      {status?.powerSave && <StatusButton label="Open power-saving settings" onClick={() => onStatusClick("battery")}><span className="lcd-power-save">P</span></StatusButton>}
+      {status?.charging && <StatusButton label="Open battery settings" onClick={() => onStatusClick("battery")}><BatteryCharging className="lcd-charging" /></StatusButton>}
+      <StatusButton label={`Open battery settings, ${status?.batteryLevel ?? 100}% remaining`} onClick={() => onStatusClick("battery")}>
+        <span className="lcd-battery" aria-hidden="true"><i style={{ width: `${Math.max(4, status?.batteryLevel ?? 100)}%` }} /></span>
+      </StatusButton>
+    </span>
   </div>
 ));
+
+const StatusButton = ({ label, onClick, children }) => (
+  <button type="button" className="lcd-status-button" aria-label={label} onClick={onClick}>
+    {children}
+  </button>
+);
 
 LcdStatus.displayName = "LcdStatus";
 
@@ -258,6 +305,8 @@ const areScreenPropsEqual = (previous, next) => {
   if (previous.dialActive !== next.dialActive || previous.dialNumber !== next.dialNumber) {
     return false;
   }
+
+  if (previous.deviceStatus !== next.deviceStatus) return false;
 
   if (next.currentView === "menu" || next.currentView === "settings") {
     return (

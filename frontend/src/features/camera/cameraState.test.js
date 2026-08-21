@@ -4,7 +4,7 @@ import {
   createCameraState,
   reduceCameraState,
 } from "./cameraState";
-import { getCameraCommand } from "./cameraCommands";
+import { getCameraCommand, getCameraTouchCommand } from "./cameraCommands";
 
 describe("camera state", () => {
   test("starts in the camera view with photo mode", () => {
@@ -51,5 +51,25 @@ describe("camera keypad commands", () => {
   test("red safely stops an active recording before exit", () => {
     const recording = { ...createCameraState(), mode: CAMERA_MODES.VIDEO, recording: true };
     expect(getCameraCommand(recording, "END")).toEqual({ type: "STOP_VIDEO_AND_EXIT" });
+  });
+
+  test("star toggles the composition grid only while idle", () => {
+    const idle = createCameraState();
+    expect(getCameraCommand(idle, "*")).toEqual({ type: "TOGGLE_GRID" });
+    expect(reduceCameraState(idle, { type: "TOGGLE_GRID" }).grid).toBe(false);
+    expect(getCameraCommand({ ...idle, recording: true }, "*")).toBeNull();
+  });
+
+  test("native touch controls reuse the same camera commands", () => {
+    const photo = createCameraState();
+    const video = { ...photo, mode: CAMERA_MODES.VIDEO };
+    expect(getCameraTouchCommand(photo, "gallery")).toEqual({ type: "OPEN_GALLERY" });
+    expect(getCameraTouchCommand(photo, "shutter")).toEqual({ type: "CAPTURE_PHOTO" });
+    expect(getCameraTouchCommand(video, "shutter")).toEqual({ type: "START_VIDEO" });
+    expect(getCameraTouchCommand({ ...video, recording: true }, "shutter")).toEqual({ type: "STOP_VIDEO" });
+    expect(getCameraTouchCommand(photo, "mode-video")).toEqual({ type: "SET_MODE", mode: CAMERA_MODES.VIDEO });
+    expect(getCameraTouchCommand(video, "mode-video")).toBeNull();
+    expect(getCameraTouchCommand(photo, "flip")).toEqual({ type: "SWITCH_LENS" });
+    expect(getCameraTouchCommand(photo, "flash")).toEqual({ type: "CYCLE_FLASH" });
   });
 });

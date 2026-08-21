@@ -5,9 +5,9 @@ const getSearchText = (item) =>
   `${getDisplayName(item)} ${item?.packageName || ""}`.toLowerCase();
 
 const HOME_SHORTCUT_DEFINITIONS = [
-  { id: "phone", label: "Phone", matches: ["phone", "dialer"] },
+  { id: "phone", label: "Phone", matches: ["phone", "dialer"], action: "default-phone" },
   { id: "messages", label: "Messages", matches: ["messages", "messaging", "sms"] },
-  { id: "maps", label: "Maps", matches: ["maps", "map"] },
+  { id: "maps", label: "Maps", matches: ["maps", "map"], action: "default-maps" },
   { id: "camera", label: "Camera", matches: ["camera"], action: "built-in-camera" },
 ];
 
@@ -57,6 +57,32 @@ export const createHomeShortcuts = (apps) =>
     ...shortcut,
     app: findMatchingApp(apps, shortcut.matches),
   }));
+
+export const resolveHomeShortcut = (shortcuts, targetId) => {
+  const shortcut = shortcuts.find((item) => item.id === targetId);
+  if (!shortcut) return null;
+  return shortcut.action ? shortcut : shortcut.app;
+};
+
+export const rankSearchResults = (items, query) => {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return items;
+
+  return items
+    .map((item, index) => {
+      const name = getDisplayName(item).toLowerCase();
+      const packageName = (item?.packageName || "").toLowerCase();
+      let rank = Number.POSITIVE_INFINITY;
+      if (name.startsWith(normalizedQuery)) rank = 0;
+      else if (name.split(/\s+/).some((word) => word.startsWith(normalizedQuery))) rank = 1;
+      else if (name.includes(normalizedQuery)) rank = 2;
+      else if (packageName.includes(normalizedQuery)) rank = 3;
+      return { item, index, rank };
+    })
+    .filter(({ rank }) => Number.isFinite(rank))
+    .sort((left, right) => left.rank - right.rank || left.index - right.index)
+    .map(({ item }) => item);
+};
 
 export const orderDrawerApps = (apps) => {
   const remaining = [...apps];

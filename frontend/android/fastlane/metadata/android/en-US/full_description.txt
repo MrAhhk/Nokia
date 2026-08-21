@@ -1,0 +1,34 @@
+Nokia Launcher turns an Android phone into a calmer, more deliberate tool.
+
+Inspired by the clarity and dependable interaction of classic keypad phones, it replaces the conventional launcher with a focused home screen, tactile navigation, finite menus, and a refined monochrome interface.
+
+This is more than a retro visual theme. The goal is to preserve useful modern capabilities while reducing the noise and compulsive patterns that make smartphones difficult to put down.
+
+Modern capability without modern-phone addiction.
+
+WHAT EACH FUNCTION IS FOR
+
+- Home screen: Keeps only essential actions visible, helping you begin with a purpose instead of browsing.
+- Clock: Shows the time immediately without opening another app.
+- Phone and direct dialing: Supports the phone's most fundamental job—making a call quickly.
+- Messages: Keeps intentional person-to-person communication close.
+- Maps: Preserves modern navigation without placing distracting content on the home screen.
+- Built-in camera: Captures photos and videos and provides a local gallery within the same focused interface.
+- Search: Provides deliberate access to Google when information is genuinely needed.
+- App drawer: Keeps installed apps reachable through a finite list instead of filling the home screen.
+- Keypad and D-pad: Provide predictable navigation, familiar muscle memory, and a clear relationship between input and action.
+- Multi-tap app search: Finds apps without requiring a full on-screen keyboard.
+- Settings shortcuts: Open the relevant Android controls for display, sound, keyboard, Digital Wellbeing, and privacy.
+- Live status area: Shows useful network, connectivity, sound, notification, charging, power-saving, and battery information without the original Android status bar.
+
+BUILT FOR CALMER USE
+
+Nokia Launcher favors utility over engagement. It avoids infinite feeds, autoplay, streaks, algorithmic recommendations, and attention-seeking animation. The interface is stable, fast, easy to understand, and easy to leave after completing a task.
+
+The launcher supports touch and its built-in Nokia-style keypad controls. Modern apps remain accessible, but they do not dominate the default experience.
+
+PRIVACY-MINDED BY DESIGN
+
+Core launcher behavior is designed around local device actions and minimal data handling. Permissions are requested only when required for features such as taking photos, recording video audio, placing a call, showing installed apps, or reading device status. Camera media remains in the device's local media storage.
+
+Nokia Launcher is an independent project and is not affiliated with, endorsed by, or sponsored by Nokia Corporation or HMD Global.

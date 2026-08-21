@@ -1,0 +1,1 @@
+A calm, keypad-first Android launcher for doing more and scrolling less.

@@ -13,6 +13,7 @@
 
 ## Required Play Console actions
 
+0. Upload or paste the canonical English listing from `frontend/android/fastlane/metadata/android/en-US/` (title, short description, and full description).
 1. Complete the **App visibility** declaration for `QUERY_ALL_PACKAGES`. State that it is indispensable to Nokia Launcher's core purpose: displaying and launching installed apps. Do not use this inventory for analytics, advertising, sale, or sharing.
 2. Complete **Data safety** using [PLAY_STORE_DATA_SAFETY.md](PLAY_STORE_DATA_SAFETY.md), after checking the final signed bundle and every included SDK.
 3. Provide a public, stable HTTPS privacy-policy URL matching the in-app `/privacy` policy.
@@ -24,6 +25,6 @@
 - Test the signed AAB on Android 16 and a supported older Android release.
 - Verify launcher selection, installed-app listing, app launching, calling via the system dialer, and enabling/using the optional Nokia System Keyboard.
 - Confirm no feature reintroduces location, contacts, notification, overlay, direct-call, or AccessibilityService permissions without a new policy and Data safety review.
-- Confirm the store listing makes the optional keyboard clear and does not claim Nokia affiliation or use protected branding without authorization.
+- Confirm the store listing makes the optional keyboard clear and retains the independent-project, no-affiliation disclaimer. Protected branding still requires authorization.
 
 This checklist prepares the project for submission; a valid signing key, verified developer account, public privacy-policy URL, and Play Console declarations must be supplied by the publisher.

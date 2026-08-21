@@ -1,6 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Nokia Launcher</string>
+    <string name="app_description">A calm, keypad-first Android launcher that keeps essential modern tools accessible without the noise and compulsive patterns of a conventional smartphone.</string>
     <string name="title_activity_main">Nokia Launcher</string>
     <string name="package_name">com.nokialauncher</string>
     <string name="custom_url_scheme">com.nokialauncher</string>

@@ -39,11 +39,11 @@ const DRAWER_PRIORITY = [
 ];
 
 export const SETTINGS_ITEMS = Object.freeze([
-  { id: "display", label: "Display" },
-  { id: "sound", label: "Sound" },
-  { id: "keyboard", label: "Keyboard" },
-  { id: "digital-wellbeing", label: "Digital Wellbeing" },
-  { id: "privacy", label: "Privacy" },
+  { id: "display", label: "Display", nativeSetting: "display" },
+  { id: "sound", label: "Sound", nativeSetting: "sound" },
+  { id: "keyboard", label: "Keyboard", nativeSetting: "keyboard" },
+  { id: "digital-wellbeing", label: "Digital Wellbeing", nativeSetting: "digital-wellbeing" },
+  { id: "privacy", label: "Privacy", nativeSetting: "privacy" },
 ]);
 
 export const findMatchingApp = (apps, matches) =>

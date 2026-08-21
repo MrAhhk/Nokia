@@ -10,7 +10,8 @@ import {
   Phone,
   Search,
   ShieldCheck,
-  VolumeX,
+  Siren,
+  Vibrate,
   Wifi,
 } from "lucide-react";
 
@@ -48,6 +49,8 @@ const Screen = ({
   dialNumber,
   deviceStatus,
   onNotificationStatusClick,
+  onNotificationModeCycle,
+  onSirenToggle,
   onStatusIconClick,
 }) => {
   const menuScrollRef = useRef(null);
@@ -93,7 +96,7 @@ const Screen = ({
   if (dialActive) {
     return (
       <div className="lcd-screen lcd-dial-screen" data-testid="screen-dial">
-        <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationStatusClick} onStatusClick={onStatusIconClick} />
+        <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
         <div className="lcd-dial-label">Enter number</div>
         <div className="lcd-dial-number" aria-live="polite">{dialNumber}</div>
         <div className="lcd-dial-rule" aria-hidden="true" />
@@ -108,7 +111,7 @@ const Screen = ({
   if (currentView === "home") {
     return (
       <div className="lcd-screen" data-testid="screen-home">
-        <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationStatusClick} onStatusClick={onStatusIconClick} />
+        <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
 
         <div className="lcd-time" data-testid="home-time">
             {formattedTime}
@@ -159,7 +162,7 @@ const Screen = ({
 
     return (
       <div className="lcd-screen lcd-list-screen" data-testid={isSettings ? "screen-settings" : "screen-menu"}>
-        <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationStatusClick} onStatusClick={onStatusIconClick} />
+        <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
         <div className="lcd-list-time">{formattedTime}</div>
         <div className="lcd-list-header">
           <div className="lcd-list-title">{isSettings ? "Settings" : "Menu"}</div>
@@ -222,7 +225,7 @@ const Screen = ({
   return null;
 };
 
-const LcdStatus = memo(({ status, onNotificationsClick, onStatusClick }) => (
+const LcdStatus = memo(({ status, onNotificationsClick, onNotificationsLongPress, onSirenToggle, onStatusClick }) => (
   <div className="lcd-status" aria-label="Live device status">
     <span className="lcd-status__left">
       <StatusButton label="Open network settings" onClick={() => onStatusClick("network")}>
@@ -231,16 +234,26 @@ const LcdStatus = memo(({ status, onNotificationsClick, onStatusClick }) => (
       {status?.wifi && <StatusButton label="Open Wi-Fi settings" onClick={() => onStatusClick("wifi")}><Wifi /></StatusButton>}
       {status?.bluetooth && <StatusButton label="Open Bluetooth settings" onClick={() => onStatusClick("bluetooth")}><Bluetooth /></StatusButton>}
       {status?.vpn && <StatusButton label="Open VPN settings" onClick={() => onStatusClick("vpn")}><ShieldCheck /></StatusButton>}
-      {status?.silent && <StatusButton label="Open sound settings" onClick={() => onStatusClick("sound")}><VolumeX /></StatusButton>}
+      <StatusButton
+        label={status?.sirenMuted ? "Activate siren sound" : "Mute siren sound"}
+        onClick={onSirenToggle}
+      >
+        <Siren className={status?.sirenMuted ? "is-muted" : ""} />
+      </StatusButton>
     </span>
     <span className="lcd-status__right">
       <button
         type="button"
         className="lcd-notifications"
         onClick={onNotificationsClick}
-        aria-label={status?.notificationAccess ? `${status.notificationCount || 0} active notifications` : "Enable notification access"}
+        onContextMenu={(event) => { event.preventDefault(); onNotificationsLongPress(); }}
+        aria-label={`Notifications ${status?.notificationMode || "active"}; tap to change mode`}
       >
-        {status?.notificationAccess ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}
+        {status?.notificationMode === "muted"
+          ? <BellOff aria-hidden="true" />
+          : status?.notificationMode === "vibrate"
+            ? <Vibrate aria-hidden="true" />
+            : <Bell aria-hidden="true" />}
         {!!status?.notificationCount && <b>{Math.min(status.notificationCount, 99)}</b>}
       </button>
       {status?.powerSave && <StatusButton label="Open power-saving settings" onClick={() => onStatusClick("battery")}><span className="lcd-power-save">P</span></StatusButton>}

@@ -3,6 +3,7 @@ import Screen from "./Screen";
 import Keypad from "./Keypad";
 import CameraFeature from "@/features/camera/CameraFeature";
 import {
+  cycleNotificationMode,
   getDeviceStatus,
   launchInstalledApp,
   makePhoneCall,
@@ -11,7 +12,7 @@ import {
   openNotificationAccessSettings,
   openSystemSetting,
   openWebUrl,
-  showKeyboardSettings,
+  toggleSirenSound,
 } from "@/lib/launcherApps";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
 import {
@@ -79,6 +80,24 @@ const NokiaLauncher = ({ apps }) => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const refreshDeviceStatus = useCallback(() => {
+    getDeviceStatus().then(setDeviceStatus).catch((error) =>
+      console.warn("Device status unavailable:", error)
+    );
+  }, []);
+
+  const handleSirenToggle = useCallback(() => {
+    toggleSirenSound().then(refreshDeviceStatus).catch((error) =>
+      console.error("Unable to toggle siren sound:", error)
+    );
+  }, [refreshDeviceStatus]);
+
+  const handleNotificationModeCycle = useCallback(() => {
+    cycleNotificationMode().then(refreshDeviceStatus).catch((error) =>
+      console.error("Unable to change notification mode:", error)
+    );
+  }, [refreshDeviceStatus]);
 
   useEffect(() => {
     let active = true;
@@ -216,15 +235,9 @@ const NokiaLauncher = ({ apps }) => {
       handleOpenApp(visibleMenuItems[selectedIndex]);
     } else if (currentView === "settings" && visibleMenuItems[selectedIndex]) {
       const setting = visibleMenuItems[selectedIndex];
-      if (setting.id === "keyboard") {
-        showKeyboardSettings().catch((error) =>
-          console.error("Error opening keyboard settings:", error)
-        );
-      } else {
-        openSystemSetting(setting.id).catch((error) =>
-          console.error(`Error opening ${setting.id} settings:`, error)
-        );
-      }
+      openSystemSetting(setting.nativeSetting).catch((error) =>
+        console.error(`Error opening ${setting.id} settings:`, error)
+      );
     }
   }, [currentView, selectedIndex, visibleMenuItems, handleOpenApp, homeShortcuts, openGoogleSearch]);
 
@@ -232,15 +245,9 @@ const NokiaLauncher = ({ apps }) => {
     if (!setting) return;
     const index = SETTINGS_ITEMS.findIndex((item) => item.id === setting.id);
     if (index >= 0) setSelectedIndex(index);
-    if (setting.id === "keyboard") {
-      showKeyboardSettings().catch((error) =>
-        console.error("Error opening keyboard settings:", error)
-      );
-    } else {
-      openSystemSetting(setting.id).catch((error) =>
-        console.error(`Error opening ${setting.id} settings:`, error)
-      );
-    }
+    openSystemSetting(setting.nativeSetting).catch((error) =>
+      console.error(`Error opening ${setting.id} settings:`, error)
+    );
   }, []);
 
   const handleBack = useCallback(() => {
@@ -478,6 +485,8 @@ const NokiaLauncher = ({ apps }) => {
           dialNumber={dialNumber}
           deviceStatus={deviceStatus}
           onNotificationStatusClick={openNotificationAccessSettings}
+          onSirenToggle={handleSirenToggle}
+          onNotificationModeCycle={handleNotificationModeCycle}
           onStatusIconClick={openSystemSetting}
         />}
       </div>

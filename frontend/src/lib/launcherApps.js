@@ -280,6 +280,18 @@ export const openSystemSetting = async (setting) => {
   await launcherApps.openSystemSetting({ setting });
 };
 
+export const toggleSirenSound = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.toggleSirenSound) return { sirenMuted: false };
+  return launcherApps.toggleSirenSound();
+};
+
+export const cycleNotificationMode = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.cycleNotificationMode) return { notificationMode: "active" };
+  return launcherApps.cycleNotificationMode();
+};
+
 
 export const showCameraMedia = (media) =>
   callCameraMethod("showCameraMedia", media, { shown: false });

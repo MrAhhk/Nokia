@@ -260,9 +260,69 @@ public class LauncherAppsPlugin extends Plugin {
         result.put("charging", plugged != 0);
         result.put("powerSave", power != null && power.isPowerSaveMode());
         result.put("silent", audio != null && audio.getRingerMode() != AudioManager.RINGER_MODE_NORMAL);
+        result.put("sirenMuted", audio != null && audio.getStreamVolume(AudioManager.STREAM_ALARM) == 0);
+        result.put("notificationMode", getNotificationMode(audio));
         result.put("notificationCount", NokiaNotificationListener.getActiveNotificationCount());
         result.put("notificationAccess", NokiaNotificationListener.hasAccess(context));
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public void toggleSirenSound(PluginCall call) {
+        AudioManager audio = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        if (audio == null) {
+            call.reject("Audio service unavailable");
+            return;
+        }
+        boolean muted = audio.getStreamVolume(AudioManager.STREAM_ALARM) == 0;
+        audio.adjustStreamVolume(
+            AudioManager.STREAM_ALARM,
+            muted ? AudioManager.ADJUST_UNMUTE : AudioManager.ADJUST_MUTE,
+            0
+        );
+        JSObject result = new JSObject();
+        result.put("sirenMuted", !muted);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void cycleNotificationMode(PluginCall call) {
+        android.app.NotificationManager manager = (android.app.NotificationManager)
+            getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && manager != null
+                && !manager.isNotificationPolicyAccessGranted()) {
+            Intent accessIntent = new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS);
+            accessIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(accessIntent);
+            JSObject result = new JSObject();
+            result.put("needsPolicyAccess", true);
+            call.resolve(result);
+            return;
+        }
+
+        AudioManager audio = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        if (audio == null) {
+            call.reject("Audio service unavailable");
+            return;
+        }
+        int current = audio.getRingerMode();
+        int next = current == AudioManager.RINGER_MODE_NORMAL
+            ? AudioManager.RINGER_MODE_VIBRATE
+            : current == AudioManager.RINGER_MODE_VIBRATE
+                ? AudioManager.RINGER_MODE_SILENT
+                : AudioManager.RINGER_MODE_NORMAL;
+        audio.setRingerMode(next);
+        JSObject result = new JSObject();
+        result.put("notificationMode", getNotificationMode(audio));
+        call.resolve(result);
+    }
+
+    private String getNotificationMode(AudioManager audio) {
+        if (audio == null) return "active";
+        if (audio.getRingerMode() == AudioManager.RINGER_MODE_VIBRATE) return "vibrate";
+        if (audio.getRingerMode() == AudioManager.RINGER_MODE_SILENT) return "muted";
+        return "active";
     }
 
     @PluginMethod
@@ -290,13 +350,16 @@ public class LauncherAppsPlugin extends Plugin {
                 intent = new Intent(Settings.ACTION_SOUND_SETTINGS);
                 break;
             case "privacy":
-                intent = new Intent(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                    ? Settings.ACTION_PRIVACY_SETTINGS
-                    : Settings.ACTION_SECURITY_SETTINGS);
+                intent = new Intent("android.settings.PRIVACY_SETTINGS");
                 break;
             case "digital-wellbeing":
-                intent = getContext().getPackageManager().getLaunchIntentForPackage("com.google.android.apps.wellbeing");
-                if (intent == null) intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+                intent = new Intent("android.settings.WELLBEING_SETTINGS");
+                if (intent.resolveActivity(getContext().getPackageManager()) == null) {
+                    intent = getContext().getPackageManager().getLaunchIntentForPackage("com.google.android.apps.wellbeing");
+                }
+                break;
+            case "keyboard":
+                intent = new Intent(Settings.ACTION_INPUT_METHOD_SETTINGS);
                 break;
             case "wifi":
                 intent = new Intent(Settings.ACTION_WIFI_SETTINGS);
@@ -319,10 +382,18 @@ public class LauncherAppsPlugin extends Plugin {
         }
 
         try {
+            if (intent == null) {
+                call.reject(setting + " settings are not available on this device");
+                return;
+            }
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
             call.resolve();
         } catch (Exception primaryError) {
+            if ("keyboard".equals(setting) || "digital-wellbeing".equals(setting) || "privacy".equals(setting)) {
+                call.reject("Exact " + setting + " settings are unavailable: " + primaryError.getMessage(), primaryError);
+                return;
+            }
             try {
                 Intent fallback = new Intent(Settings.ACTION_SETTINGS);
                 fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

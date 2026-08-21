@@ -83,6 +83,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     
     <!-- Launcher app permissions to query all installed packages (Android 11+) -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />

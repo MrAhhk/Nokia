@@ -77,6 +77,14 @@ describe("launcher menu models", () => {
       "Digital Wellbeing",
       "Privacy",
     ]);
+    expect(SETTINGS_ITEMS.map((item) => item.nativeSetting)).toEqual([
+      "display",
+      "sound",
+      "keyboard",
+      "digital-wellbeing",
+      "privacy",
+    ]);
+    expect(new Set(SETTINGS_ITEMS.map((item) => item.nativeSetting)).size).toBe(SETTINGS_ITEMS.length);
   });
 
   test("cycles every D-pad direction through the selectable home targets", () => {

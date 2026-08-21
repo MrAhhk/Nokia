@@ -9,7 +9,6 @@ import {
   makePhoneCall,
   openDefaultMaps,
   openDefaultPhone,
-  openClock,
   openNotificationAccessSettings,
   openSystemSetting,
   openWebUrl,
@@ -90,25 +89,15 @@ const NokiaLauncher = ({ apps }) => {
   }, []);
 
   const handleSirenToggle = useCallback(() => {
-    toggleSirenSound()
-      .then((result) => {
-        if (result && typeof result.sirenMuted === "boolean") {
-          setDeviceStatus((status) => ({ ...(status || {}), sirenMuted: result.sirenMuted }));
-        }
-        window.setTimeout(refreshDeviceStatus, 250);
-      })
-      .catch((error) => console.error("Unable to toggle siren sound:", error));
+    toggleSirenSound().then(refreshDeviceStatus).catch((error) =>
+      console.error("Unable to toggle siren sound:", error)
+    );
   }, [refreshDeviceStatus]);
 
   const handleNotificationModeCycle = useCallback(() => {
-    cycleNotificationMode()
-      .then((result) => {
-        if (result?.notificationMode) {
-          setDeviceStatus((status) => ({ ...(status || {}), notificationMode: result.notificationMode }));
-        }
-        window.setTimeout(refreshDeviceStatus, 250);
-      })
-      .catch((error) => console.error("Unable to change notification mode:", error));
+    cycleNotificationMode().then(refreshDeviceStatus).catch((error) =>
+      console.error("Unable to change notification mode:", error)
+    );
   }, [refreshDeviceStatus]);
 
   useEffect(() => {
@@ -235,9 +224,7 @@ const NokiaLauncher = ({ apps }) => {
   const handleSelect = useCallback(() => {
     if (currentView === "home") {
       const target = HOME_FOCUS_TARGETS[selectedIndex];
-      if (target === "clock") {
-        openClock().catch((error) => console.error("Error opening Clock:", error));
-      } else if (target === "search") {
+      if (target === "search") {
         openGoogleSearch();
       } else {
         handleOpenApp(resolveHomeShortcut(homeShortcuts, target));
@@ -499,7 +486,6 @@ const NokiaLauncher = ({ apps }) => {
           onSirenToggle={handleSirenToggle}
           onNotificationModeCycle={handleNotificationModeCycle}
           onStatusIconClick={openSystemSetting}
-          onClockClick={() => openClock().catch((error) => console.error("Error opening Clock:", error))}
         />}
       </div>
 

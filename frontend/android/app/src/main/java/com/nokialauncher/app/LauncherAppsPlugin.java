@@ -18,7 +18,6 @@ import android.media.AudioManager;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.PowerManager;
-import android.provider.AlarmClock;
 import android.provider.Settings;
 import android.view.inputmethod.InputMethodManager;
 import com.getcapacitor.JSObject;
@@ -46,8 +45,6 @@ import org.json.JSONArray;
     }
 )
 public class LauncherAppsPlugin extends Plugin {
-    private static final String AUDIO_PREFS = "nokia_launcher_audio";
-    private static final String LAST_ALARM_VOLUME = "last_alarm_volume";
     private BuiltInCameraController cameraController;
 
     @Override
@@ -290,21 +287,14 @@ public class LauncherAppsPlugin extends Plugin {
             call.reject("Audio service unavailable");
             return;
         }
-        int currentVolume = audio.getStreamVolume(AudioManager.STREAM_ALARM);
-        boolean muted = currentVolume == 0;
-        if (!muted) {
-            getContext().getSharedPreferences(AUDIO_PREFS, Context.MODE_PRIVATE)
-                .edit()
-                .putInt(LAST_ALARM_VOLUME, currentVolume)
-                .apply();
-        }
-        int maximumVolume = Math.max(1, audio.getStreamMaxVolume(AudioManager.STREAM_ALARM));
-        int restoreVolume = getContext().getSharedPreferences(AUDIO_PREFS, Context.MODE_PRIVATE)
-            .getInt(LAST_ALARM_VOLUME, Math.max(1, maximumVolume / 2));
-        int targetVolume = muted ? Math.min(maximumVolume, Math.max(1, restoreVolume)) : 0;
-        audio.setStreamVolume(AudioManager.STREAM_ALARM, targetVolume, 0);
+        boolean muted = audio.getStreamVolume(AudioManager.STREAM_ALARM) == 0;
+        audio.adjustStreamVolume(
+            AudioManager.STREAM_ALARM,
+            muted ? AudioManager.ADJUST_UNMUTE : AudioManager.ADJUST_MUTE,
+            0
+        );
         JSObject result = new JSObject();
-        result.put("sirenMuted", audio.getStreamVolume(AudioManager.STREAM_ALARM) == 0);
+        result.put("sirenMuted", !muted);
         call.resolve(result);
     }
 
@@ -312,6 +302,18 @@ public class LauncherAppsPlugin extends Plugin {
     public void cycleNotificationMode(PluginCall call) {
         android.app.NotificationManager manager = (android.app.NotificationManager)
             getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && manager != null
+                && !manager.isNotificationPolicyAccessGranted()) {
+            Intent accessIntent = new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS);
+            accessIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(accessIntent);
+            JSObject result = new JSObject();
+            result.put("needsPolicyAccess", true);
+            call.resolve(result);
+            return;
+        }
+
         AudioManager audio = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
         if (audio == null) {
             call.reject("Audio service unavailable");
@@ -323,85 +325,10 @@ public class LauncherAppsPlugin extends Plugin {
             : current == AudioManager.RINGER_MODE_VIBRATE
                 ? AudioManager.RINGER_MODE_SILENT
                 : AudioManager.RINGER_MODE_NORMAL;
-
-        boolean changesDoNotDisturb = current == AudioManager.RINGER_MODE_SILENT
-            || next == AudioManager.RINGER_MODE_SILENT;
-        if (changesDoNotDisturb
-                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                && manager != null
-                && !manager.isNotificationPolicyAccessGranted()) {
-            requestNotificationPolicyAccess(call);
-            return;
-        }
-
-        try {
-            audio.setRingerMode(next);
-        } catch (SecurityException error) {
-            requestNotificationPolicyAccess(call);
-            return;
-        }
+        audio.setRingerMode(next);
         JSObject result = new JSObject();
         result.put("notificationMode", getNotificationMode(audio));
         call.resolve(result);
-    }
-
-    private void requestNotificationPolicyAccess(PluginCall call) {
-        try {
-            Intent accessIntent = new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS);
-            accessIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(accessIntent);
-            JSObject result = new JSObject();
-            result.put("needsPolicyAccess", true);
-            call.resolve(result);
-        } catch (Exception error) {
-            call.reject("Notification policy access is required", error);
-        }
-    }
-
-    @PluginMethod
-    public void openClock(PluginCall call) {
-        try {
-            Intent intent = new Intent(AlarmClock.ACTION_SHOW_ALARMS);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            if (intent.resolveActivity(getContext().getPackageManager()) == null) {
-                intent = findClockLaunchIntent();
-            }
-            if (intent == null) {
-                call.reject("No Clock app is installed");
-                return;
-            }
-            getContext().startActivity(intent);
-            call.resolve();
-        } catch (Exception e) {
-            call.reject("Failed to open Clock: " + e.getMessage(), e);
-        }
-    }
-
-    private Intent findClockLaunchIntent() {
-        PackageManager packageManager = getContext().getPackageManager();
-        Intent launcherQuery = new Intent(Intent.ACTION_MAIN);
-        launcherQuery.addCategory(Intent.CATEGORY_LAUNCHER);
-        for (ResolveInfo candidate : packageManager.queryIntentActivities(launcherQuery, 0)) {
-            if (candidate.activityInfo == null) continue;
-            CharSequence label = candidate.loadLabel(packageManager);
-            String searchable = (
-                candidate.activityInfo.packageName + " "
-                    + candidate.activityInfo.name + " "
-                    + (label == null ? "" : label)
-            ).toLowerCase(Locale.ROOT);
-            if (!searchable.contains("clock") && !searchable.contains("alarm")) continue;
-
-            Intent launchIntent = new Intent(Intent.ACTION_MAIN);
-            launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-            launchIntent.setComponent(new ComponentName(
-                candidate.activityInfo.packageName,
-                candidate.activityInfo.name
-            ));
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-            return launchIntent;
-        }
-        return null;
     }
 
     private String getNotificationMode(AudioManager audio) {

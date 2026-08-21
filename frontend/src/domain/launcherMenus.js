@@ -12,7 +12,6 @@ const HOME_SHORTCUT_DEFINITIONS = [
 ];
 
 export const HOME_FOCUS_TARGETS = Object.freeze([
-  "clock",
   "search",
   ...HOME_SHORTCUT_DEFINITIONS.map(({ id }) => id),
 ]);

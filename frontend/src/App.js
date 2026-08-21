@@ -4,6 +4,7 @@ import NokiaLauncher from "@/components/NokiaLauncher";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfService from "@/pages/TermsOfService";
+import About from "@/pages/About";
 import { getCachedInstalledApps, getInstalledApps } from "@/lib/launcherApps";
 import NokiaSystemKeyboard from "@/components/NokiaSystemKeyboard";
 
@@ -29,6 +30,7 @@ function MainApp() {
         <Route path="/" element={<NokiaLauncher apps={apps} />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/about" element={<About />} />
       </Routes>
     </BrowserRouter>
   );

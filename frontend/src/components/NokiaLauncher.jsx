@@ -20,6 +20,7 @@ import {
   SETTINGS_ITEMS,
   createHomeShortcuts,
   moveHomeFocus,
+  moveListSelection,
   orderDrawerApps,
   rankSearchResults,
   resolveHomeShortcut,
@@ -196,10 +197,7 @@ const NokiaLauncher = ({ apps }) => {
         if (currentView === "home") {
           return moveHomeFocus(prev, direction);
         }
-        if (len === 0) return 0;
-        if (direction === "up")   return prev > 0       ? prev - 1 : len - 1;
-        if (direction === "down") return prev < len - 1 ? prev + 1 : 0;
-        return prev;
+        return moveListSelection(prev, len, direction);
       });
     },
     [currentView, visibleMenuItems.length]
@@ -243,12 +241,12 @@ const NokiaLauncher = ({ apps }) => {
 
   const handleSettingClick = useCallback((setting) => {
     if (!setting) return;
-    const index = SETTINGS_ITEMS.findIndex((item) => item.id === setting.id);
+    const index = visibleMenuItems.findIndex((item) => item.id === setting.id);
     if (index >= 0) setSelectedIndex(index);
     openSystemSetting(setting.nativeSetting).catch((error) =>
       console.error(`Error opening ${setting.id} settings:`, error)
     );
-  }, []);
+  }, [visibleMenuItems]);
 
   const handleBack = useCallback(() => {
     if (currentView === "menu") {

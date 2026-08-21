@@ -395,6 +395,15 @@ public final class BuiltInCameraController {
         });
     }
 
+    public void pauseForBackground() {
+        activity.runOnUiThread(() -> {
+            if (activeRecording != null) activeRecording.stop();
+            if (cameraProvider != null) cameraProvider.unbindAll();
+            removePreview();
+            removeMediaView();
+        });
+    }
+
     public void destroy() {
         if (activeRecording != null) activeRecording.stop();
         if (cameraProvider != null) cameraProvider.unbindAll();

@@ -4,6 +4,7 @@ import {
   createHomeShortcuts,
   findMatchingApp,
   moveHomeFocus,
+  moveListSelection,
   orderDrawerApps,
   resolveHomeShortcut,
   rankSearchResults,
@@ -101,6 +102,14 @@ describe("launcher menu models", () => {
     expect(moveHomeFocus(1, "up")).toBe(0);
     expect(moveHomeFocus(0, "left")).toBe(4);
     expect(moveHomeFocus(4, "right")).toBe(0);
+  });
+
+  test("recovers list navigation immediately from stale out-of-range selections", () => {
+    expect(moveListSelection(4, 2, "up")).toBe(1);
+    expect(moveListSelection(4, 2, "down")).toBe(0);
+    expect(moveListSelection(0, 2, "up")).toBe(1);
+    expect(moveListSelection(1, 2, "down")).toBe(0);
+    expect(moveListSelection(3, 0, "down")).toBe(0);
   });
 
   test("ranks early name-prefix matches ahead of substring and package matches", () => {

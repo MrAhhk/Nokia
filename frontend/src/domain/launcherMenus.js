@@ -64,6 +64,16 @@ export const resolveHomeShortcut = (shortcuts, targetId) => {
   return shortcut.action ? shortcut : shortcut.app;
 };
 
+export const moveListSelection = (currentIndex, itemCount, direction) => {
+  if (itemCount <= 0) return 0;
+  if (currentIndex < 0 || currentIndex >= itemCount) {
+    return direction === "up" ? itemCount - 1 : 0;
+  }
+  if (direction === "up") return currentIndex > 0 ? currentIndex - 1 : itemCount - 1;
+  if (direction === "down") return currentIndex < itemCount - 1 ? currentIndex + 1 : 0;
+  return currentIndex;
+};
+
 export const rankSearchResults = (items, query) => {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return items;

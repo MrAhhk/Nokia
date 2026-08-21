@@ -78,6 +78,28 @@ const CameraFeature = forwardRef(({ onExit }, ref) => {
   }, []);
 
   useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        if (stateRef.current.recording) {
+          dispatch({ type: "RECORDING_STOPPING" });
+          stopCameraVideo()
+            .then((result) => dispatch({ type: "RECORDING_FINALIZED", media: result?.media }))
+            .catch((error) => dispatch({ type: "ERROR", error: String(error?.message || error) }))
+            .finally(() => stopBuiltInCamera().catch(() => {}));
+        } else {
+          stopBuiltInCamera().catch(() => {});
+        }
+        return;
+      }
+      if (stateRef.current.view === CAMERA_VIEWS.CAMERA) {
+        requestAnimationFrame(startPreview);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [startPreview]);
+
+  useEffect(() => {
     if (state.view !== CAMERA_VIEWS.VIEWER || !state.selectedMedia) return undefined;
     const frame = requestAnimationFrame(() => {
       const bounds = getNativeBounds(surfaceRef.current);

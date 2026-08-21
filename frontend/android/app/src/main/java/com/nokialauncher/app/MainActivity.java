@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.view.View;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -21,6 +22,20 @@ public class MainActivity extends BridgeActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) hideSystemStatusBar();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        hideSystemStatusBar();
+        if (bridge != null && bridge.getWebView() != null) {
+            bridge.getWebView().setVisibility(View.VISIBLE);
+            bridge.getWebView().setAlpha(1f);
+            bridge.getWebView().onResume();
+            bridge.getWebView().resumeTimers();
+            bridge.getWebView().requestLayout();
+            bridge.getWebView().invalidate();
+        }
     }
 
     private void hideSystemStatusBar() {

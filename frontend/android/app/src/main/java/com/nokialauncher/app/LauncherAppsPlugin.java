@@ -47,6 +47,19 @@ import org.json.JSONArray;
 public class LauncherAppsPlugin extends Plugin {
     private BuiltInCameraController cameraController;
 
+    @Override
+    protected void handleOnPause() {
+        if (cameraController != null) cameraController.pauseForBackground();
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (cameraController != null) {
+            cameraController.destroy();
+            cameraController = null;
+        }
+    }
+
     private BuiltInCameraController cameraController() {
         if (cameraController == null) {
             cameraController = new BuiltInCameraController(getActivity(), control -> {

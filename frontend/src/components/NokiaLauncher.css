@@ -46,6 +46,8 @@
 }
 
 .lcd-status {
+  position: relative;
+  z-index: 4;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -63,9 +65,10 @@
 
 .lcd-status-button {
   display: grid;
-  min-width: 17px;
-  height: 20px;
-  padding: 0;
+  min-width: 30px;
+  height: 30px;
+  margin: -5px -4px;
+  padding: 5px;
   place-items: center;
   border: 0;
   background: transparent;
@@ -128,9 +131,10 @@
 .lcd-notifications {
   position: relative;
   display: grid;
-  width: 20px;
-  height: 20px;
-  padding: 0;
+  width: 30px;
+  height: 30px;
+  margin: -5px -4px;
+  padding: 5px;
   place-items: center;
   border: 0;
   background: transparent;

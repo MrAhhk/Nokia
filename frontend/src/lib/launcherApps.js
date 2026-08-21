@@ -250,6 +250,12 @@ export const openDefaultMaps = async () => {
   await launcherApps.openDefaultMaps();
 };
 
+export const openClock = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.openClock) return;
+  await launcherApps.openClock();
+};
+
 export const getDeviceStatus = async () => {
   const launcherApps = getLauncherAppsPlugin();
   if (!launcherApps?.getDeviceStatus) {

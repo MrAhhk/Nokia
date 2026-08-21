@@ -90,18 +90,19 @@ describe("launcher menu models", () => {
 
   test("cycles every D-pad direction through the selectable home targets", () => {
     expect(HOME_FOCUS_TARGETS).toEqual([
+      "clock",
       "search",
       "phone",
       "messages",
       "maps",
       "camera",
     ]);
-    expect(moveHomeFocus(1, "right")).toBe(2);
-    expect(moveHomeFocus(1, "down")).toBe(2);
-    expect(moveHomeFocus(1, "left")).toBe(0);
-    expect(moveHomeFocus(1, "up")).toBe(0);
-    expect(moveHomeFocus(0, "left")).toBe(4);
-    expect(moveHomeFocus(4, "right")).toBe(0);
+    expect(moveHomeFocus(2, "right")).toBe(3);
+    expect(moveHomeFocus(2, "down")).toBe(3);
+    expect(moveHomeFocus(2, "left")).toBe(1);
+    expect(moveHomeFocus(2, "up")).toBe(1);
+    expect(moveHomeFocus(0, "left")).toBe(5);
+    expect(moveHomeFocus(5, "right")).toBe(0);
   });
 
   test("recovers list navigation immediately from stale out-of-range selections", () => {

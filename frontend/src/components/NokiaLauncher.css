@@ -73,6 +73,8 @@
   border: 0;
   background: transparent;
   color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .lcd-status-button:focus-visible {
@@ -139,6 +141,8 @@
   border: 0;
   background: transparent;
   color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .lcd-notifications b {
@@ -208,6 +212,17 @@
   letter-spacing: 0.04em;
   transform: scaleX(0.88);
   text-shadow: 1px 0 var(--ink);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.lcd-time.is-selected {
+  background: var(--ink);
+  color: var(--lcd);
+  text-shadow: none;
 }
 
 .lcd-search {
@@ -235,6 +250,7 @@
 }
 
 .lcd-search:focus-visible,
+.lcd-time:focus-visible,
 .lcd-shortcut:focus-visible,
 .lcd-softkeys button:focus-visible {
   outline: 2px solid var(--ink);

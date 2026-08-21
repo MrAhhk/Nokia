@@ -3,49 +3,41 @@ const PrivacyPolicy = () => {
     <div className="min-h-screen bg-black text-white p-6 font-mono" data-testid="privacy-policy-page">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 border-b border-white/20 pb-4">Privacy Policy</h1>
-        <p className="text-sm text-white/60 mb-8">Last Updated: June 5, 2026</p>
+        <p className="text-sm text-white/60 mb-8">Last Updated: August 19, 2026</p>
 
         <section className="mb-8">
           <h2 className="text-xl font-bold mb-4">1. Introduction</h2>
           <p className="text-white/80 leading-relaxed">
             Nokia Launcher ("we," "our," or "the App") is committed to protecting your privacy. 
             This Privacy Policy explains how we collect, use, and safeguard your information when 
-            you use our mobile application in compliance with Google Play Store policies effective 
-            May 2026.
+            use our mobile application.
           </p>
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-bold mb-4">2. Information We Collect</h2>
+          <h2 className="text-xl font-bold mb-4">2. Information We Handle</h2>
           <div className="space-y-4 text-white/80">
             <div>
-              <h3 className="font-semibold text-white mb-2">2.1 Contact Information (Optional)</h3>
+              <h3 className="font-semibold text-white mb-2">2.1 Installed-app information</h3>
               <p className="leading-relaxed">
-                With your explicit permission, we may access your contacts using the Android Contact 
-                Picker API. We only access individual contacts you select—never your entire contact 
-                list—in compliance with Google Play's April 2026 contacts policy update.
+                To provide its core launcher function, the App reads the names, icons, package names, 
+                and launch activities of apps installed on your device. This information stays on your 
+                device and is not sent to us or to third parties.
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-white mb-2">2.2 Location Data (Optional)</h3>
+              <h3 className="font-semibold text-white mb-2">2.2 Keyboard input</h3>
               <p className="leading-relaxed">
-                If you grant permission, we may access your device location for one-time use through 
-                the Android location button. We do not continuously track your location or use 
-                geofencing unless you explicitly enable location-based features.
+                If you enable Nokia System Keyboard in Android settings, the keyboard processes text 
+                locally to send it to the app you are typing in. The App does not store, transmit, or 
+                use that text for analytics, advertising, or any other purpose.
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-white mb-2">2.3 Device Information</h3>
+              <h3 className="font-semibold text-white mb-2">2.3 Data collection and sharing</h3>
               <p className="leading-relaxed">
-                We collect basic device information including device model, operating system version, 
-                and app version to ensure compatibility and improve performance.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-white mb-2">2.4 Usage Data</h3>
-              <p className="leading-relaxed">
-                We collect anonymous usage statistics such as app launches, feature usage, and 
-                interaction patterns to improve the user experience.
+                This release does not collect or share personal information, location, contacts, device 
+                identifiers, usage analytics, or keyboard input.
               </p>
             </div>
           </div>
@@ -55,33 +47,24 @@ const PrivacyPolicy = () => {
           <h2 className="text-xl font-bold mb-4">3. How We Use Your Information</h2>
           <ul className="list-disc list-inside space-y-2 text-white/80">
             <li>To provide and maintain the launcher functionality</li>
-            <li>To display your selected contacts when you choose to access them</li>
-            <li>To provide location-based features when requested</li>
-            <li>To improve app performance and user experience</li>
-            <li>To send important updates about the app (if you opt-in)</li>
+            <li>To list and open apps installed on your device</li>
+            <li>To provide local T9 keyboard input when you explicitly enable the keyboard</li>
           </ul>
         </section>
 
         <section className="mb-8">
           <h2 className="text-xl font-bold mb-4">4. Data Sharing and Disclosure</h2>
           <p className="text-white/80 leading-relaxed mb-4">
-            We do not sell, trade, or rent your personal information to third parties. We may share 
-            information only in the following circumstances:
+            We do not sell, trade, rent, or share personal information. The App has no analytics or 
+            advertising SDKs in this release.
           </p>
-          <ul className="list-disc list-inside space-y-2 text-white/80">
-            <li>With your explicit consent</li>
-            <li>To comply with legal obligations</li>
-            <li>To protect our rights, privacy, safety, or property</li>
-            <li>In connection with a merger, sale, or acquisition (with prior notice)</li>
-          </ul>
         </section>
 
         <section className="mb-8">
           <h2 className="text-xl font-bold mb-4">5. Data Security</h2>
           <p className="text-white/80 leading-relaxed">
-            We implement industry-standard security measures to protect your information. All data 
-            is encrypted in transit and at rest. However, no method of transmission over the internet 
-            is 100% secure, and we cannot guarantee absolute security.
+            Because the App does not transmit personal data, installed-app information and keyboard 
+            input remain protected by Android's app sandbox and the device security controls.
           </p>
         </section>
 
@@ -89,11 +72,8 @@ const PrivacyPolicy = () => {
           <h2 className="text-xl font-bold mb-4">6. Your Rights</h2>
           <p className="text-white/80 leading-relaxed mb-4">You have the right to:</p>
           <ul className="list-disc list-inside space-y-2 text-white/80">
-            <li>Access your personal data</li>
-            <li>Correct inaccurate data</li>
-            <li>Request deletion of your data</li>
-            <li>Revoke permissions at any time through device settings</li>
-            <li>Opt-out of data collection features</li>
+            <li>Stop using the App or uninstall it at any time</li>
+            <li>Disable Nokia System Keyboard at any time in Android settings</li>
           </ul>
         </section>
 

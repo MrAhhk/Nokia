@@ -5,6 +5,12 @@
     "vibe": "Nostalgic, physical, brutalist, precise, distraction-free.",
     "theme": "Dark"
   },
+  "product_north_star": {
+    "mission": "Bring the modern smartphone back to the Nokia era, when phones were useful tools rather than addictive attention machines, while retaining a refined modern minimalist feeling.",
+    "canonical_reference": "../docs/PRODUCT_NORTH_STAR.md",
+    "priority": "Umbrella constraint for every feature, interaction, UX, and visual design decision.",
+    "design_gate": "Prefer essential utility, finite deliberate interactions, Nokia-era calm, privacy, and modern polish. Reject attention loops, compulsive-use mechanics, unnecessary motion, and engagement-maximizing patterns."
+  },
   "colors": {
     "background_primary": "#000000",
     "background_secondary": "#050505",

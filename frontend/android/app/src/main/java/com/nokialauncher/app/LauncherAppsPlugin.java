@@ -1,4 +1,4 @@
-package com.nokialauncher.app;
+package com.nokialauncher;
 
 import android.content.ComponentName;
 import android.content.Context;
@@ -118,12 +118,10 @@ public class LauncherAppsPlugin extends Plugin {
 
         try {
             Uri uri = Uri.parse("tel:" + number.trim());
-            Intent intent = new Intent(Intent.ACTION_CALL, uri);
+            Intent intent = new Intent(Intent.ACTION_DIAL, uri);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
             call.resolve();
-        } catch (SecurityException e) {
-            call.reject("CALL_PHONE permission denied or not granted", e);
         } catch (Exception e) {
             call.reject("Failed to make phone call: " + e.getMessage(), e);
         }
@@ -162,6 +160,18 @@ public class LauncherAppsPlugin extends Plugin {
             call.resolve();
         } catch (Exception e) {
             call.reject("Failed to open keyboard settings: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
+    public void showAccessibilitySettings(PluginCall call) {
+        try {
+            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Failed to open accessibility settings: " + e.getMessage(), e);
         }
     }
 

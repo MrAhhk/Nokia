@@ -50,7 +50,7 @@
 
         <!-- Nokia System Keyboard Input Method Service -->
         <service
-            android:name="com.nokialauncher.app.NokiaIME"
+            android:name=".NokiaIME"
             android:label="Nokia System Keyboard"
             android:permission="android.permission.BIND_INPUT_METHOD"
             android:exported="true">
@@ -61,21 +61,13 @@
                 android:name="android.view.im"
                 android:resource="@xml/method" />
         </service>
+
     </application>
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     
-    <!-- Location permissions (2026 Play Store compliant - one-time access via location button) -->
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    
-    <!-- Post notifications (Android 13+) -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    
     <!-- Launcher app permissions to query all installed packages (Android 11+) -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     
-    <!-- Direct call permission -->
-    <uses-permission android:name="android.permission.CALL_PHONE" />
 </manifest>

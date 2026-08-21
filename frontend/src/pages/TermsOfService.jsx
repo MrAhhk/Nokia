@@ -3,7 +3,7 @@ const TermsOfService = () => {
     <div className="min-h-screen bg-black text-white p-6 font-mono" data-testid="terms-of-service-page">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 border-b border-white/20 pb-4">Terms of Service</h1>
-        <p className="text-sm text-white/60 mb-8">Last Updated: June 5, 2026</p>
+        <p className="text-sm text-white/60 mb-8">Last Updated: August 19, 2026</p>
 
         <section className="mb-8">
           <h2 className="text-xl font-bold mb-4">1. Acceptance of Terms</h2>
@@ -44,9 +44,9 @@ const TermsOfService = () => {
         <section className="mb-8">
           <h2 className="text-xl font-bold mb-4">4. Permissions and Data</h2>
           <p className="text-white/80 leading-relaxed">
-            The App may request various device permissions (contacts, location, etc.). By granting 
-            these permissions, you authorize the App to access the relevant data as described in 
-            our Privacy Policy. You can revoke permissions at any time through your device settings.
+            The App uses installed-app visibility only to provide its core launcher function. If you 
+            choose to enable Nokia System Keyboard, Android will show the system keyboard warning. 
+            Keyboard input is processed locally and is not stored or transmitted by the App.
           </p>
         </section>
 

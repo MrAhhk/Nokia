@@ -1,4 +1,4 @@
-package com.nokialauncher.app;
+package com.nokialauncher;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -6,6 +6,7 @@ import android.inputmethodservice.InputMethodService;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.DisplayMetrics;
+import android.content.res.Configuration;
 import android.view.ContextThemeWrapper;
 import android.view.KeyEvent;
 import android.view.View;
@@ -17,13 +18,20 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
-import com.nokialauncher.app.R;
+import com.nokialauncher.R;
 
 public class NokiaIME extends InputMethodService {
+
+    public enum IMEState {
+        ACTIVE,
+        LAUNCHER_SUPPRESSED,
+        HIDDEN_LANDSCAPE
+    }
 
     private WebView mWebView;
     private FrameLayout mInputArea;
     private boolean mForceVisible = true;
+    private IMEState mIMEState = IMEState.ACTIVE;
 
     @Override
     public View onCreateInputView() {
@@ -73,10 +81,16 @@ public class NokiaIME extends InputMethodService {
         return mInputArea;
     }
 
-    // Unconditionally show the keyboard input view to achieve "permanent" keyboard behavior
+    // Show the keyboard input view to achieve "permanent" keyboard behavior, but hide on landscape or launcher
     @Override
     public boolean onEvaluateInputViewShown() {
-        return true;
+        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            return false;
+        }
+        if (mIMEState == IMEState.LAUNCHER_SUPPRESSED) {
+            return false;
+        }
+        return mForceVisible;
     }
 
     // Prevent keyboard from taking up the entire screen in landscape mode
@@ -85,9 +99,13 @@ public class NokiaIME extends InputMethodService {
         return false;
     }
 
-    // Overriding hideWindow to block system hiding unless explicitly triggered by JS bridge
+    // Overriding hideWindow to block system hiding unless explicitly triggered by JS bridge or Launcher suppression
     @Override
     public void hideWindow() {
+        if (mIMEState == IMEState.LAUNCHER_SUPPRESSED) {
+            super.hideWindow();
+            return;
+        }
         if (mForceVisible) {
             // Keep the keyboard window visible!
             return;
@@ -98,16 +116,26 @@ public class NokiaIME extends InputMethodService {
     @Override
     public void onStartInput(EditorInfo attribute, boolean restarting) {
         super.onStartInput(attribute, restarting);
-        mForceVisible = true; // Reset force-visibility when a new input session starts
         
-        // If the active target is our own Nokia Launcher, hide the system keyboard
-        // to prevent rendering duplicate keypads on the Home screen.
-        if (attribute != null && "com.nokialauncher.app".equals(attribute.packageName)) {
+        // Hide keyboard in landscape orientation
+        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            mIMEState = IMEState.HIDDEN_LANDSCAPE;
             mForceVisible = false;
             requestHideSelf(0);
-            mForceVisible = true;
             return;
         }
+
+        // If the active target is our own Nokia Launcher, hide the system keyboard
+        // to prevent rendering duplicate keypads on the Home screen.
+        if (attribute != null && getPackageName().equals(attribute.packageName)) {
+            mIMEState = IMEState.LAUNCHER_SUPPRESSED;
+            mForceVisible = false;
+            requestHideSelf(0);
+            return;
+        }
+
+        mIMEState = IMEState.ACTIVE;
+        mForceVisible = true; // Reset force-visibility when a new input session starts
 
         // Only request showing the soft keyboard on fresh app/window switches.
         // Skipping on restarting (typing/selection changes) completely prevents lag.
@@ -125,16 +153,19 @@ public class NokiaIME extends InputMethodService {
     public void onComputeInsets(InputMethodService.Insets outInsets) {
         super.onComputeInsets(outInsets);
         if (!isFullscreenMode()) {
-            // Restore contentTopInsets to visibleTopInsets to correctly signal
-            // the top boundary of the keyboard to force resizing instead of fullscreen/panning.
-            outInsets.contentTopInsets = outInsets.visibleTopInsets;
+            // Force contentTopInsets and visibleTopInsets to 0 (top of the IME window)
+            // to ensure the system sends the full keyboard height bottom layout inset to target apps.
+            outInsets.contentTopInsets = 0;
+            outInsets.visibleTopInsets = 0;
         }
     }
 
     @Override
     public void onStartInputView(EditorInfo attribute, boolean restarting) {
         super.onStartInputView(attribute, restarting);
-        requestShowSelf(0);
+        if (mIMEState != IMEState.LAUNCHER_SUPPRESSED) {
+            requestShowSelf(0);
+        }
     }
 
     private void postToMainThread(Runnable runnable) {
@@ -188,20 +219,16 @@ public class NokiaIME extends InputMethodService {
             postToMainThread(new Runnable() {
                 @Override
                 public void run() {
-                    InputConnection ic = getCurrentInputConnection();
-                    if (ic != null) {
-                        int keyCode = 0;
-                        if ("UP".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_UP;
-                        else if ("DOWN".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_DOWN;
-                        else if ("LEFT".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_LEFT;
-                        else if ("RIGHT".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_RIGHT;
-                        else if ("SELECT".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_CENTER;
-                        else if ("BACK".equals(direction)) keyCode = KeyEvent.KEYCODE_BACK;
+                    int keyCode = 0;
+                    if ("UP".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_UP;
+                    else if ("DOWN".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_DOWN;
+                    else if ("LEFT".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_LEFT;
+                    else if ("RIGHT".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_RIGHT;
+                    else if ("SELECT".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_CENTER;
+                    else if ("BACK".equals(direction)) keyCode = KeyEvent.KEYCODE_BACK;
 
-                        if (keyCode != 0) {
-                            ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, keyCode));
-                            ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, keyCode));
-                        }
+                    if (keyCode != 0) {
+                        sendDownUpKeyEvents(keyCode);
                     }
                 }
             });
@@ -214,6 +241,40 @@ public class NokiaIME extends InputMethodService {
                 public void run() {
                     mForceVisible = false;
                     requestHideSelf(0);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void setMinimized(final boolean minimized) {
+            postToMainThread(new Runnable() {
+                @Override
+                public void run() {
+                    DisplayMetrics dm = getResources().getDisplayMetrics();
+                    int heightPx = minimized ? (dm.heightPixels / 15) : (dm.heightPixels / 2);
+                    mInputArea.getLayoutParams().height = heightPx;
+                    if (mWebView.getLayoutParams() != null) {
+                        mWebView.getLayoutParams().height = heightPx;
+                    }
+                    mInputArea.requestLayout();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void switchToGboard() {
+            postToMainThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        switchInputMethod("com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME");
+                    } catch (Exception e) {
+                        android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) 
+                            getSystemService(Context.INPUT_METHOD_SERVICE);
+                        if (imm != null) {
+                            imm.showInputMethodPicker();
+                        }
+                    }
                 }
             });
         }

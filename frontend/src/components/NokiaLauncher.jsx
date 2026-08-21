@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Screen from "./Screen";
 import Keypad from "./Keypad";
+import CameraFeature from "@/features/camera/CameraFeature";
 import { launchInstalledApp, makePhoneCall, openWebUrl, showKeyboardSettings } from "@/lib/launcherApps";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
 import {
@@ -41,6 +42,8 @@ const NokiaLauncher = ({ apps }) => {
   );
   const [currentTime, setCurrentTime] = useState(new Date());
   const [settingsReturnView, setSettingsReturnView] = useState("home");
+  const [cameraReturnView, setCameraReturnView] = useState("home");
+  const cameraFeatureRef = useRef(null);
 
   // searchActive as both state (for UI re-render) and ref (for sync reads inside callbacks)
   const [searchActive, setSearchActive] = useState(false);
@@ -170,8 +173,13 @@ const NokiaLauncher = ({ apps }) => {
 
   const handleOpenApp = useCallback((app) => {
     if (!app) return;
+    if (app.action === "built-in-camera") {
+      setCameraReturnView(currentView === "camera" ? "home" : currentView);
+      setCurrentView("camera");
+      return;
+    }
     launchInstalledApp(app).catch((err) => console.error("Error launching app:", err));
-  }, []);
+  }, [currentView]);
 
   const handleSelect = useCallback(() => {
     if (currentView === "home") {
@@ -270,6 +278,10 @@ const NokiaLauncher = ({ apps }) => {
   // ─── Main keypad dispatcher ─────────────────────────────────────────────────
   const handleKeypadPress = useCallback(
     (key) => {
+      if (currentView === "camera") {
+        cameraFeatureRef.current?.handleKey(key);
+        return;
+      }
       // ─── Handle Call / Hangup / Select keys globally first ───
       if (key === "SEND") {
         if (dialActive && dialNumber) {
@@ -408,7 +420,12 @@ const NokiaLauncher = ({ apps }) => {
     <div className="nokia-launcher h-full w-full flex flex-col overflow-hidden select-none" data-testid="nokia-launcher">
       {/* Top Screen - 50% */}
       <div className="nokia-launcher__screen h-1/2 w-full relative flex flex-col">
-        <Screen
+        {currentView === "camera" ? (
+          <CameraFeature
+            ref={cameraFeatureRef}
+            onExit={() => setCurrentView(cameraReturnView)}
+          />
+        ) : <Screen
           currentView={currentView}
           menuItems={visibleMenuItems}
           selectedIndex={selectedIndex}
@@ -424,7 +441,7 @@ const NokiaLauncher = ({ apps }) => {
           onBack={handleBack}
           dialActive={dialActive}
           dialNumber={dialNumber}
-        />
+        />}
       </div>
 
       {/* Bottom Keypad - 50% */}

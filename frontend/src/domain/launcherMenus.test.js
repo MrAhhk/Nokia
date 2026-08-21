@@ -43,6 +43,17 @@ describe("launcher menu models", () => {
       "Camera",
     ]);
     expect(shortcuts.every((shortcut) => shortcut.app)).toBe(true);
+    expect(shortcuts.find((shortcut) => shortcut.id === "camera")).toMatchObject({
+      action: "built-in-camera",
+    });
+  });
+
+  test("marks the prioritized Camera drawer item as built-in without changing other apps", () => {
+    const ordered = orderDrawerApps(apps);
+    expect(ordered.find((item) => (item.displayName || item.name) === "Camera")).toMatchObject({
+      action: "built-in-camera",
+    });
+    expect(ordered.find((item) => (item.displayName || item.name) === "Phone").action).toBeUndefined();
   });
 
   test("finds settings-like apps and keeps the settings model finite", () => {

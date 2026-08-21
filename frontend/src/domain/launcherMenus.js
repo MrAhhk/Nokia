@@ -8,7 +8,7 @@ const HOME_SHORTCUT_DEFINITIONS = [
   { id: "phone", label: "Phone", matches: ["phone", "dialer"] },
   { id: "messages", label: "Messages", matches: ["messages", "messaging", "sms"] },
   { id: "maps", label: "Maps", matches: ["maps", "map"] },
-  { id: "camera", label: "Camera", matches: ["camera"] },
+  { id: "camera", label: "Camera", matches: ["camera"], action: "built-in-camera" },
 ];
 
 export const HOME_FOCUS_TARGETS = Object.freeze([
@@ -33,7 +33,7 @@ const DRAWER_PRIORITY = [
   { label: "Phone", matches: ["phone", "dialer"] },
   { label: "Messages", matches: ["messages", "messaging", "sms"] },
   { label: "Maps", matches: ["maps", "map"] },
-  { label: "Camera", matches: ["camera"] },
+  { label: "Camera", matches: ["camera"], action: "built-in-camera" },
   { label: "Music", matches: ["music", "spotify", "audio"] },
   { label: "Calculator", matches: ["calculator", "calc"] },
 ];
@@ -62,7 +62,7 @@ export const orderDrawerApps = (apps) => {
   const remaining = [...apps];
   const prioritized = [];
 
-  DRAWER_PRIORITY.forEach(({ label, matches }) => {
+  DRAWER_PRIORITY.forEach(({ label, matches, action }) => {
     const matchIndex = remaining.findIndex((app) => {
       const searchable = getSearchText(app);
       return matches.some((match) => searchable.includes(match));
@@ -72,6 +72,7 @@ export const orderDrawerApps = (apps) => {
       prioritized.push({
         ...remaining.splice(matchIndex, 1)[0],
         displayName: label,
+        ...(action ? { action } : {}),
       });
     }
   });

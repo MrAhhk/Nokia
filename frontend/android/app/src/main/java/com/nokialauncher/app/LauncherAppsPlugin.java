@@ -1,5 +1,6 @@
 package com.nokialauncher.app;
 
+import android.Manifest;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -13,7 +14,11 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
+import com.nokialauncher.app.camera.BuiltInCameraController;
 import java.util.ArrayList;
 import java.text.Collator;
 import java.util.Collections;
@@ -21,8 +26,22 @@ import java.util.List;
 import java.util.Locale;
 import org.json.JSONArray;
 
-@CapacitorPlugin(name = "LauncherApps")
+@CapacitorPlugin(
+    name = "LauncherApps",
+    permissions = {
+        @Permission(alias = "camera", strings = { Manifest.permission.CAMERA }),
+        @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO })
+    }
+)
 public class LauncherAppsPlugin extends Plugin {
+    private BuiltInCameraController cameraController;
+
+    private BuiltInCameraController cameraController() {
+        if (cameraController == null) {
+            cameraController = new BuiltInCameraController(getActivity());
+        }
+        return cameraController;
+    }
 
     @PluginMethod
     public void getInstalledApps(PluginCall call) {
@@ -179,6 +198,89 @@ public class LauncherAppsPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Failed to show keyboard picker: " + e.getMessage(), e);
         }
+    }
+
+    @PluginMethod
+    public void startCamera(PluginCall call) {
+        if (getPermissionState("camera") != PermissionState.GRANTED) {
+            requestPermissionForAlias("camera", call, "cameraPermissionCallback");
+            return;
+        }
+        cameraController().startCamera(call);
+    }
+
+    @PermissionCallback
+    private void cameraPermissionCallback(PluginCall call) {
+        if (getPermissionState("camera") == PermissionState.GRANTED) {
+            cameraController().startCamera(call);
+        } else {
+            call.reject("camera_permission_denied");
+        }
+    }
+
+    @PluginMethod
+    public void updateCameraSurfaceBounds(PluginCall call) {
+        cameraController().updateSurfaceBounds(call);
+    }
+
+    @PluginMethod
+    public void setCameraLens(PluginCall call) {
+        cameraController().setLens(call);
+    }
+
+    @PluginMethod
+    public void setCameraFlash(PluginCall call) {
+        cameraController().setFlash(call);
+    }
+
+    @PluginMethod
+    public void capturePhoto(PluginCall call) {
+        cameraController().capturePhoto(call);
+    }
+
+    @PluginMethod
+    public void startVideo(PluginCall call) {
+        if (getPermissionState("microphone") != PermissionState.GRANTED) {
+            requestPermissionForAlias("microphone", call, "microphonePermissionCallback");
+            return;
+        }
+        cameraController().startVideo(call, true);
+    }
+
+    @PermissionCallback
+    private void microphonePermissionCallback(PluginCall call) {
+        boolean granted = getPermissionState("microphone") == PermissionState.GRANTED;
+        cameraController().startVideo(call, granted);
+    }
+
+    @PluginMethod
+    public void stopVideo(PluginCall call) {
+        cameraController().stopVideo(call);
+    }
+
+    @PluginMethod
+    public void stopCamera(PluginCall call) {
+        cameraController().stopCamera(call);
+    }
+
+    @PluginMethod
+    public void listCameraMedia(PluginCall call) {
+        cameraController().listMedia(call);
+    }
+
+    @PluginMethod
+    public void showCameraMedia(PluginCall call) {
+        cameraController().showMedia(call);
+    }
+
+    @PluginMethod
+    public void controlCameraMedia(PluginCall call) {
+        cameraController().controlMedia(call);
+    }
+
+    @PluginMethod
+    public void hideCameraMedia(PluginCall call) {
+        cameraController().hideMedia(call);
     }
 
      private boolean isSystemApp(ResolveInfo resolveInfo) {

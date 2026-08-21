@@ -11,6 +11,24 @@ const HOME_SHORTCUT_DEFINITIONS = [
   { id: "camera", label: "Camera", matches: ["camera"] },
 ];
 
+export const HOME_FOCUS_TARGETS = Object.freeze([
+  "search",
+  ...HOME_SHORTCUT_DEFINITIONS.map(({ id }) => id),
+]);
+
+export const moveHomeFocus = (currentIndex, direction) => {
+  const lastIndex = HOME_FOCUS_TARGETS.length - 1;
+  const normalizedIndex = Math.min(Math.max(currentIndex, 0), lastIndex);
+
+  if (direction === "left" || direction === "up") {
+    return normalizedIndex > 0 ? normalizedIndex - 1 : lastIndex;
+  }
+  if (direction === "right" || direction === "down") {
+    return normalizedIndex < lastIndex ? normalizedIndex + 1 : 0;
+  }
+  return normalizedIndex;
+};
+
 const DRAWER_PRIORITY = [
   { label: "Phone", matches: ["phone", "dialer"] },
   { label: "Messages", matches: ["messages", "messaging", "sms"] },

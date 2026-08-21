@@ -132,6 +132,18 @@ export const makePhoneCall = async (number) => {
   });
 };
 
+export const openWebUrl = async (url) => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps) {
+    if (typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+    return;
+  }
+
+  await launcherApps.openWebUrl({ url });
+};
+
 export const showKeyboardSettings = async () => {
   const launcherApps = getLauncherAppsPlugin();
   if (!launcherApps) {

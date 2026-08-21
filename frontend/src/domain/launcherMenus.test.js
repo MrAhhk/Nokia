@@ -1,7 +1,9 @@
 import {
+  HOME_FOCUS_TARGETS,
   SETTINGS_ITEMS,
   createHomeShortcuts,
   findMatchingApp,
+  moveHomeFocus,
   orderDrawerApps,
 } from "./launcherMenus";
 
@@ -53,5 +55,21 @@ describe("launcher menu models", () => {
       "Digital Wellbeing",
       "Privacy",
     ]);
+  });
+
+  test("cycles every D-pad direction through the selectable home targets", () => {
+    expect(HOME_FOCUS_TARGETS).toEqual([
+      "search",
+      "phone",
+      "messages",
+      "maps",
+      "camera",
+    ]);
+    expect(moveHomeFocus(1, "right")).toBe(2);
+    expect(moveHomeFocus(1, "down")).toBe(2);
+    expect(moveHomeFocus(1, "left")).toBe(0);
+    expect(moveHomeFocus(1, "up")).toBe(0);
+    expect(moveHomeFocus(0, "left")).toBe(4);
+    expect(moveHomeFocus(4, "right")).toBe(0);
   });
 });

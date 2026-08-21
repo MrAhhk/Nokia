@@ -130,6 +130,30 @@ public class LauncherAppsPlugin extends Plugin {
      }
 
     @PluginMethod
+    public void openWebUrl(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null || url.trim().isEmpty()) {
+            call.reject("url is required");
+            return;
+        }
+
+        try {
+            Uri uri = Uri.parse(url.trim());
+            String scheme = uri.getScheme();
+            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+                call.reject("Only http and https URLs are supported");
+                return;
+            }
+            Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Failed to open web URL: " + e.getMessage(), e);
+        }
+    }
+
+    @PluginMethod
     public void showKeyboardSettings(PluginCall call) {
         try {
             Intent intent = new Intent(Settings.ACTION_INPUT_METHOD_SETTINGS);

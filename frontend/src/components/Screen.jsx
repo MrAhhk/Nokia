@@ -20,6 +20,7 @@ const Screen = ({
   currentView,
   menuItems,
   selectedIndex,
+  selectedHomeTarget,
   currentTime,
   searchActive,
   searchQuery,
@@ -109,9 +110,9 @@ const Screen = ({
 
         <button
           type="button"
-          className="lcd-search"
+          className={`lcd-search ${selectedHomeTarget === "search" ? "is-selected" : ""}`}
           data-testid="home-search"
-          aria-label="Search apps"
+          aria-label="Search Google"
           onClick={onSearchFocus}
         >
           <Search aria-hidden="true" />
@@ -122,16 +123,26 @@ const Screen = ({
             <HomeShortcut
               key={item.id}
               item={item}
-              isSelected={selectedIndex === index}
+              isSelected={selectedHomeTarget === item.id}
               onClick={() => onAppClick(item.app)}
             />
           ))}
         </div>
 
         <div className="lcd-softkeys" aria-label="Home screen actions">
-          <span>Ready</span>
-          <button type="button" onClick={onOpenMenu}>Menu</button>
-          <button type="button" onClick={onOpenSettings}>Settings</button>
+          <button
+            type="button"
+            onClick={onOpenMenu}
+          >
+            Menu
+          </button>
+          <span aria-hidden="true" />
+          <button
+            type="button"
+            onClick={onOpenSettings}
+          >
+            Settings
+          </button>
         </div>
       </div>
     );
@@ -180,10 +191,10 @@ const Screen = ({
             <button type="button" onClick={onBack}>Back</button>
           </div>
         ) : (
-          <div className="lcd-list-softkeys">
-            <span>Ready</span>
-            <button type="button" onClick={onOpenMenu}>Menu</button>
-            <button type="button" onClick={onOpenSettings}>Settings</button>
+          <div className="lcd-list-softkeys lcd-list-softkeys--menu">
+            <span aria-hidden="true" />
+            <button type="button" onClick={() => onAppClick(menuItems[selectedIndex])}>Select</button>
+            <button type="button" onClick={onBack}>Back</button>
           </div>
         )}
       </div>
@@ -260,6 +271,7 @@ const areScreenPropsEqual = (previous, next) => {
   return (
     previous.menuItems === next.menuItems &&
     previous.selectedIndex === next.selectedIndex &&
+    previous.selectedHomeTarget === next.selectedHomeTarget &&
     previous.currentTime === next.currentTime
   );
 };

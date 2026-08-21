@@ -128,6 +128,11 @@
   stroke-width: 3;
 }
 
+.lcd-search.is-selected {
+  background: var(--ink);
+  color: var(--lcd);
+}
+
 .lcd-search:focus-visible,
 .lcd-shortcut:focus-visible,
 .lcd-softkeys button:focus-visible {
@@ -180,6 +185,11 @@
   filter: drop-shadow(1px 0 0 var(--ink));
 }
 
+.lcd-shortcut.is-selected .lcd-shortcut__icon {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
 .lcd-softkeys {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -190,6 +200,7 @@
 }
 
 .lcd-softkeys > :nth-child(2) { text-align: center; }
+.lcd-softkeys > :first-child { text-align: left; }
 .lcd-softkeys > :last-child { text-align: right; }
 .lcd-softkeys button {
   padding: 0;
@@ -197,6 +208,12 @@
   background: transparent;
   color: inherit;
   cursor: pointer;
+}
+
+.lcd-softkeys button.is-selected {
+  padding: 2px 7px;
+  background: var(--ink);
+  color: var(--lcd);
 }
 
 .lcd-list-screen {

@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Screen from "./Screen";
 import Keypad from "./Keypad";
-import { launchInstalledApp, makePhoneCall, showKeyboardSettings } from "@/lib/launcherApps";
+import { launchInstalledApp, makePhoneCall, openWebUrl, showKeyboardSettings } from "@/lib/launcherApps";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
 import {
+  HOME_FOCUS_TARGETS,
   SETTINGS_ITEMS,
   createHomeShortcuts,
   findMatchingApp,
+  moveHomeFocus,
   orderDrawerApps,
 } from "@/domain/launcherMenus";
 import "./NokiaLauncher.css";
@@ -34,7 +36,9 @@ const getAppSearchText = (app) =>
 
 const NokiaLauncher = ({ apps }) => {
   const [currentView, setCurrentView] = useState("home");
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(
+    HOME_FOCUS_TARGETS.indexOf("phone")
+  );
   const [currentTime, setCurrentTime] = useState(new Date());
   const [settingsReturnView, setSettingsReturnView] = useState("home");
 
@@ -87,7 +91,9 @@ const NokiaLauncher = ({ apps }) => {
 
   // Reset selection whenever the active screen changes.
   useEffect(() => {
-    setSelectedIndex(0);
+    setSelectedIndex(
+      currentView === "home" ? HOME_FOCUS_TARGETS.indexOf("phone") : 0
+    );
   }, [currentView]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -113,10 +119,11 @@ const NokiaLauncher = ({ apps }) => {
     setSelectedIndex(0);
   }, [clearPending]);
 
-  const openSearch = useCallback(() => {
-    setCurrentView("menu");
-    activateSearch();
-  }, [activateSearch]);
+  const openGoogleSearch = useCallback(() => {
+    openWebUrl("https://www.google.com").catch((error) =>
+      console.error("Error opening Google search:", error)
+    );
+  }, []);
 
   const openSettings = useCallback((returnView = currentView) => {
     searchActiveRef.current = false;
@@ -139,24 +146,20 @@ const NokiaLauncher = ({ apps }) => {
 
   // Reset selection whenever the filtered list changes
   useEffect(() => {
-    setSelectedIndex(0);
-  }, [fullInput]);
+    if (currentView === "menu") {
+      setSelectedIndex(0);
+    }
+  }, [currentView, fullInput]);
 
   // ── Navigation ─────────────────────────────────────────────────────────────
   const handleNavigation = useCallback(
     (direction) => {
       setSelectedIndex((prev) => {
         const len = visibleMenuItems.length;
-        if (len === 0) return 0;
         if (currentView === "home") {
-          if (direction === "left" || direction === "up") {
-            return prev > 0 ? prev - 1 : len - 1;
-          }
-          if (direction === "right" || direction === "down") {
-            return prev < len - 1 ? prev + 1 : 0;
-          }
-          return prev;
+          return moveHomeFocus(prev, direction);
         }
+        if (len === 0) return 0;
         if (direction === "up")   return prev > 0       ? prev - 1 : len - 1;
         if (direction === "down") return prev < len - 1 ? prev + 1 : 0;
         return prev;
@@ -171,8 +174,13 @@ const NokiaLauncher = ({ apps }) => {
   }, []);
 
   const handleSelect = useCallback(() => {
-    if (currentView === "home" && menuItems[selectedIndex]) {
-      handleOpenApp(menuItems[selectedIndex].app);
+    if (currentView === "home") {
+      const target = HOME_FOCUS_TARGETS[selectedIndex];
+      if (target === "search") {
+        openGoogleSearch();
+      } else {
+        handleOpenApp(homeShortcuts.find((item) => item.id === target)?.app);
+      }
     } else if (currentView === "menu" && visibleMenuItems[selectedIndex]) {
       handleOpenApp(visibleMenuItems[selectedIndex]);
     } else if (currentView === "settings" && menuItems[selectedIndex]) {
@@ -185,7 +193,7 @@ const NokiaLauncher = ({ apps }) => {
         handleOpenApp(settingsApp);
       }
     }
-  }, [currentView, selectedIndex, menuItems, visibleMenuItems, handleOpenApp, settingsApp]);
+  }, [currentView, selectedIndex, menuItems, visibleMenuItems, handleOpenApp, homeShortcuts, openGoogleSearch, settingsApp]);
 
   const handleSettingClick = useCallback((setting) => {
     if (!setting) return;
@@ -266,6 +274,8 @@ const NokiaLauncher = ({ apps }) => {
       if (key === "SEND") {
         if (dialActive && dialNumber) {
           makePhoneCall(dialNumber);
+        } else if (currentView === "home") {
+          setCurrentView("menu");
         } else if (currentView === "menu" && visibleMenuItems[selectedIndex]) {
           handleOpenApp(visibleMenuItems[selectedIndex]);
         }
@@ -286,6 +296,10 @@ const NokiaLauncher = ({ apps }) => {
         if (searchActive) {
           searchActiveRef.current = false;
           setSearchActive(false);
+          return;
+        }
+        if (currentView === "home") {
+          openSettings("home");
           return;
         }
         if (currentView === "menu") {
@@ -384,7 +398,8 @@ const NokiaLauncher = ({ apps }) => {
       handleSelect,
       handleBack,
       clearPending,
-      handleOpenApp
+      handleOpenApp,
+      openSettings
     ]
   );
 
@@ -397,10 +412,11 @@ const NokiaLauncher = ({ apps }) => {
           currentView={currentView}
           menuItems={visibleMenuItems}
           selectedIndex={selectedIndex}
+          selectedHomeTarget={currentView === "home" ? HOME_FOCUS_TARGETS[selectedIndex] : null}
           currentTime={currentTime}
           searchActive={searchActive}
           searchQuery={fullInput}
-          onSearchFocus={currentView === "home" ? openSearch : activateSearch}
+          onSearchFocus={openGoogleSearch}
           onAppClick={handleOpenApp}
           onOpenMenu={() => setCurrentView("menu")}
           onOpenSettings={() => openSettings(currentView)}

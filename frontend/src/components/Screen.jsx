@@ -10,8 +10,9 @@ import {
   Phone,
   Search,
   ShieldCheck,
-  Siren,
   Vibrate,
+  Volume2,
+  VolumeX,
   Wifi,
 } from "lucide-react";
 
@@ -235,10 +236,12 @@ const LcdStatus = memo(({ status, onNotificationsClick, onNotificationsLongPress
       {status?.bluetooth && <StatusButton label="Open Bluetooth settings" onClick={() => onStatusClick("bluetooth")}><Bluetooth /></StatusButton>}
       {status?.vpn && <StatusButton label="Open VPN settings" onClick={() => onStatusClick("vpn")}><ShieldCheck /></StatusButton>}
       <StatusButton
-        label={status?.sirenMuted ? "Activate siren sound" : "Mute siren sound"}
+        label={status?.sirenMuted ? "Alarm audio muted" : "Alarm audio active"}
         onClick={onSirenToggle}
       >
-        <Siren className={status?.sirenMuted ? "is-muted" : ""} />
+        {status?.sirenMuted
+          ? <VolumeX aria-hidden="true" />
+          : <Volume2 aria-hidden="true" />}
       </StatusButton>
     </span>
     <span className="lcd-status__right">

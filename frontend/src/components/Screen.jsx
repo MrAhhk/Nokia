@@ -124,7 +124,7 @@ const Screen = ({
               key={item.id}
               item={item}
               isSelected={selectedHomeTarget === item.id}
-              onClick={() => onAppClick(item.app)}
+              onClick={() => onAppClick(item.action ? item : item.app)}
             />
           ))}
         </div>

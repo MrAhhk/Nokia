@@ -168,4 +168,46 @@ export const showKeyboardPicker = async () => {
   await launcherApps.showKeyboardPicker();
 };
 
+const callCameraMethod = async (method, options, fallback) => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.[method]) return fallback;
+  return launcherApps[method](options || {});
+};
+
+export const startBuiltInCamera = (options = {}) =>
+  callCameraMethod("startCamera", options, { sessionId: "browser-camera" });
+
+export const captureCameraPhoto = () =>
+  callCameraMethod("capturePhoto", {}, { media: null });
+
+export const startCameraVideo = (options = {}) =>
+  callCameraMethod("startVideo", options, { recording: false });
+
+export const stopCameraVideo = () =>
+  callCameraMethod("stopVideo", {}, { media: null });
+
+export const stopBuiltInCamera = () =>
+  callCameraMethod("stopCamera", {}, { stopped: true });
+
+export const listCameraMedia = (options = {}) =>
+  callCameraMethod("listCameraMedia", options, { media: [] });
+
+export const updateCameraSurfaceBounds = (bounds) =>
+  callCameraMethod("updateCameraSurfaceBounds", bounds, { updated: false });
+
+export const setCameraLens = (lens) =>
+  callCameraMethod("setCameraLens", { lens }, { lens });
+
+export const setCameraFlash = (mode) =>
+  callCameraMethod("setCameraFlash", { mode }, { mode });
+
+export const showCameraMedia = (media) =>
+  callCameraMethod("showCameraMedia", media, { shown: false });
+
+export const controlCameraMedia = (action = "toggle") =>
+  callCameraMethod("controlCameraMedia", { action }, { controlled: false });
+
+export const hideCameraMedia = () =>
+  callCameraMethod("hideCameraMedia", {}, { hidden: true });
+
 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -8,7 +8,16 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
+import asyncio
 from datetime import datetime, timezone
+
+from play_integrity import (
+    IntegrityConfigurationError,
+    IntegrityDecodeError,
+    IntegrityValidationError,
+    issue_integrity_challenge,
+    verify_integrity_token,
+)
 
 
 ROOT_DIR = Path(__file__).parent
@@ -45,6 +54,15 @@ class AppPreference(BaseModel):
     app_id: str
     is_hidden: bool = False
     custom_order: Optional[int] = None
+
+
+class IntegrityChallengeRequest(BaseModel):
+    action: str = "device-check"
+
+
+class IntegrityVerifyRequest(BaseModel):
+    integrityToken: str = Field(min_length=1)
+    challenge: str = Field(min_length=1)
 
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
@@ -98,6 +116,46 @@ async def get_app_preferences():
     """Get user app preferences"""
     preferences = await db.app_preferences.find({}, {"_id": 0}).to_list(1000)
     return {"preferences": preferences}
+
+
+@api_router.post("/integrity/challenge")
+async def create_integrity_challenge(request: IntegrityChallengeRequest):
+    """Issue a signed request hash for an on-demand standard integrity check."""
+    try:
+        return issue_integrity_challenge(
+            request.action,
+            secret=os.environ.get("PLAY_INTEGRITY_CHALLENGE_SECRET", ""),
+            cloud_project_number=os.environ.get(
+                "PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER", ""
+            ),
+        )
+    except IntegrityConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except IntegrityValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@api_router.post("/integrity/verify")
+async def verify_integrity(request: IntegrityVerifyRequest):
+    """Decode on Google's server and return normalized device/environment signals."""
+    secret = os.environ.get("PLAY_INTEGRITY_CHALLENGE_SECRET", "")
+    package_name = os.environ.get(
+        "PLAY_INTEGRITY_PACKAGE_NAME", "com.nokialauncher"
+    )
+    try:
+        return await asyncio.to_thread(
+            verify_integrity_token,
+            request.integrityToken,
+            request.challenge,
+            secret=secret,
+            package_name=package_name,
+        )
+    except IntegrityValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except IntegrityConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except IntegrityDecodeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 # Include the router in the main app
 app.include_router(api_router)

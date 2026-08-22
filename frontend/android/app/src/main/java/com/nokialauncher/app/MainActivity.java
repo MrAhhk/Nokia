@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(LauncherAppsPlugin.class);
+        registerPlugin(PlayIntegrityPlugin.class);
         sanitizeIntent(getIntent());
         super.onCreate(savedInstanceState);
         hideSystemStatusBar();

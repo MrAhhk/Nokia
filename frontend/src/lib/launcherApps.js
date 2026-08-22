@@ -2,6 +2,8 @@ const getLauncherAppsPlugin = () => {
   return window.Capacitor?.Plugins?.LauncherApps ?? null;
 };
 
+export { requestPlayIntegrityCheck } from "./playIntegrity";
+
 const STATIC_FALLBACK_APPS = [
   { id: "phone", name: "Phone", icon: "Phone", category: "important", is_system: true },
   { id: "messages", name: "Messages", icon: "MessageSquare", category: "important", is_system: true },

@@ -189,7 +189,7 @@ const ClockFeature = forwardRef(({ onExit }, ref) => {
     minute: "2-digit",
     hour12: false,
   });
-  const secondsText = now.toLocaleTimeString("en-US", { second: "2-digit" });
+  const secondsText = String(now.getSeconds()).padStart(2, "0");
   const dateText = now.toLocaleDateString("en-US", {
     weekday: "short",
     day: "2-digit",
@@ -229,10 +229,10 @@ const ClockFeature = forwardRef(({ onExit }, ref) => {
 
       <section className="clock-readout" aria-live="polite">
         {mode === CLOCK_MODES.CLOCK && (
-          <>
+          <div className="clock-readout__clock">
             <div className="clock-readout__time">{timeText}</div>
             <div className="clock-readout__seconds">:{secondsText}</div>
-          </>
+          </div>
         )}
 
         {mode === CLOCK_MODES.TIMER && (

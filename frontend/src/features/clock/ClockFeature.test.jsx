@@ -9,4 +9,7 @@ test("renders a finite touch-accessible clock with timer and stopwatch modes", (
   expect(markup).toContain("Timer");
   expect(markup).toContain("Stopwatch");
   expect(markup).toContain("Back");
+  expect(markup).toMatch(
+    /class="clock-readout__clock"[\s\S]*class="clock-readout__time"[\s\S]*class="clock-readout__seconds"/
+  );
 });

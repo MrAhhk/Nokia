@@ -74,12 +74,23 @@
   text-shadow: 1px 0 var(--ink);
 }
 
+.clock-readout__clock {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  white-space: nowrap;
+}
+
 .clock-readout__seconds {
-  position: absolute;
-  right: 5%;
-  bottom: 25%;
-  font-size: clamp(12px, 3.7vw, 18px);
-  font-weight: 700;
+  margin-left: 0.08em;
+  font-family: "Lucida Console", "Courier New", monospace;
+  font-size: clamp(30px, 9vw, 46px);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  transform: scaleX(0.9);
+  transform-origin: left center;
+  text-shadow: 1px 0 var(--ink);
 }
 
 .clock-readout__duration--stopwatch {

@@ -1,0 +1,29 @@
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import NokiaLauncher from "./NokiaLauncher";
+import * as launcherApps from "@/lib/launcherApps";
+
+global.IS_REACT_ACT_ENVIRONMENT = true;
+
+test("opens Snake from the first Settings row and returns there with END", async () => {
+  jest.spyOn(launcherApps, "getDeviceStatus").mockResolvedValue({ batteryLevel: 80 });
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  HTMLCanvasElement.prototype.getContext = jest.fn(() => null);
+
+  await act(async () => root.render(<NokiaLauncher apps={[]} />));
+  act(() => container.querySelector('[data-testid="keypad-btn-end"]').click());
+  expect(container.querySelector('[data-testid="settings-item-snake"]')).not.toBeNull();
+
+  act(() => container.querySelector('[data-testid="keypad-btn-select"]').click());
+  expect(container.querySelector('[data-testid="screen-snake"]')).not.toBeNull();
+
+  act(() => container.querySelector('[aria-label="Up"]').click());
+  expect(container.querySelector('[data-testid="screen-snake"]')).not.toBeNull();
+  act(() => container.querySelector('[data-testid="keypad-btn-end"]').click());
+  expect(container.querySelector('[data-testid="screen-settings"]')).not.toBeNull();
+
+  act(() => root.unmount());
+  container.remove();
+});

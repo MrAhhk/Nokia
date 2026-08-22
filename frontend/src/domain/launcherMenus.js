@@ -40,6 +40,7 @@ const DRAWER_PRIORITY = [
 ];
 
 export const SETTINGS_ITEMS = Object.freeze([
+  { id: "snake", label: "Snake", internalView: "snake" },
   { id: "display", label: "Display", nativeSetting: "display" },
   { id: "sound", label: "Sound", nativeSetting: "sound" },
   { id: "keyboard", label: "Keyboard", nativeSetting: "keyboard" },
@@ -58,6 +59,7 @@ export const SETTINGS_ITEMS = Object.freeze([
 
 export const resolveSettingAction = (setting) => {
   if (!setting) return null;
+  if (setting.internalView) return { type: "internal-feature", view: setting.internalView };
   if (setting.url) return { type: "web-url", url: setting.url };
   if (setting.nativeSetting) {
     return { type: "system-setting", setting: setting.nativeSetting };

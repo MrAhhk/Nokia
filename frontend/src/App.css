@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
-
 * {
   box-sizing: border-box;
 }
@@ -7,7 +5,7 @@
 html, body {
   margin: 0;
   padding: 0;
-  font-family: 'Space Mono', 'IBM Plex Sans', monospace, sans-serif;
+  font-family: ui-monospace, 'Roboto Mono', 'Courier New', monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
@@ -27,4 +25,10 @@ html, body {
   height: 100%;
   width: 100%;
   overflow: hidden;
+}
+
+.app-loading-shell {
+  width: 100%;
+  height: 100%;
+  background: #050505;
 }

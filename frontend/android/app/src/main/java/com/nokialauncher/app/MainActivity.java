@@ -1,13 +1,17 @@
 package com.nokialauncher;
 
+import android.annotation.TargetApi;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.webkit.RenderProcessGoneDetail;
+import android.webkit.WebView;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
-import android.view.View;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebViewClient;
 
 public class MainActivity extends BridgeActivity {
     @Override
@@ -16,6 +20,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(PlayIntegrityPlugin.class);
         sanitizeIntent(getIntent());
         super.onCreate(savedInstanceState);
+        installRecoveringWebViewClient();
         hideSystemStatusBar();
     }
 
@@ -29,14 +34,6 @@ public class MainActivity extends BridgeActivity {
     public void onResume() {
         super.onResume();
         hideSystemStatusBar();
-        if (bridge != null && bridge.getWebView() != null) {
-            bridge.getWebView().setVisibility(View.VISIBLE);
-            bridge.getWebView().setAlpha(1f);
-            bridge.getWebView().onResume();
-            bridge.getWebView().resumeTimers();
-            bridge.getWebView().requestLayout();
-            bridge.getWebView().invalidate();
-        }
     }
 
     private void hideSystemStatusBar() {
@@ -55,6 +52,33 @@ public class MainActivity extends BridgeActivity {
     protected void onNewIntent(Intent intent) {
         sanitizeIntent(intent);
         super.onNewIntent(intent);
+        setIntent(intent);
+        if (intent != null && intent.hasCategory(Intent.CATEGORY_HOME)) {
+            dispatchHomeRequest();
+        }
+    }
+
+    private void dispatchHomeRequest() {
+        if (bridge == null || bridge.getWebView() == null) return;
+        WebView webView = bridge.getWebView();
+        webView.post(() -> webView.evaluateJavascript(
+            "window.dispatchEvent(new Event('nokia-home-request'));",
+            null
+        ));
+    }
+
+    @TargetApi(Build.VERSION_CODES.O)
+    private void installRecoveringWebViewClient() {
+        if (bridge == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        bridge.setWebViewClient(new BridgeWebViewClient(bridge) {
+            @Override
+            public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                runOnUiThread(() -> {
+                    if (!isFinishing() && !isDestroyed()) recreate();
+                });
+                return true;
+            }
+        });
     }
 
     private void sanitizeIntent(Intent intent) {

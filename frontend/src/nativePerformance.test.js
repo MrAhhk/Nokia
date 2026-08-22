@@ -1,0 +1,31 @@
+import fs from "fs";
+import path from "path";
+
+test("the IME reuses one main-thread Handler across keystrokes", () => {
+  const source = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      "../android/app/src/main/java/com/nokialauncher/app/NokiaIME.java",
+    ),
+    "utf8",
+  );
+  expect(source).toContain("private final Handler mMainHandler");
+  expect(source).toContain("mMainHandler.post(runnable)");
+});
+
+test("activity resume delegates WebView lifecycle without forcing redraws", () => {
+  const source = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      "../android/app/src/main/java/com/nokialauncher/app/MainActivity.java",
+    ),
+    "utf8",
+  );
+  const onResume = source.match(/public void onResume\(\) \{([\s\S]*?)\n    \}/)?.[1];
+
+  expect(onResume).toBeDefined();
+  expect(onResume).not.toContain("resumeTimers()");
+  expect(onResume).not.toContain("requestLayout()");
+  expect(onResume).not.toContain("invalidate()");
+  expect(onResume).not.toContain("getWebView().onResume()");
+});

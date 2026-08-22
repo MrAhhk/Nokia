@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { 
   Phone, 
   PhoneOff, 
@@ -11,8 +11,6 @@ import {
 } from "lucide-react";
 
 const Keypad = ({ onKeypadPress, variant = "default" }) => {
-  const [activeKey, setActiveKey] = useState(null);
-
   const keys = [
     { number: "1", letters: "" },
     { number: "2", letters: "ABC", icon: ChevronUp },
@@ -29,15 +27,12 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
   ];
 
   const handleKeyPress = (keyNumber) => {
-    setActiveKey(keyNumber);
     onKeypadPress(keyNumber);
-    setTimeout(() => setActiveKey(null), 75);
   };
 
   if (variant === "launcher") {
     return (
       <LauncherKeypad
-        activeKey={activeKey}
         onPress={handleKeyPress}
       />
     );
@@ -55,11 +50,7 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
             flex items-center justify-center h-12 md:h-14 rounded-md border 
             shadow-[0_4px_0_rgba(34,197,94,0.1)] active:translate-y-[4px] active:shadow-none 
             transition-all duration-75
-            ${
-              activeKey === "SEND"
-                ? "bg-green-500 text-black border-green-500"
-                : "border-green-500/20 bg-green-950/30 text-green-500"
-            }
+            border-green-500/20 bg-green-950/30 text-green-500
           `}
         >
           <Phone className="h-6 w-6" />
@@ -73,11 +64,7 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
             flex items-center justify-center h-12 md:h-14 rounded-md border 
             shadow-[0_4px_0_rgba(255,255,255,0.05)] active:translate-y-[4px] active:shadow-none 
             transition-all duration-75
-            ${
-              activeKey === "SELECT"
-                ? "bg-white text-black border-white"
-                : "border-white/10 bg-[#111] text-white"
-            }
+            border-white/10 bg-[#111] text-white
           `}
         >
           <span className="text-xs md:text-sm font-bold tracking-widest">SELECT</span>
@@ -91,11 +78,7 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
             flex items-center justify-center h-12 md:h-14 rounded-md border 
             shadow-[0_4px_0_rgba(239,68,68,0.1)] active:translate-y-[4px] active:shadow-none 
             transition-all duration-75
-            ${
-              activeKey === "END"
-                ? "bg-red-500 text-black border-red-500"
-                : "border-red-500/20 bg-red-950/30 text-red-500"
-            }
+            border-red-500/20 bg-red-950/30 text-red-500
           `}
         >
           <PhoneOff className="h-6 w-6" />
@@ -115,11 +98,7 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
                 relative flex flex-col items-center justify-center rounded-md border border-white/10 
                 shadow-[0_4px_0_rgba(255,255,255,0.05)] active:translate-y-[4px] active:shadow-none 
                 transition-all duration-75
-                ${
-                  activeKey === key.number
-                    ? "bg-white text-black"
-                    : "bg-[#111] text-white"
-                }
+                bg-[#111] text-white
               `}
             >
               {/* Number and Arrow/Icon Container */}
@@ -185,12 +164,12 @@ const LAUNCHER_NUMBER_KEYS = [
   { number: "#", letters: "▧" },
 ];
 
-const LauncherKeypad = ({ activeKey, onPress }) => (
+const LauncherKeypad = ({ onPress }) => (
   <div className="hardware-keypad" data-testid="keypad">
     <div className="hardware-controls">
       <button
         type="button"
-        className={`hardware-call hardware-button ${activeKey === "SEND" ? "is-active" : ""}`}
+        className="hardware-call hardware-button"
         data-testid="keypad-btn-send"
         onClick={() => onPress("SEND")}
         aria-label="Call"
@@ -206,7 +185,7 @@ const LauncherKeypad = ({ activeKey, onPress }) => (
 
       <button
         type="button"
-        className={`hardware-end hardware-button ${activeKey === "END" ? "is-active" : ""}`}
+        className="hardware-end hardware-button"
         data-testid="keypad-btn-end"
         onClick={() => onPress("END")}
         aria-label="End call"
@@ -219,7 +198,7 @@ const LauncherKeypad = ({ activeKey, onPress }) => (
           type="button"
           key={key.number}
           data-testid={`keypad-btn-${key.number === "*" ? "star" : key.number === "#" ? "hash" : key.number}`}
-          className={`hardware-number ${activeKey === key.number ? "is-active" : ""}`}
+          className="hardware-number"
           onClick={() => onPress(key.number)}
         >
           <strong>{key.number}</strong>

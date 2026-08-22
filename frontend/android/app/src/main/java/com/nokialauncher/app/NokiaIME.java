@@ -30,6 +30,7 @@ public class NokiaIME extends InputMethodService {
 
     private WebView mWebView;
     private FrameLayout mInputArea;
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
     private boolean mForceVisible = true;
     private IMEState mIMEState = IMEState.ACTIVE;
 
@@ -139,12 +140,13 @@ public class NokiaIME extends InputMethodService {
 
         // Only request showing the soft keyboard on fresh app/window switches.
         // Skipping on restarting (typing/selection changes) completely prevents lag.
-        if (!restarting) {
+        if (InputSessionPolicy.shouldRequestShow(restarting, mIMEState)) {
             requestShowSelf(0);
         }
 
-        // Reset any temporary state in WebView when starting a new typing session
-        if (mWebView != null) {
+        // Editor restart callbacks can happen while composing. Resetting here
+        // used to cancel active multi-tap input and add a JS/main-thread hop.
+        if (mWebView != null && InputSessionPolicy.shouldResetComposer(restarting, mIMEState)) {
             mWebView.evaluateJavascript("if(window.resetNokiaKeyboard) { window.resetNokiaKeyboard(); }", null);
         }
     }
@@ -163,13 +165,14 @@ public class NokiaIME extends InputMethodService {
     @Override
     public void onStartInputView(EditorInfo attribute, boolean restarting) {
         super.onStartInputView(attribute, restarting);
-        if (mIMEState != IMEState.LAUNCHER_SUPPRESSED) {
-            requestShowSelf(0);
-        }
     }
 
     private void postToMainThread(Runnable runnable) {
-        new Handler(Looper.getMainLooper()).post(runnable);
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            runnable.run();
+        } else {
+            mMainHandler.post(runnable);
+        }
     }
 
     // JavaScript to Native Java communication bridge

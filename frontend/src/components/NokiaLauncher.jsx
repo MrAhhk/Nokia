@@ -85,10 +85,19 @@ const NokiaLauncher = ({ apps }) => {
     });
   }
 
-  // ── Clock ──────────────────────────────────────────────────────────────────
+  // The LCD only displays hours/minutes. Align updates to minute boundaries so
+  // the entire launcher does not re-render every second while idle.
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    let interval = null;
+    const delayToNextMinute = 60_000 - (Date.now() % 60_000);
+    const timeout = setTimeout(() => {
+      setCurrentTime(new Date());
+      interval = setInterval(() => setCurrentTime(new Date()), 60_000);
+    }, delayToNextMinute);
+    return () => {
+      clearTimeout(timeout);
+      if (interval !== null) clearInterval(interval);
+    };
   }, []);
 
   const refreshDeviceStatus = useCallback(() => {
@@ -115,12 +124,10 @@ const NokiaLauncher = ({ apps }) => {
       .then((status) => active && setDeviceStatus(status))
       .catch((error) => console.warn("Device status unavailable:", error));
     refresh();
-    const timer = setInterval(refresh, 5000);
     const onVisible = () => document.visibilityState === "visible" && refresh();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
-      clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
@@ -175,6 +182,22 @@ const NokiaLauncher = ({ apps }) => {
   const closeBuiltInBrowser = useCallback(() => {
     setCurrentView("home");
   }, []);
+
+  const restoreHome = useCallback(() => {
+    searchActiveRef.current = false;
+    setSearchActive(false);
+    setCommittedText("");
+    clearPending();
+    setDialActive(false);
+    setDialNumber("");
+    setCurrentView("home");
+    setSelectedIndex(HOME_FOCUS_TARGETS.indexOf("phone"));
+  }, [clearPending]);
+
+  useEffect(() => {
+    window.addEventListener("nokia-home-request", restoreHome);
+    return () => window.removeEventListener("nokia-home-request", restoreHome);
+  }, [restoreHome]);
 
   const openSettings = useCallback((returnView = currentView) => {
     searchActiveRef.current = false;

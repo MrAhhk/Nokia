@@ -51,6 +51,21 @@ public final class BuiltInBrowserController {
         void onState(String event, String url, String title, int progress);
     }
 
+    private static final class LauncherBrowserWebView extends WebView {
+        LauncherBrowserWebView(Context context) {
+            super(context);
+        }
+
+        @Override
+        public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
+            return null;
+        }
+
+        InputConnection createLauncherInputConnection(EditorInfo outAttrs) {
+            return super.onCreateInputConnection(outAttrs);
+        }
+    }
+
     private final Activity activity;
     private final BrowserStateListener stateListener;
     private FrameLayout browserContainer;
@@ -453,7 +468,7 @@ public final class BuiltInBrowserController {
             Toast.makeText(activity, "Four calm tabs are enough", Toast.LENGTH_SHORT).show();
             return;
         }
-        WebView tab = new WebView(activity);
+        WebView tab = new LauncherBrowserWebView(activity);
         configureWebView(tab);
         tabs.add(tab);
         webHost.addView(tab, new FrameLayout.LayoutParams(
@@ -668,8 +683,8 @@ public final class BuiltInBrowserController {
     }
 
     private InputConnection currentWebInputConnection() {
-        if (webView == null || !webView.hasFocus()) return null;
-        return webView.onCreateInputConnection(new EditorInfo());
+        if (!(webView instanceof LauncherBrowserWebView) || !webView.hasFocus()) return null;
+        return ((LauncherBrowserWebView) webView).createLauncherInputConnection(new EditorInfo());
     }
 
     private void hideKeyboard() {

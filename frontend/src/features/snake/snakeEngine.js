@@ -68,6 +68,7 @@ export const createSnakeGame = ({ level = 5, random = Math.random } = {}) => {
     snake,
     direction: "right",
     queuedDirection: null,
+    directionQueue: [],
     normalFood: spawnNormalFood(snake, null, random),
     bonus: null,
     pendingBonusCount: 0,
@@ -78,9 +79,17 @@ export const createSnakeGame = ({ level = 5, random = Math.random } = {}) => {
 };
 
 export const queueDirection = (state, direction) => {
-  if (!VECTORS[direction] || state.queuedDirection) return state;
-  if (OPPOSITE[state.direction] === direction) return { ...state, queuedDirection: null };
-  return { ...state, queuedDirection: direction };
+  if (!VECTORS[direction]) return state;
+  const currentQueue = state.directionQueue?.length
+    ? state.directionQueue
+    : state.queuedDirection
+      ? [state.queuedDirection]
+      : [];
+  if (currentQueue.length >= 2) return state;
+  const previousDirection = currentQueue.at(-1) || state.direction;
+  if (direction === previousDirection || OPPOSITE[previousDirection] === direction) return state;
+  const directionQueue = [...currentQueue, direction];
+  return { ...state, directionQueue, queuedDirection: directionQueue[0] };
 };
 
 export const getBonusValue = (state) => {
@@ -98,7 +107,13 @@ export const advanceSnake = (state, elapsedMs = 0, random = Math.random) => {
     : null;
   if (bonus && bonus.elapsedMs >= BONUS_DURATION_MS) bonus = null;
 
-  const direction = state.queuedDirection || state.direction;
+  const currentQueue = state.directionQueue?.length
+    ? state.directionQueue
+    : state.queuedDirection
+      ? [state.queuedDirection]
+      : [];
+  const direction = currentQueue[0] || state.direction;
+  const directionQueue = currentQueue.slice(1);
   const vector = VECTORS[direction];
   const head = state.snake[0];
   const nextHead = {
@@ -112,7 +127,8 @@ export const advanceSnake = (state, elapsedMs = 0, random = Math.random) => {
       ...state,
       status: "game-over",
       direction,
-      queuedDirection: null,
+      queuedDirection: directionQueue[0] || null,
+      directionQueue,
       bonus,
       endReason: "self-collision",
     };
@@ -140,6 +156,9 @@ export const advanceSnake = (state, elapsedMs = 0, random = Math.random) => {
         ...state,
         status: "game-over",
         snake,
+        direction,
+        queuedDirection: directionQueue[0] || null,
+        directionQueue,
         score,
         normalFoodCount,
         normalFood: null,
@@ -161,7 +180,8 @@ export const advanceSnake = (state, elapsedMs = 0, random = Math.random) => {
     ...state,
     snake,
     direction,
-    queuedDirection: null,
+    queuedDirection: directionQueue[0] || null,
+    directionQueue,
     normalFood,
     bonus,
     pendingBonusCount,

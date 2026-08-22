@@ -49,3 +49,28 @@ Device note: verified on the connected Android handset identified by ADB on 2026
 **BUILD SAFE; DEVICE SMOKE TEST PENDING**
 
 The tab cap intentionally follows the product North Star: useful multitasking without turning the mini-browser into an unbounded attention surface.
+
+## Run: 2026-08-22 — Snake board sizing and rapid-turn repair
+**Change type:** Bug fix
+**Files changed:** Snake layout CSS, Canvas renderer and resize test, deterministic engine and rapid-turn test
+**Triggered by:** Physical-device screenshots showed the board collapsed to 38px, an overflowing level panel, distorted Canvas pixels, and dropped rapid direction input.
+
+### Flows tested
+
+| Flow | Result | Notes |
+|---|---|---|
+| Home → Settings → Snake | ✅ Pass | Verified on the physical CPH2237; Snake remains the first Settings row above Display. |
+| Snake layout at 390×844 | ✅ Pass | Browser regression measured a 345×269px board, contained 250×84px overlay, and matching 345×269 Canvas backing size. |
+| Physical-device board and overlay | ✅ Pass | ADB screenshot confirms the board fills the LCD and the pause panel no longer overflows. |
+| Physical-device snake rendering | ✅ Pass | ADB screenshot confirms readable grid-sized snake segments and food inside the expanded board. |
+| Canvas resize synchronization | ✅ Pass | Jest verifies the backing dimensions follow a displayed-size change without requiring a game-state update. |
+| Rapid UP → LEFT input | ✅ Pass | Engine test verifies both turns execute across consecutive movement ticks instead of discarding LEFT. |
+| Existing launcher, browser, clock, camera, settings, and domain tests | ✅ Pass | Full Jest suite: 24 suites, 68 tests. |
+| Production web build | ✅ Pass | Fresh standalone `npm run build` completed with exit code 0. |
+| Capacitor asset copy | ✅ Pass | `npx cap copy android` refreshed the packaged web assets. |
+| Android debug APK | ✅ Pass | App-local `assembleDebug --no-daemon` completed successfully. |
+| Physical-device install | ✅ Pass | Targeted ADB install to serial `IB8XFY5DFMKBROGQ` returned `Success`. |
+| Device runtime log | ⚠️ Pass with vendor note | No AndroidRuntime crash or WebView exception. ColorOS logs nonfatal `GPUAUX Null anb` messages during Canvas redraws. |
+
+### Verdict
+**SAFE TO MERGE AND INSTALLED ON PHYSICAL DEVICE**

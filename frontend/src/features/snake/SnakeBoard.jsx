@@ -1,31 +1,61 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GRID_COLUMNS, GRID_ROWS } from "./snakeConfig";
 
 const SnakeBoard = ({ game }) => {
   const canvasRef = useRef(null);
+  const inkRef = useRef(null);
+  const [viewport, setViewport] = useState({ width: 0, height: 0, ratio: 1 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const measure = () => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const next = {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        ratio: window.devicePixelRatio || 1,
+      };
+      setViewport((current) => (
+        current.width === next.width && current.height === next.height && current.ratio === next.ratio
+          ? current
+          : next
+      ));
+    };
+
+    measure();
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(measure);
+      observer.observe(canvas);
+      return () => observer.disconnect();
+    }
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !viewport.width || !viewport.height) return;
     const context = canvas.getContext("2d");
     if (!context) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const ratio = window.devicePixelRatio || 1;
-    const width = Math.max(280, Math.round((rect.width || 320) * ratio));
-    const height = Math.max(180, Math.round((rect.height || 210) * ratio));
+    const { width: cssWidth, height: cssHeight, ratio } = viewport;
+    const width = Math.round(cssWidth * ratio);
+    const height = Math.round(cssHeight * ratio);
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
 
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    const cssWidth = width / ratio;
-    const cssHeight = height / ratio;
     const cellSize = Math.min((cssWidth - 8) / GRID_COLUMNS, (cssHeight - 8) / GRID_ROWS);
     const boardWidth = cellSize * GRID_COLUMNS;
     const boardHeight = cellSize * GRID_ROWS;
     const offsetX = Math.floor((cssWidth - boardWidth) / 2);
     const offsetY = Math.floor((cssHeight - boardHeight) / 2);
-    const ink = getComputedStyle(canvas).getPropertyValue("--ink").trim() || "#111803";
+    if (!inkRef.current) {
+      inkRef.current = getComputedStyle(canvas).getPropertyValue("--ink").trim() || "#111803";
+    }
+    const ink = inkRef.current;
 
     context.clearRect(0, 0, cssWidth, cssHeight);
     context.strokeStyle = ink;
@@ -45,7 +75,7 @@ const SnakeBoard = ({ game }) => {
     game.snake.forEach((cell, index) => drawCell(cell, index === 0 ? 0.5 : 1));
     if (game.normalFood) drawCell(game.normalFood, Math.max(1, cellSize * 0.28));
     game.bonus?.cells.forEach((cell) => drawCell(cell, 0.5));
-  }, [game]);
+  }, [game, viewport]);
 
   const bonusSeconds = game.bonus
     ? Math.max(0, Math.ceil((8000 - game.bonus.elapsedMs) / 1000))

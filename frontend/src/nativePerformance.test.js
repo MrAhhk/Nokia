@@ -62,5 +62,8 @@ test("the built-in browser never summons the system keyboard over the launcher k
   expect(browserController).toMatch(
     /onCreateInputConnection\(EditorInfo outAttrs\)[\s\S]*?return null;/,
   );
+  expect(browserController).toMatch(
+    /onCheckIsTextEditor\(\)[\s\S]*?return false;/,
+  );
   expect(browserController).toContain("createLauncherInputConnection(new EditorInfo())");
 });

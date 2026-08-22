@@ -57,6 +57,11 @@ public final class BuiltInBrowserController {
         }
 
         @Override
+        public boolean onCheckIsTextEditor() {
+            return false;
+        }
+
+        @Override
         public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
             return null;
         }

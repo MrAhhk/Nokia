@@ -12,9 +12,9 @@
     "design_gate": "Prefer essential utility, finite deliberate interactions, Nokia-era calm, privacy, and modern polish. Reject attention loops, compulsive-use mechanics, unnecessary motion, and engagement-maximizing patterns."
   },
   "colors": {
-    "background_primary": "#0B0D0D",
-    "background_secondary": "#090B0C",
-    "surface_key": "#141718",
+    "background_primary": "#090B0B",
+    "background_secondary": "#070909",
+    "surface_key": "#121516",
     "surface_key_active": "#232829",
     "text_primary": "#D8D8D2",
     "text_secondary": "#898B87",

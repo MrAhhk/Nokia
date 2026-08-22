@@ -24,6 +24,7 @@ import {
   orderDrawerApps,
   rankSearchResults,
   resolveHomeShortcut,
+  resolveSettingAction,
 } from "@/domain/launcherMenus";
 import "./NokiaLauncher.css";
 
@@ -221,6 +222,19 @@ const NokiaLauncher = ({ apps }) => {
     launchInstalledApp(app).catch((err) => console.error("Error launching app:", err));
   }, [currentView]);
 
+  const activateSetting = useCallback((setting) => {
+    const action = resolveSettingAction(setting);
+    if (!action) return;
+
+    const request = action.type === "web-url"
+      ? openWebUrl(action.url)
+      : openSystemSetting(action.setting);
+
+    request.catch((error) =>
+      console.error(`Error opening ${setting.id}:`, error)
+    );
+  }, []);
+
   const handleSelect = useCallback(() => {
     if (currentView === "home") {
       const target = HOME_FOCUS_TARGETS[selectedIndex];
@@ -232,21 +246,16 @@ const NokiaLauncher = ({ apps }) => {
     } else if (currentView === "menu" && visibleMenuItems[selectedIndex]) {
       handleOpenApp(visibleMenuItems[selectedIndex]);
     } else if (currentView === "settings" && visibleMenuItems[selectedIndex]) {
-      const setting = visibleMenuItems[selectedIndex];
-      openSystemSetting(setting.nativeSetting).catch((error) =>
-        console.error(`Error opening ${setting.id} settings:`, error)
-      );
+      activateSetting(visibleMenuItems[selectedIndex]);
     }
-  }, [currentView, selectedIndex, visibleMenuItems, handleOpenApp, homeShortcuts, openGoogleSearch]);
+  }, [currentView, selectedIndex, visibleMenuItems, handleOpenApp, homeShortcuts, openGoogleSearch, activateSetting]);
 
   const handleSettingClick = useCallback((setting) => {
     if (!setting) return;
     const index = visibleMenuItems.findIndex((item) => item.id === setting.id);
     if (index >= 0) setSelectedIndex(index);
-    openSystemSetting(setting.nativeSetting).catch((error) =>
-      console.error(`Error opening ${setting.id} settings:`, error)
-    );
-  }, [visibleMenuItems]);
+    activateSetting(setting);
+  }, [activateSetting, visibleMenuItems]);
 
   const handleBack = useCallback(() => {
     if (currentView === "menu") {

@@ -8,6 +8,7 @@ import {
   orderDrawerApps,
   resolveHomeShortcut,
   rankSearchResults,
+  resolveSettingAction,
 } from "./launcherMenus";
 
 const apps = [
@@ -77,15 +78,32 @@ describe("launcher menu models", () => {
       "Keyboard",
       "Digital Wellbeing",
       "Privacy",
+      "About",
     ]);
-    expect(SETTINGS_ITEMS.map((item) => item.nativeSetting)).toEqual([
+    const nativeSettings = SETTINGS_ITEMS
+      .filter((item) => item.nativeSetting)
+      .map((item) => item.nativeSetting);
+    expect(nativeSettings).toEqual([
       "display",
       "sound",
       "keyboard",
       "digital-wellbeing",
-      "privacy",
     ]);
-    expect(new Set(SETTINGS_ITEMS.map((item) => item.nativeSetting)).size).toBe(SETTINGS_ITEMS.length);
+    expect(new Set(nativeSettings).size).toBe(nativeSettings.length);
+  });
+
+  test("routes Privacy and About to their published Notion pages", () => {
+    const privacy = SETTINGS_ITEMS.find((item) => item.id === "privacy");
+    const about = SETTINGS_ITEMS.find((item) => item.id === "about");
+
+    expect(resolveSettingAction(privacy)).toEqual({
+      type: "web-url",
+      url: "https://fallacious-output-8b6.notion.site/Nokia-Launcher-Privacy-Policy-3c1dbed9c25a819fb2d7cff96ad2d894",
+    });
+    expect(resolveSettingAction(about)).toEqual({
+      type: "web-url",
+      url: "https://fallacious-output-8b6.notion.site/Nokia-Launcher-About-33adbed9c25a80098f08c81650ea37f8",
+    });
   });
 
   test("cycles every D-pad direction through the selectable home targets", () => {

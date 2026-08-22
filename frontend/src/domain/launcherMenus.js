@@ -43,8 +43,26 @@ export const SETTINGS_ITEMS = Object.freeze([
   { id: "sound", label: "Sound", nativeSetting: "sound" },
   { id: "keyboard", label: "Keyboard", nativeSetting: "keyboard" },
   { id: "digital-wellbeing", label: "Digital Wellbeing", nativeSetting: "digital-wellbeing" },
-  { id: "privacy", label: "Privacy", nativeSetting: "privacy" },
+  {
+    id: "privacy",
+    label: "Privacy",
+    url: "https://fallacious-output-8b6.notion.site/Nokia-Launcher-Privacy-Policy-3c1dbed9c25a819fb2d7cff96ad2d894",
+  },
+  {
+    id: "about",
+    label: "About",
+    url: "https://fallacious-output-8b6.notion.site/Nokia-Launcher-About-33adbed9c25a80098f08c81650ea37f8",
+  },
 ]);
+
+export const resolveSettingAction = (setting) => {
+  if (!setting) return null;
+  if (setting.url) return { type: "web-url", url: setting.url };
+  if (setting.nativeSetting) {
+    return { type: "system-setting", setting: setting.nativeSetting };
+  }
+  return null;
+};
 
 export const findMatchingApp = (apps, matches) =>
   apps.find((app) => {

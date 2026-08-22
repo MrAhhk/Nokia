@@ -13,6 +13,10 @@
   --aged-key: #121516;
   --aged-key-low: #090b0c;
   --aged-key-label: #d8d8d2;
+  --fabric-haze-x: 46%;
+  --fabric-haze-y: 34%;
+  --fabric-fiber-x: -5px;
+  --fabric-fiber-y: 7px;
 }
 
 .nokia-launcher .lcd-screen:not(.camera-screen) {
@@ -34,10 +38,12 @@
   isolation: isolate;
   background-color: var(--aged-shell, #090b0b) !important;
   background-image:
-    repeating-linear-gradient(103deg, rgba(255,255,255,0.018) 0 1px, transparent 1px 9px),
-    radial-gradient(ellipse at 19% 24%, rgba(126, 132, 129, 0.055), transparent 31%),
+    radial-gradient(ellipse 72% 48% at 13% 19%, rgba(151, 157, 153, 0.085), rgba(105, 111, 108, 0.028) 43%, transparent 74%),
+    radial-gradient(ellipse 61% 44% at 82% 67%, rgba(126, 132, 129, 0.064), transparent 72%),
+    repeating-linear-gradient(103deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 9px),
     linear-gradient(112deg, #0b0d0e, #070909 52%, #0a0c0d) !important;
-  background-size: 17px 19px, auto, auto !important;
+  background-size: auto, auto, 23px 29px, auto !important;
+  background-position: 0 0, 0 0, -7px 11px, 0 0;
 }
 
 .nokia-launcher__keypad::before,
@@ -47,8 +53,12 @@
   z-index: 0;
   inset: 0;
   pointer-events: none;
-  background: repeating-linear-gradient(92deg, transparent 0 5px, rgba(255,255,255,0.018) 6px, transparent 7px 15px);
-  opacity: 0.34;
+  background-image:
+    radial-gradient(ellipse 47% 31% at 38% 86%, rgba(171, 176, 173, 0.052), transparent 76%),
+    repeating-linear-gradient(92deg, transparent 0 5px, rgba(255, 255, 255, 0.019) 6px, transparent 7px 15px);
+  background-size: auto, 31px 37px;
+  background-position: 0 0, 13px -9px;
+  opacity: 0.58;
 }
 
 .nokia-launcher__keypad > *,
@@ -66,13 +76,40 @@
   color: var(--aged-key-label, #d8d8d2);
   background-color: var(--aged-key, #121516);
   background-image:
-    repeating-linear-gradient(107deg, rgba(255,255,255,0.016) 0 1px, transparent 1px 11px),
+    radial-gradient(ellipse 88% 78% at var(--fabric-haze-x) var(--fabric-haze-y), rgba(156, 162, 158, 0.085), rgba(92, 98, 95, 0.025) 48%, transparent 76%),
+    repeating-linear-gradient(107deg, rgba(255, 255, 255, 0.021) 0 1px, transparent 1px 11px),
     linear-gradient(178deg, #141718, var(--aged-key, #121516) 52%, var(--aged-key-low, #090b0c));
-  background-size: 13px 17px, auto;
+  background-size: auto, 19px 23px, auto;
+  background-position: 0 0, var(--fabric-fiber-x) var(--fabric-fiber-y), 0 0;
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.07),
     inset 0 -2px rgba(0, 0, 0, 0.72),
     0 2px 3px rgba(0, 0, 0, 0.78);
+}
+
+/* Static offsets keep neighboring keys irregular without procedural filters. */
+.nokia-launcher .hardware-number:nth-child(3n + 1),
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(3n + 1) {
+  --fabric-haze-x: 24%;
+  --fabric-haze-y: 28%;
+  --fabric-fiber-x: 6px;
+  --fabric-fiber-y: -4px;
+}
+
+.nokia-launcher .hardware-number:nth-child(3n + 2),
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(3n + 2) {
+  --fabric-haze-x: 73%;
+  --fabric-haze-y: 61%;
+  --fabric-fiber-x: -11px;
+  --fabric-fiber-y: 9px;
+}
+
+.nokia-launcher .hardware-number:nth-child(4n),
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(4n) {
+  --fabric-haze-x: 39%;
+  --fabric-haze-y: 79%;
+  --fabric-fiber-x: 13px;
+  --fabric-fiber-y: 3px;
 }
 
 [data-testid="nokia-system-keyboard"] [data-testid="keypad"] button[data-testid="keypad-btn-send"] {

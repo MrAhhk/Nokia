@@ -29,9 +29,9 @@
   "material_texture": {
     "canonical_stylesheet": "frontend/src/components/AgedHardwareTheme.css",
     "lcd": "Static fine pixel grid, sparse dormant-cell dust, asymmetric age bloom, and an inset edge fade. Keep the display dim enough to feel reflective rather than brightly backlit.",
-    "hardware": "Matte near-black shell and keys with clearly visible short fabric fibers, fine fuzz, and diffuse gray fiber haze resembling embedded wear rather than literal dust particles. Distribution must be asymmetric and pseudo-random, using mismatched scales and offsets so neighboring keys never form mirrored or repeating patterns. The phone must read as black fabric-made hardware, never as a continuous gray cloth covering.",
+    "hardware": "Matte near-black shell and keys with lightweight static fiber gradients and diffuse asymmetric gray haze resembling embedded wear rather than literal dust particles. Neighboring keys use different haze positions and fiber offsets so the pattern is irregular without runtime procedural filters. The phone must read as black fabric-made hardware, never as a continuous gray cloth covering.",
     "accessibility": "Texture must never obscure text, selected states, icons, or touch targets. Reduce overlay strength when increased contrast is requested.",
-    "motion": "No animated grain, flicker, shimmer, or attention-seeking texture movement."
+    "motion": "No animated grain, flicker, shimmer, runtime SVG turbulence, Gaussian blur, blend modes, or attention-seeking texture movement."
   },
   "typography": {
     "screen_font": "Space Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

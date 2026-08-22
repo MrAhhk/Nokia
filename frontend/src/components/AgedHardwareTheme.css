@@ -13,8 +13,8 @@
   --aged-key: #141718;
   --aged-key-low: #0b0d0e;
   --aged-key-label: #d8d8d2;
-  --aged-fabric-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='fabric'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .11' numOctaves='4' seed='19' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='.22 0 0 0 0 .22 0 0 0 0 .22 0 0 0 0 0 0 0 .42 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23fabric)' opacity='.58'/%3E%3C/svg%3E");
-  --aged-fabric-fuzz: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cfilter id='fuzz'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.07 .31' numOctaves='3' seed='31' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='.14 0 0 0 0 .14 0 0 0 0 .14 0 0 0 0 0 0 0 .3 0'/%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23fuzz)' opacity='.38'/%3E%3C/svg%3E");
+  --aged-fabric-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='fabric'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .11' numOctaves='4' seed='19' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='.24 0 0 0 0 .24 0 0 0 0 .24 0 0 0 0 0 0 0 .46 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23fabric)' opacity='.62'/%3E%3C/svg%3E");
+  --aged-fabric-fuzz: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cfilter id='fuzz'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.07 .31' numOctaves='3' seed='31' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='.16 0 0 0 0 .16 0 0 0 0 .16 0 0 0 0 0 0 0 .36 0'/%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23fuzz)' opacity='.44'/%3E%3C/svg%3E");
 }
 
 .nokia-launcher .lcd-screen:not(.camera-screen) {
@@ -90,14 +90,14 @@
   inset: 0;
   pointer-events: none;
   background-image:
-    radial-gradient(ellipse at 24% 17%, rgba(194, 198, 195, 0.09) 0 0.55px, transparent 1.45px),
-    radial-gradient(circle, rgba(255, 255, 255, 0.09) 0 0.4px, transparent 0.95px),
+    radial-gradient(ellipse at 24% 17%, rgba(178, 183, 180, 0.13) 0 0.55px, transparent 1.45px),
+    radial-gradient(circle, rgba(202, 205, 202, 0.12) 0 0.4px, transparent 0.95px),
     radial-gradient(circle, rgba(0, 0, 0, 0.58) 0 0.65px, transparent 1.2px),
     repeating-linear-gradient(90deg, transparent 0 2px, rgba(255, 255, 255, 0.026) 2.5px 3px, transparent 3.5px 7px);
   background-position: 3px 9px, 5px 8px, 17px 3px, 0 0;
   background-size: 47px 43px, 31px 29px, 43px 37px, 100% 100%;
   mix-blend-mode: screen, soft-light, multiply, soft-light;
-  opacity: 0.4;
+  opacity: 0.48;
 }
 
 .nokia-launcher__keypad > *,
@@ -117,9 +117,9 @@
   background-image:
     var(--aged-fabric-noise),
     var(--aged-fabric-fuzz),
-    radial-gradient(ellipse at 48% 34%, rgba(124, 130, 126, 0.065), transparent 45%),
-    radial-gradient(ellipse at 21% 76%, rgba(255, 255, 255, 0.035), transparent 27%),
-    radial-gradient(ellipse at 83% 17%, rgba(105, 111, 107, 0.04), transparent 21%),
+    radial-gradient(ellipse at 48% 34%, rgba(124, 130, 126, 0.075), transparent 45%),
+    radial-gradient(ellipse at 21% 76%, rgba(255, 255, 255, 0.04), transparent 27%),
+    radial-gradient(ellipse at 83% 17%, rgba(105, 111, 107, 0.045), transparent 21%),
     radial-gradient(circle at 77% 66%, rgba(0, 0, 0, 0.48) 0 0.7px, transparent 1.5px),
     linear-gradient(178deg, #16191a, var(--aged-key, #141718) 52%, var(--aged-key-low, #0b0d0e));
   background-size: 150px 150px, 82px 82px, auto, auto, auto, auto, auto;

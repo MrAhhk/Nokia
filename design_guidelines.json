@@ -29,7 +29,7 @@
   "material_texture": {
     "canonical_stylesheet": "frontend/src/components/AgedHardwareTheme.css",
     "lcd": "Static fine pixel grid, sparse dormant-cell dust, asymmetric age bloom, and an inset edge fade. Keep the display dim enough to feel reflective rather than brightly backlit.",
-    "hardware": "Matte near-black shell and keys with clearly visible but restrained fabric-like fiber grain, fine fuzz, embedded dust, uneven wear, restrained edge highlights, and no animated noise. The keyboard must read as black hardware first and textured fabric second, never as a continuous gray cloth surface.",
+    "hardware": "Matte near-black shell and keys with clearly visible but restrained short fabric fibers, fine fuzz, sparse gray dust caught in the surface, uneven wear, restrained edge highlights, and no animated noise. The phone must read as black fabric-made hardware, never as a continuous gray cloth covering.",
     "accessibility": "Texture must never obscure text, selected states, icons, or touch targets. Reduce overlay strength when increased contrast is requested.",
     "motion": "No animated grain, flicker, shimmer, or attention-seeking texture movement."
   },

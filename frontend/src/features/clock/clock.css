@@ -84,7 +84,7 @@
 .clock-readout__seconds {
   margin-left: 0.08em;
   font-family: "Lucida Console", "Courier New", monospace;
-  font-size: clamp(30px, 9vw, 46px);
+  font-size: clamp(48px, 15vw, 76px);
   font-weight: 400;
   line-height: 0.95;
   letter-spacing: 0.02em;

@@ -1,0 +1,152 @@
+.lcd-screen.clock-screen {
+  grid-template-rows: 24px 34px minmax(0, 1fr) 22px 28px;
+  padding-bottom: 7px;
+}
+
+.clock-header,
+.clock-softkeys,
+.clock-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.clock-header {
+  font-size: clamp(12px, 3.4vw, 16px);
+  line-height: 1;
+}
+
+.clock-header strong {
+  font-size: 1.1em;
+}
+
+.clock-header span {
+  font-size: 0.85em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.clock-modes {
+  display: grid;
+  grid-template-columns: 0.8fr 0.8fr 1.25fr;
+  align-items: center;
+  border-bottom: 1px solid rgba(17, 24, 3, 0.42);
+}
+
+.clock-modes button,
+.clock-softkeys button,
+.clock-readout__adjust button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.clock-modes button {
+  min-height: 27px;
+  padding: 3px 4px;
+  font-size: clamp(9px, 2.8vw, 13px);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.clock-modes button.is-selected {
+  background: var(--ink);
+  color: var(--lcd);
+}
+
+.clock-readout {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.clock-readout__time,
+.clock-readout__duration {
+  font-family: "Lucida Console", "Courier New", monospace;
+  font-size: clamp(48px, 15vw, 76px);
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  transform: scaleX(0.9);
+  text-shadow: 1px 0 var(--ink);
+}
+
+.clock-readout__seconds {
+  position: absolute;
+  right: 5%;
+  bottom: 25%;
+  font-size: clamp(12px, 3.7vw, 18px);
+  font-weight: 700;
+}
+
+.clock-readout__duration--stopwatch {
+  font-size: clamp(38px, 12vw, 62px);
+}
+
+.clock-readout__duration.is-finished {
+  box-shadow: inset 0 -3px 0 var(--ink);
+}
+
+.clock-readout__adjust {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  align-items: center;
+  margin-top: 10px;
+  font-size: clamp(9px, 2.6vw, 12px);
+  font-weight: 700;
+  text-align: center;
+}
+
+.clock-readout__adjust button {
+  min-height: 29px;
+  border: 1px solid var(--ink);
+  font-weight: 700;
+}
+
+.clock-readout__adjust button:disabled,
+.clock-softkeys button:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+.clock-readout__caption {
+  margin-top: 8px;
+  font-size: clamp(10px, 2.8vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.clock-hint {
+  border-top: 1px solid rgba(17, 24, 3, 0.42);
+  font-size: clamp(8px, 2.4vw, 11px);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.clock-softkeys {
+  align-items: end;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  font-size: clamp(11px, 3.2vw, 15px);
+  font-weight: 700;
+}
+
+.clock-softkeys button {
+  min-height: 26px;
+  padding: 0;
+}
+
+.clock-softkeys button:nth-child(1) { text-align: left; }
+.clock-softkeys button:nth-child(2) { text-align: center; }
+.clock-softkeys button:nth-child(3) { text-align: right; }
+
+.clock-modes button:focus-visible,
+.clock-readout__adjust button:focus-visible,
+.clock-softkeys button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}

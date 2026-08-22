@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Screen from "./Screen";
 import Keypad from "./Keypad";
 import CameraFeature from "@/features/camera/CameraFeature";
+import ClockFeature from "@/features/clock/ClockFeature";
 import {
   cycleNotificationMode,
   getDeviceStatus,
@@ -52,6 +53,7 @@ const NokiaLauncher = ({ apps }) => {
   const [settingsReturnView, setSettingsReturnView] = useState("home");
   const [cameraReturnView, setCameraReturnView] = useState("home");
   const cameraFeatureRef = useRef(null);
+  const clockFeatureRef = useRef(null);
 
   // searchActive as both state (for UI re-render) and ref (for sync reads inside callbacks)
   const [searchActive, setSearchActive] = useState(false);
@@ -238,7 +240,9 @@ const NokiaLauncher = ({ apps }) => {
   const handleSelect = useCallback(() => {
     if (currentView === "home") {
       const target = HOME_FOCUS_TARGETS[selectedIndex];
-      if (target === "search") {
+      if (target === "clock") {
+        setCurrentView("clock");
+      } else if (target === "search") {
         openGoogleSearch();
       } else {
         handleOpenApp(resolveHomeShortcut(homeShortcuts, target));
@@ -328,6 +332,10 @@ const NokiaLauncher = ({ apps }) => {
     (key) => {
       if (currentView === "camera") {
         cameraFeatureRef.current?.handleKey(key);
+        return;
+      }
+      if (currentView === "clock") {
+        clockFeatureRef.current?.handleKey(key);
         return;
       }
       // ─── Handle Call / Hangup / Select keys globally first ───
@@ -473,6 +481,11 @@ const NokiaLauncher = ({ apps }) => {
             ref={cameraFeatureRef}
             onExit={() => setCurrentView(cameraReturnView)}
           />
+        ) : currentView === "clock" ? (
+          <ClockFeature
+            ref={clockFeatureRef}
+            onExit={() => setCurrentView("home")}
+          />
         ) : <Screen
           currentView={currentView}
           menuItems={visibleMenuItems}
@@ -482,6 +495,7 @@ const NokiaLauncher = ({ apps }) => {
           searchActive={searchActive}
           searchQuery={fullInput}
           onSearchFocus={openGoogleSearch}
+          onClockClick={() => setCurrentView("clock")}
           onAppClick={handleOpenApp}
           onOpenMenu={() => setCurrentView("menu")}
           onOpenSettings={() => openSettings(currentView)}

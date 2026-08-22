@@ -40,6 +40,7 @@ const Screen = ({
   searchActive,
   searchQuery,
   onSearchFocus,
+  onClockClick,
   onAppClick,
   onOpenMenu,
   onOpenSettings,
@@ -114,9 +115,15 @@ const Screen = ({
       <div className="lcd-screen" data-testid="screen-home">
         <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
 
-        <div className="lcd-time" data-testid="home-time">
-            {formattedTime}
-        </div>
+        <button
+          type="button"
+          className={`lcd-time ${selectedHomeTarget === "clock" ? "is-selected" : ""}`}
+          data-testid="home-time"
+          aria-label={`Open Clock, current time ${formattedTime}`}
+          onClick={onClockClick}
+        >
+          {formattedTime}
+        </button>
 
         <button
           type="button"

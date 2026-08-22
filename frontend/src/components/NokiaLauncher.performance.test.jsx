@@ -33,6 +33,22 @@ describe("launcher lifecycle performance", () => {
     act(() => root.unmount());
   });
 
+  test("returning Home does not block on another native status snapshot", async () => {
+    jest.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const getDeviceStatus = jest
+      .spyOn(launcherApps, "getDeviceStatus")
+      .mockResolvedValue({ batteryLevel: 80 });
+    const { root } = await mountLauncher();
+
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await Promise.resolve();
+    });
+
+    expect(getDeviceStatus).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
+  });
+
   test("a native Home request exits a feature and restores the launcher", async () => {
     jest.spyOn(launcherApps, "getDeviceStatus").mockResolvedValue({ batteryLevel: 80 });
     jest.spyOn(launcherApps, "startBuiltInBrowser").mockResolvedValue({ native: true });

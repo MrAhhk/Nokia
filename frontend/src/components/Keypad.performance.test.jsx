@@ -1,5 +1,6 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import fs from "fs";
 import Keypad from "./Keypad";
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
@@ -22,4 +23,9 @@ test("key feedback does not schedule React timers while typing", () => {
   act(() => root.unmount());
   container.remove();
   jest.useRealTimers();
+});
+
+test("system-keyboard keys do not animate every changed CSS property", () => {
+  const source = fs.readFileSync(__filename.replace(".performance.test", ""), "utf8");
+  expect(source).not.toContain("transition-all");
 });

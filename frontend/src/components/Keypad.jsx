@@ -49,7 +49,6 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
           className={`
             flex items-center justify-center h-12 md:h-14 rounded-md border 
             shadow-[0_4px_0_rgba(34,197,94,0.1)] active:translate-y-[4px] active:shadow-none 
-            transition-all duration-75
             border-green-500/20 bg-green-950/30 text-green-500
           `}
         >
@@ -63,7 +62,6 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
           className={`
             flex items-center justify-center h-12 md:h-14 rounded-md border 
             shadow-[0_4px_0_rgba(255,255,255,0.05)] active:translate-y-[4px] active:shadow-none 
-            transition-all duration-75
             border-white/10 bg-[#111] text-white
           `}
         >
@@ -77,7 +75,6 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
           className={`
             flex items-center justify-center h-12 md:h-14 rounded-md border 
             shadow-[0_4px_0_rgba(239,68,68,0.1)] active:translate-y-[4px] active:shadow-none 
-            transition-all duration-75
             border-red-500/20 bg-red-950/30 text-red-500
           `}
         >
@@ -97,7 +94,6 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
               className={`
                 relative flex flex-col items-center justify-center rounded-md border border-white/10 
                 shadow-[0_4px_0_rgba(255,255,255,0.05)] active:translate-y-[4px] active:shadow-none 
-                transition-all duration-75
                 bg-[#111] text-white
               `}
             >

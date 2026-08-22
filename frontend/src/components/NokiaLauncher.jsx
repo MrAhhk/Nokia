@@ -124,11 +124,8 @@ const NokiaLauncher = ({ apps }) => {
       .then((status) => active && setDeviceStatus(status))
       .catch((error) => console.warn("Device status unavailable:", error));
     refresh();
-    const onVisible = () => document.visibilityState === "visible" && refresh();
-    document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
-      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 

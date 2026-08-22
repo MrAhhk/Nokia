@@ -73,6 +73,7 @@ describe("launcher menu models", () => {
     expect(findMatchingApp([{ name: "System", packageName: "com.android.settings" }], ["settings"]))
       .toEqual({ name: "System", packageName: "com.android.settings" });
     expect(SETTINGS_ITEMS.map((item) => item.label)).toEqual([
+      "Snake",
       "Display",
       "Sound",
       "Keyboard",
@@ -90,6 +91,11 @@ describe("launcher menu models", () => {
       "digital-wellbeing",
     ]);
     expect(new Set(nativeSettings).size).toBe(nativeSettings.length);
+  });
+
+  test("routes Snake to the built-in feature", () => {
+    const snake = SETTINGS_ITEMS.find((item) => item.id === "snake");
+    expect(resolveSettingAction(snake)).toEqual({ type: "internal-feature", view: "snake" });
   });
 
   test("routes Privacy and About to their published Notion pages", () => {

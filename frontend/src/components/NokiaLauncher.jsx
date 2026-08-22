@@ -5,6 +5,7 @@ import CameraFeature from "@/features/camera/CameraFeature";
 import BrowserFeature from "@/features/browser/BrowserFeature";
 import ClockFeature from "@/features/clock/ClockFeature";
 import { BROWSER_START_URL } from "@/features/browser/browserAddress";
+import SnakeFeature from "@/features/snake/SnakeFeature";
 import {
   cycleNotificationMode,
   getDeviceStatus,
@@ -58,6 +59,7 @@ const NokiaLauncher = ({ apps }) => {
   const cameraFeatureRef = useRef(null);
   const browserFeatureRef = useRef(null);
   const clockFeatureRef = useRef(null);
+  const snakeFeatureRef = useRef(null);
 
   // searchActive as both state (for UI re-render) and ref (for sync reads inside callbacks)
   const [searchActive, setSearchActive] = useState(false);
@@ -234,6 +236,11 @@ const NokiaLauncher = ({ apps }) => {
     const action = resolveSettingAction(setting);
     if (!action) return;
 
+    if (action.type === "internal-feature") {
+      setCurrentView(action.view);
+      return;
+    }
+
     const request = action.type === "web-url"
       ? openWebUrl(action.url)
       : openSystemSetting(action.setting);
@@ -346,6 +353,10 @@ const NokiaLauncher = ({ apps }) => {
       }
       if (currentView === "browser") {
         browserFeatureRef.current?.handleKey(key);
+        return;
+      }
+      if (currentView === "snake") {
+        snakeFeatureRef.current?.handleKey(key);
         return;
       }
       // ─── Handle Call / Hangup / Select keys globally first ───
@@ -501,6 +512,13 @@ const NokiaLauncher = ({ apps }) => {
           <ClockFeature
             ref={clockFeatureRef}
             onExit={() => setCurrentView("home")}
+          />
+        ) : currentView === "snake" ? (
+          <SnakeFeature
+            ref={snakeFeatureRef}
+            currentTime={currentTime}
+            deviceStatus={deviceStatus}
+            onExit={() => setCurrentView("settings")}
           />
         ) : <Screen
           currentView={currentView}

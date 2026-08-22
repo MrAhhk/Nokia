@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Screen from "./Screen";
 import Keypad from "./Keypad";
 import CameraFeature from "@/features/camera/CameraFeature";
+import BrowserFeature from "@/features/browser/BrowserFeature";
 import ClockFeature from "@/features/clock/ClockFeature";
+import { BROWSER_START_URL } from "@/features/browser/browserAddress";
 import {
   cycleNotificationMode,
   getDeviceStatus,
@@ -54,6 +56,7 @@ const NokiaLauncher = ({ apps }) => {
   const [settingsReturnView, setSettingsReturnView] = useState("home");
   const [cameraReturnView, setCameraReturnView] = useState("home");
   const cameraFeatureRef = useRef(null);
+  const browserFeatureRef = useRef(null);
   const clockFeatureRef = useRef(null);
 
   // searchActive as both state (for UI re-render) and ref (for sync reads inside callbacks)
@@ -163,10 +166,12 @@ const NokiaLauncher = ({ apps }) => {
     setSelectedIndex(0);
   }, [clearPending]);
 
-  const openGoogleSearch = useCallback(() => {
-    openWebUrl("https://www.google.com").catch((error) =>
-      console.error("Error opening Google search:", error)
-    );
+  const openBuiltInBrowser = useCallback(() => {
+    setCurrentView("browser");
+  }, []);
+
+  const closeBuiltInBrowser = useCallback(() => {
+    setCurrentView("home");
   }, []);
 
   const openSettings = useCallback((returnView = currentView) => {
@@ -244,7 +249,7 @@ const NokiaLauncher = ({ apps }) => {
       if (target === "clock") {
         setCurrentView("clock");
       } else if (target === "search") {
-        openGoogleSearch();
+        openBuiltInBrowser();
       } else {
         handleOpenApp(resolveHomeShortcut(homeShortcuts, target));
       }
@@ -253,7 +258,7 @@ const NokiaLauncher = ({ apps }) => {
     } else if (currentView === "settings" && visibleMenuItems[selectedIndex]) {
       activateSetting(visibleMenuItems[selectedIndex]);
     }
-  }, [currentView, selectedIndex, visibleMenuItems, handleOpenApp, homeShortcuts, openGoogleSearch, activateSetting]);
+  }, [currentView, selectedIndex, visibleMenuItems, handleOpenApp, homeShortcuts, openBuiltInBrowser, activateSetting]);
 
   const handleSettingClick = useCallback((setting) => {
     if (!setting) return;
@@ -337,6 +342,10 @@ const NokiaLauncher = ({ apps }) => {
       }
       if (currentView === "clock") {
         clockFeatureRef.current?.handleKey(key);
+        return;
+      }
+      if (currentView === "browser") {
+        browserFeatureRef.current?.handleKey(key);
         return;
       }
       // ─── Handle Call / Hangup / Select keys globally first ───
@@ -482,6 +491,12 @@ const NokiaLauncher = ({ apps }) => {
             ref={cameraFeatureRef}
             onExit={() => setCurrentView(cameraReturnView)}
           />
+        ) : currentView === "browser" ? (
+          <BrowserFeature
+            ref={browserFeatureRef}
+            initialUrl={BROWSER_START_URL}
+            onExit={closeBuiltInBrowser}
+          />
         ) : currentView === "clock" ? (
           <ClockFeature
             ref={clockFeatureRef}
@@ -495,7 +510,7 @@ const NokiaLauncher = ({ apps }) => {
           currentTime={currentTime}
           searchActive={searchActive}
           searchQuery={fullInput}
-          onSearchFocus={openGoogleSearch}
+          onSearchFocus={openBuiltInBrowser}
           onClockClick={() => setCurrentView("clock")}
           onAppClick={handleOpenApp}
           onOpenMenu={() => setCurrentView("menu")}

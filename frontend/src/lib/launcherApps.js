@@ -198,6 +198,33 @@ const callCameraMethod = async (method, options, fallback) => {
   return launcherApps[method](options || {});
 };
 
+const callBrowserMethod = async (method, options, fallback) => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.[method]) return fallback;
+  return launcherApps[method](options || {});
+};
+
+export const startBuiltInBrowser = (options = {}) =>
+  callBrowserMethod("startBrowser", options, { started: false, native: false });
+
+export const navigateBuiltInBrowser = (url) =>
+  callBrowserMethod("navigateBrowser", { url }, { url, native: false });
+
+export const controlBuiltInBrowser = (command) =>
+  callBrowserMethod("controlBrowser", { command }, { handled: false, native: false });
+
+export const updateBrowserSurfaceBounds = (bounds) =>
+  callBrowserMethod("updateBrowserSurfaceBounds", bounds, { updated: false, native: false });
+
+export const stopBuiltInBrowser = () =>
+  callBrowserMethod("stopBrowser", {}, { stopped: true, native: false });
+
+export const addBrowserStateListener = async (handler) => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.addListener) return { remove: async () => {} };
+  return launcherApps.addListener("browserState", handler);
+};
+
 export const startBuiltInCamera = (options = {}) =>
   callCameraMethod("startCamera", options, { sessionId: "browser-camera" });
 

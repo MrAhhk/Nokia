@@ -29,6 +29,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import com.nokialauncher.app.camera.BuiltInCameraController;
+import com.nokialauncher.app.browser.BuiltInBrowserController;
 import java.util.ArrayList;
 import java.text.Collator;
 import java.util.Collections;
@@ -46,10 +47,17 @@ import org.json.JSONArray;
 )
 public class LauncherAppsPlugin extends Plugin {
     private BuiltInCameraController cameraController;
+    private BuiltInBrowserController browserController;
 
     @Override
     protected void handleOnPause() {
         if (cameraController != null) cameraController.pauseForBackground();
+        if (browserController != null) browserController.pauseForBackground();
+    }
+
+    @Override
+    protected void handleOnResume() {
+        if (browserController != null) browserController.resumeFromBackground();
     }
 
     @Override
@@ -57,6 +65,10 @@ public class LauncherAppsPlugin extends Plugin {
         if (cameraController != null) {
             cameraController.destroy();
             cameraController = null;
+        }
+        if (browserController != null) {
+            browserController.destroy();
+            browserController = null;
         }
     }
 
@@ -69,6 +81,20 @@ public class LauncherAppsPlugin extends Plugin {
             });
         }
         return cameraController;
+    }
+
+    private BuiltInBrowserController browserController() {
+        if (browserController == null) {
+            browserController = new BuiltInBrowserController(getActivity(), (eventName, url, title, progress) -> {
+                JSObject event = new JSObject();
+                event.put("event", eventName);
+                event.put("url", url);
+                event.put("title", title);
+                event.put("progress", progress);
+                notifyListeners("browserState", event);
+            });
+        }
+        return browserController;
     }
 
     @PluginMethod
@@ -483,7 +509,34 @@ public class LauncherAppsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void startBrowser(PluginCall call) {
+        if (cameraController != null) cameraController.pauseForBackground();
+        browserController().startBrowser(call);
+    }
+
+    @PluginMethod
+    public void navigateBrowser(PluginCall call) {
+        browserController().navigate(call);
+    }
+
+    @PluginMethod
+    public void controlBrowser(PluginCall call) {
+        browserController().control(call);
+    }
+
+    @PluginMethod
+    public void updateBrowserSurfaceBounds(PluginCall call) {
+        browserController().updateSurfaceBounds(call);
+    }
+
+    @PluginMethod
+    public void stopBrowser(PluginCall call) {
+        browserController().stopBrowser(call);
+    }
+
+    @PluginMethod
     public void startCamera(PluginCall call) {
+        if (browserController != null) browserController.stop();
         if (getPermissionState("camera") != PermissionState.GRANTED) {
             requestPermissionForAlias("camera", call, "cameraPermissionCallback");
             return;

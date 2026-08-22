@@ -129,7 +129,7 @@ const Screen = ({
           type="button"
           className={`lcd-search ${selectedHomeTarget === "search" ? "is-selected" : ""}`}
           data-testid="home-search"
-          aria-label="Search Google"
+          aria-label="Open built-in browser"
           onClick={onSearchFocus}
         >
           <Search aria-hidden="true" />

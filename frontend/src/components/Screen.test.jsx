@@ -28,4 +28,8 @@ describe("home status icons", () => {
     expect(markup).toContain('data-testid="home-time"');
     expect(markup).not.toContain('class="lcd-time is-selected" style="background');
   });
+
+  test("exposes the home search box as the built-in browser entry", () => {
+    expect(renderHome({})).toContain('aria-label="Open built-in browser"');
+  });
 });

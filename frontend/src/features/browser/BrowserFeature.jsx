@@ -13,8 +13,8 @@ import {
   stopBuiltInBrowser,
   updateBrowserSurfaceBounds,
 } from "../../lib/launcherApps";
-import { getBrowserCommand } from "./browserCommands";
 import { BROWSER_START_URL } from "./browserAddress";
+import { createBrowserKeypadController } from "./browserKeypad";
 import "./browser.css";
 
 const getNativeBounds = (element) => {
@@ -32,7 +32,21 @@ const getNativeBounds = (element) => {
 const BrowserFeature = forwardRef(({ initialUrl = BROWSER_START_URL, onExit }, ref) => {
   const surfaceRef = useRef(null);
   const initialUrlRef = useRef(initialUrl);
+  const onExitRef = useRef(onExit);
+  const keypadControllerRef = useRef(null);
   const [nativeReady, setNativeReady] = useState(true);
+  onExitRef.current = onExit;
+
+  if (keypadControllerRef.current === null) {
+    keypadControllerRef.current = createBrowserKeypadController({
+      send: (command, options) => controlBuiltInBrowser(command, options).catch((error) =>
+        console.warn(`Browser command ${command} failed:`, error)
+      ),
+      onExit: () => {
+        stopBuiltInBrowser().catch(() => {}).finally(() => onExitRef.current());
+      },
+    });
+  }
 
   const startBrowser = useCallback(async () => {
     const bounds = getNativeBounds(surfaceRef.current);
@@ -53,6 +67,8 @@ const BrowserFeature = forwardRef(({ initialUrl = BROWSER_START_URL, onExit }, r
       stopBuiltInBrowser().catch(() => {});
     };
   }, [startBrowser]);
+
+  useEffect(() => () => keypadControllerRef.current?.dispose(), []);
 
   useEffect(() => {
     const updateBounds = () => {
@@ -85,18 +101,9 @@ const BrowserFeature = forwardRef(({ initialUrl = BROWSER_START_URL, onExit }, r
     };
   }, [onExit]);
 
-  const handleKey = useCallback(async (key) => {
-    const command = getBrowserCommand(key);
-    if (!command) return;
-    if (command === "exit") {
-      await stopBuiltInBrowser().catch(() => {});
-      onExit();
-      return;
-    }
-    controlBuiltInBrowser(command).catch((error) =>
-      console.warn(`Browser command ${command} failed:`, error)
-    );
-  }, [onExit]);
+  const handleKey = useCallback((key) => {
+    keypadControllerRef.current?.handleKey(key);
+  }, []);
 
   useImperativeHandle(ref, () => ({ handleKey }), [handleKey]);
 

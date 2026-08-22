@@ -7,9 +7,11 @@ describe("browser keypad commands", () => {
     expect(getBrowserCommand("UP")).toBe("scroll-up");
     expect(getBrowserCommand("DOWN")).toBe("scroll-down");
     expect(getBrowserCommand("SELECT")).toBe("focus-address");
-    expect(getBrowserCommand("SEND")).toBe("focus-address");
-    expect(getBrowserCommand("*")).toBe("reload");
+    expect(getBrowserCommand("SEND")).toBe("submit");
+    expect(getBrowserCommand("*")).toBeNull();
     expect(getBrowserCommand("END")).toBe("exit");
-    expect(getBrowserCommand("#")).toBe("exit");
+    expect(getBrowserCommand("#")).toBe("tabs");
+    expect(getBrowserCommand("2")).toBeNull();
+    expect(getBrowserCommand("4")).toBeNull();
   });
 });

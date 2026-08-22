@@ -1,18 +1,12 @@
 const COMMANDS = {
   LEFT: "back",
-  "4": "back",
   RIGHT: "forward",
-  "6": "forward",
   UP: "scroll-up",
-  "2": "scroll-up",
   DOWN: "scroll-down",
-  "8": "scroll-down",
   SELECT: "focus-address",
-  "5": "focus-address",
-  SEND: "focus-address",
-  "*": "reload",
+  SEND: "submit",
   END: "exit",
-  "#": "exit",
+  "#": "tabs",
 };
 
 export const getBrowserCommand = (key) => COMMANDS[key] || null;

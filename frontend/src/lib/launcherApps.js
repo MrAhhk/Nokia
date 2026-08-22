@@ -210,8 +210,8 @@ export const startBuiltInBrowser = (options = {}) =>
 export const navigateBuiltInBrowser = (url) =>
   callBrowserMethod("navigateBrowser", { url }, { url, native: false });
 
-export const controlBuiltInBrowser = (command) =>
-  callBrowserMethod("controlBrowser", { command }, { handled: false, native: false });
+export const controlBuiltInBrowser = (command, options = {}) =>
+  callBrowserMethod("controlBrowser", { command, ...options }, { handled: false, native: false });
 
 export const updateBrowserSurfaceBounds = (bounds) =>
   callBrowserMethod("updateBrowserSurfaceBounds", bounds, { updated: false, native: false });

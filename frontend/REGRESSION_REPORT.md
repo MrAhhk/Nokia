@@ -24,3 +24,28 @@
 **SAFE TO MERGE**
 
 Device note: verified on the connected Android handset identified by ADB on 2026-08-22. Website rendering remains dependent on the handset's Android System WebView and network connectivity.
+
+## Run: 2026-08-22 — Mini-browser tabs, LCD chrome, and Nokia keypad input
+**Change type:** Browser interaction and visual-system extension
+**Files changed:** Browser keypad composer and tests, React/native command bridge, native WebView controller
+**Triggered by:** User requested browser tabs, homescreen-matched top/bottom chrome, and keypad text entry without a modern soft keyboard.
+
+### Flows tested
+
+| Flow | Result | Notes |
+|---|---|---|
+| Finite tabs | ✅ Pass | Native controller compiles with up to four state-preserving WebView tabs; tab create, select, and close paths are implemented. |
+| LCD browser chrome | ✅ Pass | Native top bar, bottom bar, progress track, border, and tab badge use the homescreen LCD palette (`#9da84d`, `#a8b358`, `#858f3f`). |
+| Nokia multi-tap input | ✅ Pass | Jest verifies preview/cycle/commit behavior, space, backspace, tab menu, and exit commands. |
+| Native address/page input bridge | ✅ Pass | Android Java compilation verifies address editing and focused-WebView `InputConnection` paths without JavaScript injection. |
+| Modern soft-keyboard suppression | ⚠️ Device check pending | Address input disables soft-keyboard display and WebView focus repeatedly hides the IME. The handset disconnected before final runtime confirmation. |
+| Existing launcher, browser, clock, camera, settings, Snake, and domain tests | ✅ Pass | Full Jest suite: 19 suites, 59 tests. |
+| Production web build | ✅ Pass | `npm run build` completed successfully. |
+| Capacitor asset copy | ✅ Pass | `npx cap copy android` completed successfully. |
+| Android debug APK | ✅ Pass | `:app:assembleDebug --no-daemon` completed successfully. |
+| Physical-device install/runtime | ⚠️ Blocked | ADB reported no connected devices; no runtime claim is made for tab popup or webpage-field typing. |
+
+### Verdict
+**BUILD SAFE; DEVICE SMOKE TEST PENDING**
+
+The tab cap intentionally follows the product North Star: useful multitasking without turning the mini-browser into an unbounded attention surface.

@@ -29,13 +29,15 @@ describe("built-in browser bridge", () => {
     await startBuiltInBrowser({ url: "https://example.com", x: 1, y: 2, width: 3, height: 4 });
     await navigateBuiltInBrowser("https://example.com");
     await controlBuiltInBrowser("back");
+    await controlBuiltInBrowser("input-text", { text: "A" });
     await updateBrowserSurfaceBounds({ x: 5, y: 6, width: 7, height: 8 });
     await stopBuiltInBrowser();
 
     const plugin = window.Capacitor.Plugins.LauncherApps;
     expect(plugin.startBrowser).toHaveBeenCalledWith(expect.objectContaining({ url: "https://example.com" }));
     expect(plugin.navigateBrowser).toHaveBeenCalledWith({ url: "https://example.com" });
-    expect(plugin.controlBrowser).toHaveBeenCalledWith({ command: "back" });
+    expect(plugin.controlBrowser).toHaveBeenNthCalledWith(1, { command: "back" });
+    expect(plugin.controlBrowser).toHaveBeenNthCalledWith(2, { command: "input-text", text: "A" });
     expect(plugin.updateBrowserSurfaceBounds).toHaveBeenCalledWith({ x: 5, y: 6, width: 7, height: 8 });
     expect(plugin.stopBrowser).toHaveBeenCalledWith({});
   });

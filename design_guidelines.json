@@ -1,9 +1,9 @@
 {
   "design_manifest": {
-    "identity": "The Tactical Retro-Minimalist Launcher",
-    "archetype": "Archetype 4 (Swiss & High-Contrast) + Terminal Brutalism",
-    "vibe": "Nostalgic, physical, brutalist, precise, distraction-free.",
-    "theme": "Dark"
+    "identity": "The Aged Nokia Modern-Minimalist Launcher",
+    "archetype": "Dim Nokia-era LCD + restrained modern hardware minimalism",
+    "vibe": "Calm, tactile, pixel-aged, softly worn, precise, distraction-free.",
+    "theme": "Aged Olive LCD"
   },
   "product_north_star": {
     "mission": "Bring the modern smartphone back to the Nokia era, when phones were useful tools rather than addictive attention machines, while retaining a refined modern minimalist feeling.",
@@ -12,15 +12,26 @@
     "design_gate": "Prefer essential utility, finite deliberate interactions, Nokia-era calm, privacy, and modern polish. Reject attention loops, compulsive-use mechanics, unnecessary motion, and engagement-maximizing patterns."
   },
   "colors": {
-    "background_primary": "#000000",
-    "background_secondary": "#050505",
-    "surface_key": "#111111",
-    "surface_key_active": "#FFFFFF",
-    "text_primary": "#FFFFFF",
-    "text_secondary": "#808080",
-    "text_inverse": "#000000",
-    "accent": "#FFFFFF",
-    "divider": "rgba(255, 255, 255, 0.15)"
+    "background_primary": "#0B0D0D",
+    "background_secondary": "#090B0C",
+    "surface_key": "#141718",
+    "surface_key_active": "#232829",
+    "text_primary": "#D8D8D2",
+    "text_secondary": "#898B87",
+    "text_inverse": "#111604",
+    "lcd_surface": "#878D3B",
+    "lcd_surface_light": "#969D46",
+    "lcd_surface_dark": "#686E2B",
+    "lcd_ink": "#111604",
+    "accent": "#D8D8D2",
+    "divider": "rgba(216, 216, 210, 0.15)"
+  },
+  "material_texture": {
+    "canonical_stylesheet": "frontend/src/components/AgedHardwareTheme.css",
+    "lcd": "Static fine pixel grid, sparse dormant-cell dust, asymmetric age bloom, and an inset edge fade. Keep the display dim enough to feel reflective rather than brightly backlit.",
+    "hardware": "Matte near-black shell and keys with dominant, high-visibility fabric-like fiber nap, layered fine fuzz, smoky mottling, embedded dust, uneven wear, restrained edge highlights, and no animated noise. The keyboard should read as fabric at first glance while labels and controls remain crisp.",
+    "accessibility": "Texture must never obscure text, selected states, icons, or touch targets. Reduce overlay strength when increased contrast is requested.",
+    "motion": "No animated grain, flicker, shimmer, or attention-seeking texture movement."
   },
   "typography": {
     "screen_font": "Space Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

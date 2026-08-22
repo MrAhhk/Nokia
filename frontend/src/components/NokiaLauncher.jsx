@@ -28,6 +28,7 @@ import {
   resolveSettingAction,
 } from "@/domain/launcherMenus";
 import "./NokiaLauncher.css";
+import "./AgedHardwareTheme.css";
 
 // Multi-tap cycle: letters first, number at the end (classic Nokia)
 const MULTI_TAP_CYCLES = {

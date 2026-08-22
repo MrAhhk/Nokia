@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Keypad from "./Keypad";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
+import "./AgedHardwareTheme.css";
 
 const MULTI_TAP_CYCLES = {
   "2": ["a", "b", "c", "2"],

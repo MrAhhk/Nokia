@@ -1,0 +1,156 @@
+/*
+ * Static material treatment shared by the launcher shell and system keyboard.
+ * It deliberately uses no animation: the wear should feel physical and calm,
+ * not like moving digital noise.
+ */
+
+.nokia-launcher {
+  --lcd: #878d3b;
+  --lcd-light: #969d46;
+  --lcd-dark: #686e2b;
+  --ink: #111604;
+  --aged-shell: #0b0d0d;
+  --aged-key: #141718;
+  --aged-key-low: #0b0d0e;
+  --aged-key-label: #d8d8d2;
+  --aged-fabric-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='fabric'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .11' numOctaves='4' seed='19' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='.28 0 0 0 0 .28 0 0 0 0 .28 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23fabric)' opacity='.72'/%3E%3C/svg%3E");
+  --aged-fabric-fuzz: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cfilter id='fuzz'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.07 .31' numOctaves='3' seed='31' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='.22 0 0 0 0 .22 0 0 0 0 .22 0 0 0 0 0 0 0 .62 0'/%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23fuzz)' opacity='.78'/%3E%3C/svg%3E");
+}
+
+.nokia-launcher .lcd-screen:not(.camera-screen) {
+  border-color: rgba(158, 166, 71, 0.66);
+  background-color: var(--lcd);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(13, 18, 2, 0.075) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(13, 18, 2, 0.055) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at 46% 24%, var(--lcd-light) 0, var(--lcd) 46%, var(--lcd-dark) 118%);
+  box-shadow:
+    inset 0 0 28px rgba(21, 25, 5, 0.26),
+    inset 0 1px rgba(225, 226, 138, 0.11),
+    0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+/* Fine sub-pixel dust and dormant LCD cells. */
+.nokia-launcher .lcd-screen:not(.camera-screen)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, rgba(13, 18, 2, 0.28) 0 0.55px, transparent 0.9px),
+    radial-gradient(circle, rgba(235, 235, 143, 0.16) 0 0.45px, transparent 0.85px),
+    linear-gradient(102deg, transparent 0 48%, rgba(35, 39, 8, 0.035) 50%, transparent 53%);
+  background-position: 0 0, 11px 7px, 0 0;
+  background-size: 17px 13px, 23px 19px, 100% 100%;
+  mix-blend-mode: multiply;
+  opacity: 0.62;
+}
+
+/* Uneven age bloom and a quiet edge fade reduce the backlit appearance. */
+.nokia-launcher .lcd-screen:not(.camera-screen)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 14% 18%, rgba(42, 48, 8, 0.16), transparent 24%),
+    radial-gradient(ellipse at 79% 33%, rgba(221, 222, 120, 0.08), transparent 22%),
+    radial-gradient(ellipse at 58% 81%, rgba(45, 50, 10, 0.12), transparent 26%),
+    radial-gradient(ellipse at center, transparent 56%, rgba(18, 22, 4, 0.2) 108%);
+  mix-blend-mode: multiply;
+  opacity: 0.72;
+}
+
+.nokia-launcher__keypad,
+[data-testid="nokia-system-keyboard"] {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--aged-shell, #0b0d0d) !important;
+  background-image:
+    var(--aged-fabric-noise),
+    var(--aged-fabric-fuzz),
+    radial-gradient(ellipse at 18% 12%, rgba(166, 174, 170, 0.12), transparent 25%),
+    radial-gradient(ellipse at 74% 56%, rgba(138, 145, 142, 0.1), transparent 30%),
+    radial-gradient(ellipse at 43% 84%, rgba(255, 255, 255, 0.07), transparent 22%),
+    radial-gradient(ellipse at 91% 18%, rgba(159, 164, 161, 0.08), transparent 17%),
+    radial-gradient(circle at 9% 71%, rgba(0, 0, 0, 0.62) 0 1px, transparent 2.2px),
+    radial-gradient(circle at 88% 24%, rgba(0, 0, 0, 0.5) 0 0.8px, transparent 1.9px),
+    linear-gradient(112deg, #131617, #090b0c 52%, #111415) !important;
+  background-size: 180px 180px, 96px 96px, auto, auto, auto, auto, auto, auto, auto !important;
+  background-blend-mode: screen, screen, screen, screen, screen, soft-light, multiply, multiply, normal;
+}
+
+.nokia-launcher__keypad::before,
+[data-testid="nokia-system-keyboard"]::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse at 24% 17%, rgba(194, 198, 195, 0.09) 0 0.55px, transparent 1.45px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.09) 0 0.4px, transparent 0.95px),
+    radial-gradient(circle, rgba(0, 0, 0, 0.58) 0 0.65px, transparent 1.2px),
+    repeating-linear-gradient(90deg, transparent 0 2px, rgba(255, 255, 255, 0.026) 2.5px 3px, transparent 3.5px 7px);
+  background-position: 3px 9px, 5px 8px, 17px 3px, 0 0;
+  background-size: 47px 43px, 31px 29px, 43px 37px, 100% 100%;
+  mix-blend-mode: screen, soft-light, multiply, soft-light;
+  opacity: 0.76;
+}
+
+.nokia-launcher__keypad > *,
+[data-testid="nokia-system-keyboard"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+.nokia-launcher .hardware-button,
+.nokia-launcher .hardware-number,
+.nokia-launcher .hardware-dpad,
+.nokia-launcher .hardware-dpad .dpad-select,
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button {
+  border-color: rgba(0, 0, 0, 0.88);
+  color: var(--aged-key-label, #d8d8d2);
+  background-color: var(--aged-key, #141718);
+  background-image:
+    var(--aged-fabric-noise),
+    var(--aged-fabric-fuzz),
+    radial-gradient(ellipse at 48% 34%, rgba(177, 183, 179, 0.15), transparent 45%),
+    radial-gradient(ellipse at 21% 76%, rgba(255, 255, 255, 0.085), transparent 27%),
+    radial-gradient(ellipse at 83% 17%, rgba(149, 155, 151, 0.09), transparent 21%),
+    radial-gradient(circle at 77% 66%, rgba(0, 0, 0, 0.48) 0 0.7px, transparent 1.5px),
+    linear-gradient(178deg, #1a1e1f, var(--aged-key, #141718) 52%, var(--aged-key-low, #0b0d0e));
+  background-size: 150px 150px, 82px 82px, auto, auto, auto, auto, auto;
+  background-blend-mode: screen, screen, screen, screen, soft-light, multiply, normal;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.07),
+    inset 10px 0 18px rgba(255, 255, 255, 0.018),
+    inset 0 -2px rgba(0, 0, 0, 0.72),
+    0 2px 3px rgba(0, 0, 0, 0.78);
+}
+
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button[data-testid="keypad-btn-send"] {
+  color: #42b835;
+}
+
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button[data-testid="keypad-btn-end"] {
+  color: #e33b38;
+}
+
+.nokia-launcher .hardware-button:active,
+.nokia-launcher .hardware-button.is-active,
+.nokia-launcher .hardware-number:active,
+.nokia-launcher .hardware-number.is-active,
+.nokia-launcher .hardware-dpad button:active,
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:active {
+  filter: brightness(1.18) contrast(0.96);
+}
+
+@media (prefers-contrast: more) {
+  .nokia-launcher .lcd-screen:not(.camera-screen)::before,
+  .nokia-launcher .lcd-screen:not(.camera-screen)::after {
+    opacity: 0.32;
+  }
+}

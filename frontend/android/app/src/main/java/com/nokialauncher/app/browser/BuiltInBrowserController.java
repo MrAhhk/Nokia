@@ -46,6 +46,14 @@ public final class BuiltInBrowserController {
     private static final int OLIVE_DARK = Color.rgb(133, 143, 63);
     private static final int INK = Color.rgb(17, 24, 3);
     private static final int PAGE = Color.rgb(248, 248, 242);
+    private static final String DISABLE_SYSTEM_IME_SCRIPT =
+        "(function(){"
+            + "const mark=()=>document.querySelectorAll('input,textarea,[contenteditable=\"true\"]')"
+            + ".forEach(el=>el.setAttribute('inputmode','none'));"
+            + "mark();"
+            + "if(!window.__nokiaImeObserver){window.__nokiaImeObserver=new MutationObserver(mark);"
+            + "window.__nokiaImeObserver.observe(document.documentElement,{childList:true,subtree:true});}"
+            + "})();";
 
     public interface BrowserStateListener {
         void onState(String event, String url, String title, int progress);
@@ -443,6 +451,7 @@ public final class BuiltInBrowserController {
             @Override
             public void onPageFinished(WebView view, String url) {
                 if (view != webView) return;
+                installLauncherInputMode(view);
                 setDisplayedAddress(url);
                 emitState("ready");
             }
@@ -466,6 +475,10 @@ public final class BuiltInBrowserController {
                 emitState(progress >= 100 ? "ready" : "loading");
             }
         });
+    }
+
+    private void installLauncherInputMode(WebView target) {
+        if (target != null) target.evaluateJavascript(DISABLE_SYSTEM_IME_SCRIPT, null);
     }
 
     private void createTab(String url, boolean select) {

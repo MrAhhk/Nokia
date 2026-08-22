@@ -15,7 +15,7 @@
   --aged-key-label: #d8d8d2;
   --aged-fabric-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='fabric'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .11' numOctaves='4' seed='19' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='.24 0 0 0 0 .24 0 0 0 0 .24 0 0 0 0 0 0 0 .46 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23fabric)' opacity='.62'/%3E%3C/svg%3E");
   --aged-fabric-fuzz: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cfilter id='fuzz'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.07 .31' numOctaves='3' seed='31' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='.16 0 0 0 0 .16 0 0 0 0 .16 0 0 0 0 0 0 0 .36 0'/%3E%3C/filter%3E%3Crect width='96' height='96' filter='url(%23fuzz)' opacity='.44'/%3E%3C/svg%3E");
-  --aged-dust-random: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='317' height='283' viewBox='0 0 317 283'%3E%3Cg fill='%23b8bcb9'%3E%3Ccircle cx='11' cy='47' r='.7' opacity='.34'/%3E%3Ccircle cx='29' cy='231' r='1.1' opacity='.22'/%3E%3Ccircle cx='43' cy='119' r='.45' opacity='.48'/%3E%3Ccircle cx='67' cy='19' r='.8' opacity='.28'/%3E%3Ccircle cx='78' cy='176' r='.55' opacity='.42'/%3E%3Ccircle cx='104' cy='263' r='.9' opacity='.25'/%3E%3Ccircle cx='121' cy='83' r='.48' opacity='.5'/%3E%3Ccircle cx='139' cy='207' r='.72' opacity='.32'/%3E%3Ccircle cx='158' cy='37' r='1.05' opacity='.2'/%3E%3Ccircle cx='174' cy='151' r='.42' opacity='.46'/%3E%3Ccircle cx='193' cy='274' r='.65' opacity='.36'/%3E%3Ccircle cx='207' cy='102' r='.88' opacity='.24'/%3E%3Ccircle cx='231' cy='14' r='.5' opacity='.44'/%3E%3Ccircle cx='244' cy='219' r='.76' opacity='.3'/%3E%3Ccircle cx='269' cy='68' r='.44' opacity='.52'/%3E%3Ccircle cx='281' cy='188' r='1' opacity='.21'/%3E%3Ccircle cx='304' cy='126' r='.58' opacity='.4'/%3E%3Ccircle cx='311' cy='254' r='.74' opacity='.29'/%3E%3C/g%3E%3C/svg%3E");
+  --aged-fabric-haze: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='337' height='293' viewBox='0 0 337 293'%3E%3Cfilter id='haze'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.009 .027' numOctaves='4' seed='43' stitchTiles='stitch'/%3E%3CfeGaussianBlur stdDeviation='2.4'/%3E%3CfeColorMatrix type='matrix' values='.2 0 0 0 0 .2 0 0 0 0 .2 0 0 0 0 0 0 0 .34 0'/%3E%3C/filter%3E%3Crect width='337' height='293' filter='url(%23haze)' opacity='.66'/%3E%3C/svg%3E");
 }
 
 .nokia-launcher .lcd-screen:not(.camera-screen) {
@@ -72,17 +72,15 @@
   background-image:
     var(--aged-fabric-noise),
     var(--aged-fabric-fuzz),
-    var(--aged-dust-random),
-    radial-gradient(ellipse at 13% 17%, rgba(126, 132, 129, 0.07), transparent 19%),
-    radial-gradient(ellipse at 79% 61%, rgba(109, 116, 112, 0.058), transparent 27%),
-    radial-gradient(ellipse at 37% 88%, rgba(255, 255, 255, 0.034), transparent 16%),
-    radial-gradient(ellipse at 94% 23%, rgba(119, 124, 121, 0.046), transparent 11%),
-    radial-gradient(circle at 9% 71%, rgba(0, 0, 0, 0.62) 0 1px, transparent 2.2px),
-    radial-gradient(circle at 88% 24%, rgba(0, 0, 0, 0.5) 0 0.8px, transparent 1.9px),
+    var(--aged-fabric-haze),
+    radial-gradient(ellipse at 13% 17%, rgba(126, 132, 129, 0.075), transparent 21%),
+    radial-gradient(ellipse at 79% 61%, rgba(109, 116, 112, 0.064), transparent 29%),
+    radial-gradient(ellipse at 37% 88%, rgba(255, 255, 255, 0.038), transparent 18%),
+    radial-gradient(ellipse at 94% 23%, rgba(119, 124, 121, 0.052), transparent 13%),
     linear-gradient(112deg, #0d0f10, #080a0b 52%, #0c0e0f) !important;
-  background-size: 263px 241px, 173px 149px, 317px 283px, auto, auto, auto, auto, auto, auto, auto !important;
-  background-position: -31px 17px, 67px -23px, 19px 41px, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
-  background-blend-mode: soft-light, soft-light, screen, soft-light, soft-light, soft-light, soft-light, multiply, multiply, normal;
+  background-size: 263px 241px, 173px 149px, 337px 293px, auto, auto, auto, auto, auto !important;
+  background-position: -31px 17px, 67px -23px, 19px 41px, 0 0, 0 0, 0 0, 0 0, 0 0;
+  background-blend-mode: soft-light, soft-light, screen, soft-light, soft-light, soft-light, soft-light, normal;
 }
 
 .nokia-launcher__keypad::before,
@@ -93,15 +91,15 @@
   inset: 0;
   pointer-events: none;
   background-image:
-    var(--aged-dust-random),
-    radial-gradient(ellipse at 17% 29%, rgba(188, 193, 190, 0.12) 0 0.65px, transparent 1.7px),
-    radial-gradient(ellipse at 72% 13%, rgba(202, 205, 202, 0.1) 0 0.45px, transparent 1.2px),
-    radial-gradient(circle at 61% 77%, rgba(0, 0, 0, 0.58) 0 0.7px, transparent 1.3px),
+    var(--aged-fabric-haze),
+    radial-gradient(ellipse at 17% 29%, rgba(188, 193, 190, 0.075), transparent 18%),
+    radial-gradient(ellipse at 72% 13%, rgba(202, 205, 202, 0.058), transparent 14%),
+    radial-gradient(ellipse at 61% 77%, rgba(0, 0, 0, 0.23), transparent 24%),
     repeating-linear-gradient(91.7deg, transparent 0 3px, rgba(255, 255, 255, 0.024) 3.5px 4px, transparent 4.5px 11px);
   background-position: 83px -37px, 0 0, 0 0, 0 0, 0 0;
-  background-size: 317px 283px, auto, auto, auto, 137% 113%;
-  mix-blend-mode: screen, screen, soft-light, multiply, soft-light;
-  opacity: 0.62;
+  background-size: 337px 293px, auto, auto, auto, 137% 113%;
+  mix-blend-mode: screen, soft-light, soft-light, multiply, soft-light;
+  opacity: 0.7;
 }
 
 .nokia-launcher__keypad > *,
@@ -121,15 +119,14 @@
   background-image:
     var(--aged-fabric-noise),
     var(--aged-fabric-fuzz),
-    var(--aged-dust-random),
+    var(--aged-fabric-haze),
     radial-gradient(ellipse at 48% 34%, rgba(124, 130, 126, 0.075), transparent 45%),
     radial-gradient(ellipse at 21% 76%, rgba(255, 255, 255, 0.04), transparent 27%),
     radial-gradient(ellipse at 83% 17%, rgba(105, 111, 107, 0.045), transparent 21%),
-    radial-gradient(circle at 77% 66%, rgba(0, 0, 0, 0.48) 0 0.7px, transparent 1.5px),
     linear-gradient(178deg, #16191a, var(--aged-key, #141718) 52%, var(--aged-key-low, #0b0d0e));
-  background-size: 211px 197px, 127px 109px, 223px 191px, auto, auto, auto, auto, auto;
-  background-position: -17px 11px, 31px -13px, 7px 23px, 0 0, 0 0, 0 0, 0 0, 0 0;
-  background-blend-mode: soft-light, soft-light, screen, soft-light, soft-light, soft-light, multiply, normal;
+  background-size: 211px 197px, 127px 109px, 241px 211px, auto, auto, auto, auto;
+  background-position: -17px 11px, 31px -13px, 7px 23px, 0 0, 0 0, 0 0, 0 0;
+  background-blend-mode: soft-light, soft-light, screen, soft-light, soft-light, soft-light, normal;
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.07),
     inset 10px 0 18px rgba(255, 255, 255, 0.018),
@@ -137,20 +134,20 @@
     0 2px 3px rgba(0, 0, 0, 0.78);
 }
 
-/* Offset neighboring key textures so the dust never forms a mirrored grid. */
+/* Offset neighboring fiber haze so the wear never forms a mirrored grid. */
 .nokia-launcher .hardware-number:nth-child(3n + 1),
 [data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(3n + 1) {
-  background-position: 43px -29px, -19px 37px, 71px -17px, 0 0, 0 0, 0 0, 0 0, 0 0;
+  background-position: 43px -29px, -19px 37px, 71px -17px, 0 0, 0 0, 0 0, 0 0;
 }
 
 .nokia-launcher .hardware-number:nth-child(3n + 2),
 [data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(3n + 2) {
-  background-position: -61px 33px, 47px 9px, -83px 31px, 0 0, 0 0, 0 0, 0 0, 0 0;
+  background-position: -61px 33px, 47px 9px, -83px 31px, 0 0, 0 0, 0 0, 0 0;
 }
 
 .nokia-launcher .hardware-number:nth-child(4n),
 [data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(4n) {
-  background-position: 19px 53px, -41px -27px, 113px 7px, 0 0, 0 0, 0 0, 0 0, 0 0;
+  background-position: 19px 53px, -41px -27px, 113px 7px, 0 0, 0 0, 0 0, 0 0;
 }
 
 [data-testid="nokia-system-keyboard"] [data-testid="keypad"] button[data-testid="keypad-btn-send"] {

@@ -14,10 +14,13 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
+import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.PowerManager;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.provider.Settings;
 import android.view.inputmethod.InputMethodManager;
 import com.getcapacitor.JSObject;
@@ -364,6 +367,63 @@ public class LauncherAppsPlugin extends Plugin {
         return "active";
     }
 
+    @PluginMethod
+    public void vibrate(PluginCall call) {
+        try {
+            Vibrator v = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+            if (v != null && v.hasVibrator()) {
+                AudioAttributes audioAttributes = null;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    audioAttributes = new AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                        .build();
+                }
+
+                if (call.hasOption("pattern")) {
+                    JSONArray jsonPattern = call.getArray("pattern");
+                    if (jsonPattern != null && jsonPattern.length() > 0) {
+                        int patternLength = Math.min(jsonPattern.length(), 20);
+                        long[] pattern = new long[patternLength];
+                        for (int i = 0; i < patternLength; i++) {
+                            pattern[i] = Math.min(1000L, Math.max(0L, jsonPattern.optLong(i, 0)));
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            int[] amplitudes = new int[pattern.length];
+                            for (int i = 0; i < amplitudes.length; i++) {
+                                amplitudes[i] = (i % 2 == 1) ? 160 : 0;
+                            }
+                            VibrationEffect effect = VibrationEffect.createWaveform(pattern, amplitudes, -1);
+                            if (audioAttributes != null) {
+                                v.vibrate(effect, audioAttributes);
+                            } else {
+                                v.vibrate(effect);
+                            }
+                        } else {
+                            v.vibrate(pattern, -1);
+                        }
+                        call.resolve();
+                        return;
+                    }
+                }
+
+                int duration = Math.min(1000, Math.max(1, call.getInt("duration", 70)));
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    VibrationEffect effect = VibrationEffect.createOneShot(duration, 160);
+                    if (audioAttributes != null) {
+                        v.vibrate(effect, audioAttributes);
+                    } else {
+                        v.vibrate(effect);
+                    }
+                } else {
+                    v.vibrate(duration);
+                }
+            }
+            call.resolve();
+        } catch (Exception e) {
+            call.resolve();
+        }
+    }
     @PluginMethod
     public void openNotificationAccessSettings(PluginCall call) {
         try {

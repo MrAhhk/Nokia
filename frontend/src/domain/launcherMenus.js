@@ -42,7 +42,7 @@ const DRAWER_PRIORITY = [
 export const SETTINGS_ITEMS = Object.freeze([
   { id: "snake", label: "Snake", internalView: "snake" },
   { id: "display", label: "Display", nativeSetting: "display" },
-  { id: "sound", label: "Sound", nativeSetting: "sound" },
+  { id: "sound", label: "Sound", internalView: "sound" },
   { id: "keyboard", label: "Keyboard", nativeSetting: "keyboard" },
   { id: "digital-wellbeing", label: "Digital Wellbeing", nativeSetting: "digital-wellbeing" },
   {

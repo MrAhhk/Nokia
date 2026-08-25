@@ -1,0 +1,85 @@
+.lcd-screen.sound-screen {
+  display: grid;
+  grid-template-rows: 28px minmax(0, 1fr) 24px;
+  gap: 2px;
+  padding: 8px 10px;
+  background-color: var(--lcd, #878d3b);
+  color: var(--ink, #111604);
+  font-family: inherit;
+  overflow: hidden;
+  user-select: none;
+}
+
+.lcd-sound__header {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-bottom: 1px solid rgba(17, 24, 3, 0.2);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lcd-sound__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lcd-sound__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 6px;
+  font-size: 12px;
+  border-radius: 2px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.lcd-sound__row.is-selected {
+  background-color: var(--ink, #111604);
+  color: var(--lcd, #878d3b);
+  font-weight: 700;
+}
+
+.lcd-sound__label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lcd-sound__value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+.lcd-sound__arrows {
+  font-size: 9px;
+  letter-spacing: -1px;
+}
+
+.lcd-sound__footer {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-top: 1px solid rgba(17, 24, 3, 0.2);
+  font-size: 11px;
+  font-weight: 600;
+}

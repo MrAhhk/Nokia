@@ -68,6 +68,7 @@ public class NokiaIME extends InputMethodService {
         // Critical: Enable local script file cross-origin loading for React split-chunk scripts
         settings.setAllowFileAccessFromFileURLs(true);
         settings.setAllowUniversalAccessFromFileURLs(true);
+        settings.setMediaPlaybackRequiresUserGesture(false);
 
         // Bridge interface to commit typing system-wide
         mWebView.addJavascriptInterface(new NokiaIMEBridge(), "NokiaIMEBridge");
@@ -186,6 +187,19 @@ public class NokiaIME extends InputMethodService {
                     InputConnection ic = getCurrentInputConnection();
                     if (ic != null) {
                         ic.commitText(text, 1);
+                        if ("\n".equals(text)) {
+                            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER);
+                        }
+                    } else if (text != null) {
+                        if ("\n".equals(text)) {
+                            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER);
+                        } else if (" ".equals(text)) {
+                            sendDownUpKeyEvents(KeyEvent.KEYCODE_SPACE);
+                        } else {
+                            for (char c : text.toCharArray()) {
+                                sendKeyChar(c);
+                            }
+                        }
                     }
                 }
             });
@@ -212,6 +226,8 @@ public class NokiaIME extends InputMethodService {
                     InputConnection ic = getCurrentInputConnection();
                     if (ic != null) {
                         ic.deleteSurroundingText(before, after);
+                    } else {
+                        sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
                     }
                 }
             });
@@ -278,6 +294,62 @@ public class NokiaIME extends InputMethodService {
                             imm.showInputMethodPicker();
                         }
                     }
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void triggerHaptic(final int durationMs) {
+            postToMainThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        android.os.Vibrator v = (android.os.Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                        if (v != null && v.hasVibrator()) {
+                            int d = Math.min(1000, Math.max(1, durationMs > 0 ? durationMs : 85));
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                android.media.AudioAttributes audioAttributes = new android.media.AudioAttributes.Builder()
+                                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                                    .build();
+                                v.vibrate(android.os.VibrationEffect.createOneShot(d, 160), audioAttributes);
+                            } else {
+                                v.vibrate(d);
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void triggerHapticPattern(final String patternJson) {
+            postToMainThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        android.os.Vibrator v = (android.os.Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                        if (v != null && v.hasVibrator()) {
+                            org.json.JSONArray arr = new org.json.JSONArray(patternJson);
+                            int patternLength = Math.min(arr.length(), 20);
+                            long[] timings = new long[patternLength];
+                            int[] amplitudes = new int[patternLength];
+                            for (int i = 0; i < patternLength; i++) {
+                                timings[i] = Math.min(1000L, Math.max(0L, arr.optLong(i, 0)));
+                                amplitudes[i] = (i % 2 == 1) ? 160 : 0;
+                            }
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                android.media.AudioAttributes audioAttributes = new android.media.AudioAttributes.Builder()
+                                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                                    .build();
+                                android.os.VibrationEffect effect = android.os.VibrationEffect.createWaveform(timings, amplitudes, -1);
+                                v.vibrate(effect, audioAttributes);
+                            } else {
+                                v.vibrate(timings, -1);
+                            }
+                        }
+                    } catch (Exception ignored) {}
                 }
             });
         }

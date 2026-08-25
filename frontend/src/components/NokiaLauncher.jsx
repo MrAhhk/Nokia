@@ -4,8 +4,11 @@ import Keypad from "./Keypad";
 import CameraFeature from "@/features/camera/CameraFeature";
 import BrowserFeature from "@/features/browser/BrowserFeature";
 import ClockFeature from "@/features/clock/ClockFeature";
-import { BROWSER_START_URL } from "@/features/browser/browserAddress";
 import SnakeFeature from "@/features/snake/SnakeFeature";
+import SoundFeature from "@/features/sound/SoundFeature";
+import { playKeypadTone } from "@/features/sound/nokiaAudioEngine";
+import { loadSoundSettings } from "@/features/sound/soundStorage";
+import { BROWSER_START_URL } from "@/features/browser/browserAddress";
 import {
   cycleNotificationMode,
   getDeviceStatus,
@@ -17,6 +20,7 @@ import {
   openSystemSetting,
   openWebUrl,
   toggleSirenSound,
+  triggerHaptic,
 } from "@/lib/launcherApps";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
 import {
@@ -60,6 +64,7 @@ const NokiaLauncher = ({ apps }) => {
   const browserFeatureRef = useRef(null);
   const clockFeatureRef = useRef(null);
   const snakeFeatureRef = useRef(null);
+  const soundFeatureRef = useRef(null);
 
   // searchActive as both state (for UI re-render) and ref (for sync reads inside callbacks)
   const [searchActive, setSearchActive] = useState(false);
@@ -363,6 +368,10 @@ const NokiaLauncher = ({ apps }) => {
   // ─── Main keypad dispatcher ─────────────────────────────────────────────────
   const handleKeypadPress = useCallback(
     (key) => {
+      // Universal audio + haptic feedback for every keypress
+      const soundPrefs = loadSoundSettings();
+      playKeypadTone(key, soundPrefs.keypadTone, soundPrefs.volume, soundPrefs.vibrate);
+
       if (currentView === "camera") {
         cameraFeatureRef.current?.handleKey(key);
         return;
@@ -379,6 +388,11 @@ const NokiaLauncher = ({ apps }) => {
         snakeFeatureRef.current?.handleKey(key);
         return;
       }
+      if (currentView === "sound") {
+        soundFeatureRef.current?.handleKey(key);
+        return;
+      }
+
       // ─── Handle Call / Hangup / Select keys globally first ───
       if (key === "SEND") {
         if (dialActive && dialNumber) {
@@ -540,6 +554,11 @@ const NokiaLauncher = ({ apps }) => {
             deviceStatus={deviceStatus}
             onExit={() => setCurrentView("settings")}
           />
+        ) : currentView === "sound" ? (
+          <SoundFeature
+            ref={soundFeatureRef}
+            onExit={() => setCurrentView("settings")}
+          />
         ) : <Screen
           currentView={currentView}
           menuItems={visibleMenuItems}
@@ -548,21 +567,21 @@ const NokiaLauncher = ({ apps }) => {
           currentTime={currentTime}
           searchActive={searchActive}
           searchQuery={fullInput}
-          onSearchFocus={openBuiltInBrowser}
-          onClockClick={() => setCurrentView("clock")}
-          onAppClick={handleOpenApp}
-          onOpenMenu={() => setCurrentView("menu")}
-          onOpenSettings={() => openSettings(currentView)}
-          onSettingClick={handleSettingClick}
-          onListSearchFocus={activateSearch}
-          onBack={handleBack}
+          onSearchFocus={() => { triggerHaptic(65); openBuiltInBrowser(); }}
+          onClockClick={() => { triggerHaptic(65); setCurrentView("clock"); }}
+          onAppClick={(app) => { triggerHaptic(65); handleOpenApp(app); }}
+          onOpenMenu={() => { triggerHaptic(65); setCurrentView("menu"); }}
+          onOpenSettings={() => { triggerHaptic(65); openSettings(currentView); }}
+          onSettingClick={(s) => { triggerHaptic(65); handleSettingClick(s); }}
+          onListSearchFocus={() => { triggerHaptic(65); activateSearch(); }}
+          onBack={() => { triggerHaptic(65); handleBack(); }}
           dialActive={dialActive}
           dialNumber={dialNumber}
           deviceStatus={deviceStatus}
-          onNotificationStatusClick={openNotificationAccessSettings}
-          onSirenToggle={handleSirenToggle}
-          onNotificationModeCycle={handleNotificationModeCycle}
-          onStatusIconClick={openSystemSetting}
+          onNotificationStatusClick={() => { triggerHaptic(65); openNotificationAccessSettings(); }}
+          onSirenToggle={() => { triggerHaptic(65); handleSirenToggle(); }}
+          onNotificationModeCycle={() => { triggerHaptic(65); handleNotificationModeCycle(); }}
+          onStatusIconClick={(type) => { triggerHaptic(65); openSystemSetting(type); }}
         />}
       </div>
 

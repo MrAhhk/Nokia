@@ -15,6 +15,8 @@ import {
   moveClockMode,
   restoreClockRuntime,
 } from "./clockState";
+import { playAlarmTone } from "@/features/sound/nokiaAudioEngine";
+import { loadSoundSettings } from "@/features/sound/soundStorage";
 import "./clock.css";
 
 const CLOCK_RUNTIME_KEY = "nokia-launcher-clock-runtime";
@@ -79,7 +81,8 @@ const ClockFeature = forwardRef(({ onExit }, ref) => {
         setTimerRemaining(remaining);
         if (remaining === 0) {
           setTimerRunning(false);
-          navigator.vibrate?.([180, 100, 180]);
+          const soundPrefs = loadSoundSettings();
+          playAlarmTone(soundPrefs.alarmTone, soundPrefs.volume, false, soundPrefs.vibrate);
         }
       }
 

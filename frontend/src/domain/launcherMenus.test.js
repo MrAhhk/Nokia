@@ -86,16 +86,17 @@ describe("launcher menu models", () => {
       .map((item) => item.nativeSetting);
     expect(nativeSettings).toEqual([
       "display",
-      "sound",
       "keyboard",
       "digital-wellbeing",
     ]);
     expect(new Set(nativeSettings).size).toBe(nativeSettings.length);
   });
 
-  test("routes Snake to the built-in feature", () => {
+  test("routes Snake and Sound to built-in features", () => {
     const snake = SETTINGS_ITEMS.find((item) => item.id === "snake");
+    const sound = SETTINGS_ITEMS.find((item) => item.id === "sound");
     expect(resolveSettingAction(snake)).toEqual({ type: "internal-feature", view: "snake" });
+    expect(resolveSettingAction(sound)).toEqual({ type: "internal-feature", view: "sound" });
   });
 
   test("routes Privacy and About to their published Notion pages", () => {

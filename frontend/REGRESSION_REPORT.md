@@ -1,5 +1,32 @@
 # REGRESSION REPORT
 
+## Run: 2026-08-25 — Sound safety, performance, and Play surface audit
+**Change type:** Sound feature hardening and dependency-risk reduction
+**Triggered by:** User requested a full Sound-screen check, optimization, device-safety review, and Play readiness review.
+
+### Findings and verification
+
+| Flow | Result | Notes |
+|---|---|---|
+| Internal Sound route and controls | ✅ Automated pass | Settings routing, D-pad/touch rows, value cycling, preview calls, and selection scrolling are covered by Jest. |
+| App-local settings | ✅ Pass | Saving preferences no longer changes Android defaults or opens special-permission UI. |
+| Permission minimization | ✅ Pass | Removed `WRITE_SETTINGS`, `READ_MEDIA_AUDIO`, `READ_EXTERNAL_STORAGE`, and `WRITE_EXTERNAL_STORAGE`; `VIBRATE` remains for local feedback. |
+| Key feedback performance | ✅ Pass | Settings are cached and each event chooses one bounded vibration bridge. The audio catalogue is no longer decoded at module startup. |
+| Native vibration safety | ✅ Pass | Patterns are capped at 20 entries/1000 ms each, amplitude is reduced, and interaction feedback uses `USAGE_ASSISTANCE_SONIFICATION`. |
+| Clock alarm preference | ✅ Pass | Alarm preview now respects the saved vibration setting without a duplicate browser vibration call. |
+| Audio asset provenance | ✅ Release-safe packaging | 64 unverified files (18.6 MB) were preserved under ignored `audio-assets-unverified/` and removed from packaged public assets. Synthesized fallbacks remain. |
+| Jest regression | ✅ Pass | 31 suites, 95 tests. |
+| Production web build | ✅ Pass | `npm run build`. |
+| Capacitor sync | ✅ Pass | `npx cap sync android`. |
+| Android tests and APK | ✅ Pass | `testDebugUnitTest assembleDebug`. |
+| Production dependency audit | ✅ Pass | `npm audit --omit=dev`: 0 known vulnerabilities after removing unused Axios, updating React Router, and pinning patched `fast-uri`. |
+| Development tool audit | ⚠️ Follow-up | 39 advisories remain in legacy CRA/Capacitor build tooling; these packages are no longer production dependencies. Eliminating them requires a separately tested toolchain migration/Capacitor major upgrade. |
+| Emulator install/start/crash smoke | ✅ Pass | Debug APK installed; launcher reached RESUMED, visible, and drawn state with no fatal exception in recent logcat. |
+| Physical sound/haptic/latency | ⚠️ Pending | Only `emulator-5554` was connected. Real vibration quality and the mandatory physical-device latency floor are not claimed. |
+
+### Verdict
+**RUNTIME AND BUILD HARDENED; PHYSICAL SOUND/HAPTIC SIGN-OFF STILL REQUIRED BEFORE RELEASE.**
+
 ## Run: 2026-08-22 — Built-in mini-screen browser and Home search entry
 **Change type:** Feature merge  
 **Files changed:** Browser React feature and tests, launcher routing, LauncherApps adapter/plugin, native browser controller, Home search semantics  

@@ -321,7 +321,6 @@ export const cycleNotificationMode = async () => {
   return launcherApps.cycleNotificationMode();
 };
 
-
 export const showCameraMedia = (media) =>
   callCameraMethod("showCameraMedia", media, { shown: false });
 
@@ -331,4 +330,43 @@ export const controlCameraMedia = (action = "toggle") =>
 export const hideCameraMedia = () =>
   callCameraMethod("hideCameraMedia", {}, { hidden: true });
 
+export const triggerHaptic = async (durationMs = 95) => {
+  const isPattern = Array.isArray(durationMs);
+  const sanitizeDuration = (value) => Math.min(1000, Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0));
+  const pattern = isPattern ? durationMs.slice(0, 20).map(sanitizeDuration) : null;
+  const dur = isPattern ? (pattern.find((d) => d > 0) || 95) : (sanitizeDuration(durationMs) || 95);
 
+  if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+    try {
+      navigator.vibrate(isPattern ? pattern : dur);
+      return true;
+    } catch (_e) {}
+  }
+
+  if (typeof window !== "undefined") {
+    if (isPattern && window.NokiaIMEBridge?.triggerHapticPattern) {
+      try {
+        window.NokiaIMEBridge.triggerHapticPattern(JSON.stringify(pattern));
+        return true;
+      } catch (_e) {}
+    } else if (window.NokiaIMEBridge?.triggerHaptic) {
+      try {
+        window.NokiaIMEBridge.triggerHaptic(dur);
+        return true;
+      } catch (_e) {}
+    }
+  }
+
+  const launcherApps = getLauncherAppsPlugin();
+  if (launcherApps?.vibrate) {
+    try {
+      if (isPattern) {
+        await launcherApps.vibrate({ pattern });
+      } else {
+        await launcherApps.vibrate({ duration: dur });
+      }
+      return true;
+    } catch (_e) {}
+  }
+  return false;
+};

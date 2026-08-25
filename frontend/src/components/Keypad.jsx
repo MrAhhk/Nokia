@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useRef, useCallback } from "react";
 import { 
   Phone, 
   PhoneOff, 
@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 
 const Keypad = ({ onKeypadPress, variant = "default" }) => {
+  const lastPressRef = useRef({ key: null, time: 0 });
+
   const keys = [
     { number: "1", letters: "" },
     { number: "2", letters: "ABC", icon: ChevronUp },
@@ -26,9 +28,14 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
     { number: "#", letters: "BACK" },
   ];
 
-  const handleKeyPress = (keyNumber) => {
+  const handleKeyPress = useCallback((keyNumber) => {
+    const now = Date.now();
+    if (lastPressRef.current.key === keyNumber && now - lastPressRef.current.time < 30) {
+      return;
+    }
+    lastPressRef.current = { key: keyNumber, time: now };
     onKeypadPress(keyNumber);
-  };
+  }, [onKeypadPress]);
 
   if (variant === "launcher") {
     return (

@@ -1,4 +1,12 @@
 # Play Store Integration - Implementation Summary
+> **Current audit notice — 25 August 2026:** This historical summary is not a
+> Play submission approval. Several values below are stale (including package
+> ID, SDK levels, permissions, and the former “100% compliant” claim). Use
+> `PLAY_STORE_DATA_SAFETY.md`, the final merged manifest from the signed AAB,
+> current Play Console declarations, and a fresh release audit as the sources
+> of truth. The Sound feature is app-local and intentionally does not request
+> shared-audio or `WRITE_SETTINGS` access.
+
 ## Nokia Launcher - May 2026 Compliance Complete
 
 ---

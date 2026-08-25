@@ -147,3 +147,17 @@ The tab cap intentionally follows the product North Star: useful multitasking wi
 
 ### Verdict
 **AUTOMATED BEHAVIOR COMPLETE; FRESH-INSTALL PHYSICAL UI AND ANDROID-GRANT RETURN FLOW REQUIRE FINAL DEVICE SIGN-OFF.**
+
+## Run: 2026-08-26 — Nokia keypad click default
+**Change type:** Keypad sound correction and one-time preference migration
+**Triggered by:** User reported that the DTMF keypad feedback sounded unlike a Nokia button press.
+
+| Flow | Result | Notes |
+|---|---|---|
+| Fresh install/default settings | ✅ Automated pass | Keypad feedback defaults to the restored `nokia_button_click.mp3` sample through the Click mode. |
+| Existing DTMF default | ✅ Automated pass | Legacy sound settings without schema version 2 migrate from DTMF to Click once. |
+| Deliberate DTMF choice | ✅ Automated pass | Settings saved after migration retain DTMF when the user explicitly selects it. |
+| Background behavior | ✅ Unchanged | The click remains lazy-loaded per use and the audio engine still suspends when hidden. |
+
+### Verdict
+**AUTOMATED SOUND SELECTION COMPLETE; PHYSICAL LISTENING CHECK PENDING.**

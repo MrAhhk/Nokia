@@ -39,22 +39,6 @@ describe("soundStorage", () => {
   test("loads default sound settings when storage is empty", () => {
     const settings = loadSoundSettings(mockStorage);
     expect(settings).toEqual(DEFAULT_SOUND_SETTINGS);
-    expect(settings.keypadTone).toBe(KEYPAD_TONE_TYPES.CLICK);
-  });
-
-  test("migrates the old DTMF default to Nokia click only once", () => {
-    mockStorage.setItem(SOUND_SETTINGS_STORAGE_KEY, JSON.stringify({
-      ...DEFAULT_SOUND_SETTINGS,
-      keypadTone: KEYPAD_TONE_TYPES.DTMF,
-    }));
-
-    expect(loadSoundSettings(mockStorage).keypadTone).toBe(KEYPAD_TONE_TYPES.CLICK);
-
-    expect(saveSoundSettings({
-      ...DEFAULT_SOUND_SETTINGS,
-      keypadTone: KEYPAD_TONE_TYPES.DTMF,
-    }, mockStorage)).toBe(true);
-    expect(loadSoundSettings(mockStorage).keypadTone).toBe(KEYPAD_TONE_TYPES.DTMF);
   });
 
   test("saves and loads updated sound settings", () => {

@@ -152,7 +152,7 @@ export const NOKIA_ALARM_SEQUENCE = Object.freeze([
 export const DEFAULT_SOUND_SETTINGS = Object.freeze({
   soundMode: "normal", // "normal" | "silent" | "beep"
   volume: 4, // 1 to 5
-  keypadTone: KEYPAD_TONE_TYPES.CLICK,
+  keypadTone: KEYPAD_TONE_TYPES.DTMF,
   ringtone: RINGTONE_TYPES.NOKIA_TUNE_SERIES30, // Nokia 3310 Remaster (Default)
   messageAlert: MESSAGE_ALERT_TYPES.ASCENDING, // Ascending (Default)
   alarmTone: ALARM_TONE_TYPES.PULSE, // Pulse (Default)

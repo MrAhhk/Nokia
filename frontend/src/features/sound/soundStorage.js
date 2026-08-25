@@ -1,12 +1,7 @@
-import {
-  DEFAULT_SOUND_SETTINGS,
-  KEYPAD_TONE_TYPES,
-  SOUND_SETTINGS_CATALOG,
-} from "./soundConfig";
+import { DEFAULT_SOUND_SETTINGS, SOUND_SETTINGS_CATALOG } from "./soundConfig";
 
 export const SOUND_SETTINGS_STORAGE_KEY = "nokia-launcher-sound-settings.v1";
 export const SOUND_SETTINGS_CHANGED_EVENT = "nokia-sound-settings-change";
-const SOUND_SETTINGS_SCHEMA_VERSION = 2;
 
 let cachedBrowserSettings = null;
 
@@ -34,15 +29,6 @@ export const loadSoundSettings = (storage = typeof window !== "undefined" ? wind
     }
     const parsed = JSON.parse(raw);
     const settings = sanitizeSoundSettings(parsed);
-    if (parsed.schemaVersion !== SOUND_SETTINGS_SCHEMA_VERSION) {
-      if (settings.keypadTone === KEYPAD_TONE_TYPES.DTMF) {
-        settings.keypadTone = KEYPAD_TONE_TYPES.CLICK;
-      }
-      storage.setItem(SOUND_SETTINGS_STORAGE_KEY, JSON.stringify({
-        ...settings,
-        schemaVersion: SOUND_SETTINGS_SCHEMA_VERSION,
-      }));
-    }
     if (isBrowserStorage(storage)) cachedBrowserSettings = settings;
     return { ...settings };
   } catch (_err) {
@@ -58,10 +44,7 @@ export const saveSoundSettings = (
   if (!storage) return false;
   try {
     const payload = sanitizeSoundSettings(settings);
-    storage.setItem(SOUND_SETTINGS_STORAGE_KEY, JSON.stringify({
-      ...payload,
-      schemaVersion: SOUND_SETTINGS_SCHEMA_VERSION,
-    }));
+    storage.setItem(SOUND_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
     if (isBrowserStorage(storage)) {
       cachedBrowserSettings = payload;
       window.dispatchEvent(new CustomEvent(SOUND_SETTINGS_CHANGED_EVENT, { detail: payload }));

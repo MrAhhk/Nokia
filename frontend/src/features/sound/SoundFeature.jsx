@@ -23,17 +23,28 @@ import {
   playAlarmTone,
   stopAllSounds,
 } from "./nokiaAudioEngine";
-import { openSystemSetting, triggerHaptic } from "@/lib/launcherApps";
+import { SOUND_ASSET_PATHS } from "./soundConfig";
+import {
+  applySystemTone,
+  getSystemToneAccess,
+  openSystemSetting,
+  requestSystemToneAccess,
+  triggerHaptic,
+} from "@/lib/launcherApps";
 import "./sound.css";
 
 const ALL_SOUND_ROWS = Object.freeze([
   ...SOUND_MENU_SECTIONS,
+  { id: "apply_ringtone", label: "Use as phone ringtone", toneType: "ringtone", isAction: true },
+  { id: "apply_alarm", label: "Use as phone alarm", toneType: "alarm", isAction: true },
   { id: "android_sound", label: "Android sound settings", isAction: true },
 ]);
 
 const SoundFeature = forwardRef(({ onExit }, ref) => {
   const [settings, setSettings] = useState(() => loadSoundSettings());
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [systemAccess, setSystemAccess] = useState({ supported: false, granted: false });
+  const [systemStatus, setSystemStatus] = useState("App tones only");
   const previewHandleRef = useRef(null);
   const rowRefs = useRef([]);
 
@@ -47,6 +58,21 @@ const SoundFeature = forwardRef(({ onExit }, ref) => {
       stopAllSounds();
     };
   }, []);
+
+  const refreshSystemAccess = useCallback(() => {
+    Promise.resolve(getSystemToneAccess())
+      .then((access) => setSystemAccess(access || { supported: false, granted: false }))
+      .catch(() => setSystemAccess({ supported: false, granted: false }));
+  }, []);
+
+  useEffect(() => {
+    refreshSystemAccess();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") refreshSystemAccess();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => document.removeEventListener("visibilitychange", refreshWhenVisible);
+  }, [refreshSystemAccess]);
 
   const playPreviewForSetting = useCallback((key, value, currentVolume, vibrate) => {
     stopAllSounds();
@@ -71,14 +97,50 @@ const SoundFeature = forwardRef(({ onExit }, ref) => {
   }, []);
 
   const updateSetting = useCallback((settingKey, direction) => {
-    setSettings((prev) => {
-      const nextVal = moveSettingValue(settingKey, prev[settingKey], direction);
-      const nextSettings = { ...prev, [settingKey]: nextVal };
-      saveSoundSettings(nextSettings);
-      playPreviewForSetting(settingKey, nextVal, nextSettings.volume, nextSettings.vibrate);
-      return nextSettings;
-    });
-  }, [playPreviewForSetting]);
+    const nextVal = moveSettingValue(settingKey, settings[settingKey], direction);
+    const nextSettings = { ...settings, [settingKey]: nextVal };
+    setSettings(nextSettings);
+    saveSoundSettings(nextSettings);
+    playPreviewForSetting(settingKey, nextVal, nextSettings.volume, nextSettings.vibrate);
+  }, [playPreviewForSetting, settings]);
+
+  const runAction = useCallback(async (row) => {
+    stopAllSounds();
+    if (row.id === "android_sound") {
+      await openSystemSetting("sound");
+      return;
+    }
+
+    const access = await getSystemToneAccess() || { supported: false, granted: false };
+    setSystemAccess(access);
+    if (!access.supported) {
+      setSystemStatus("Use Android sound settings");
+      await openSystemSetting("sound");
+      return;
+    }
+    if (!access.granted) {
+      await requestSystemToneAccess();
+      setSystemStatus("Grant access, then return");
+      return;
+    }
+
+    const settingKey = row.toneType === "ringtone" ? "ringtone" : "alarmTone";
+    const selectedTone = settings[settingKey];
+    const assetPath = SOUND_ASSET_PATHS[selectedTone];
+    if (!assetPath || selectedTone === "off") {
+      setSystemStatus("Choose a tone first");
+      return;
+    }
+    setSystemStatus("Applying…");
+    const result = await applySystemTone(
+      row.toneType,
+      assetPath,
+      getOptionLabel(settingKey, selectedTone),
+    );
+    setSystemStatus(result?.success
+      ? `${row.toneType === "ringtone" ? "Ringtone" : "Alarm"} applied`
+      : "Could not apply tone");
+  }, [settings]);
 
   const handleRowClick = useCallback((index) => {
     setSelectedIndex(index);
@@ -86,14 +148,12 @@ const SoundFeature = forwardRef(({ onExit }, ref) => {
     if (!row) return;
 
     if (row.isAction) {
-      openSystemSetting("sound").catch((err) =>
-        console.error("Error opening sound settings:", err)
-      );
+      runAction(row).catch(() => setSystemStatus("Could not open tone setting"));
       return;
     }
 
     updateSetting(row.key, "next");
-  }, [updateSetting]);
+  }, [runAction, updateSetting]);
 
   const handleKey = useCallback((key) => {
     if (key === "END" || key === "#") {
@@ -131,15 +191,13 @@ const SoundFeature = forwardRef(({ onExit }, ref) => {
     if (key === "SELECT" || key === "5" || key === "SEND") {
       if (currentRow) {
         if (currentRow.isAction) {
-          openSystemSetting("sound").catch((err) =>
-            console.error("Error opening sound settings:", err)
-          );
+          runAction(currentRow).catch(() => setSystemStatus("Could not open tone setting"));
         } else {
           updateSetting(currentRow.key, "next");
         }
       }
     }
-  }, [onExit, selectedIndex, updateSetting]);
+  }, [onExit, runAction, selectedIndex, updateSetting]);
 
   useImperativeHandle(ref, () => ({ handleKey }), [handleKey]);
 
@@ -147,8 +205,15 @@ const SoundFeature = forwardRef(({ onExit }, ref) => {
     <div className="lcd-screen sound-screen" data-testid="sound-feature">
       {/* Top LCD Header */}
       <div className="lcd-sound__header">
-        <span>Tones</span>
-        <span>Vol {settings.volume}</span>
+        <div>
+          <strong>Sound</strong>
+          <small>{systemAccess.granted ? "PHONE TONES READY" : systemStatus}</small>
+        </div>
+        <div className="lcd-sound__meter" aria-label={`Volume ${settings.volume} of 5`}>
+          {[1, 2, 3, 4, 5].map((level) => (
+            <i key={level} className={level <= settings.volume ? "is-on" : ""} />
+          ))}
+        </div>
       </div>
 
       {/* Settings List */}
@@ -195,7 +260,8 @@ const SoundFeature = forwardRef(({ onExit }, ref) => {
 
       {/* Footer Softkey Labels */}
       <div className="lcd-sound__footer">
-        <span>Change</span>
+        <span>{ALL_SOUND_ROWS[selectedIndex]?.isAction ? "Select" : "Change"}</span>
+        <span>{systemStatus}</span>
         <span>Back</span>
       </div>
     </div>

@@ -370,3 +370,27 @@ export const triggerHaptic = async (durationMs = 95) => {
   }
   return false;
 };
+
+export const getSystemToneAccess = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.getSystemToneAccess) {
+    return { supported: false, granted: false };
+  }
+  return launcherApps.getSystemToneAccess();
+};
+
+export const requestSystemToneAccess = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.requestSystemToneAccess) {
+    return { opened: false, supported: false };
+  }
+  return launcherApps.requestSystemToneAccess({});
+};
+
+export const applySystemTone = async (toneType, assetPath, title) => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.applySystemTone) {
+    return { success: false, supported: false };
+  }
+  return launcherApps.applySystemTone({ toneType, assetPath, title });
+};

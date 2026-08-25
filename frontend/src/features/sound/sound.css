@@ -1,8 +1,7 @@
 .lcd-screen.sound-screen {
   display: grid;
-  grid-template-rows: 28px minmax(0, 1fr) 24px;
-  gap: 2px;
-  padding: 8px 10px;
+  grid-template-rows: 38px minmax(0, 1fr) 26px;
+  padding: 7px 9px;
   background-color: var(--lcd, #878d3b);
   color: var(--ink, #111604);
   font-family: inherit;
@@ -11,34 +10,79 @@
 }
 
 .lcd-sound__header {
-  height: 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px;
-  border-bottom: 1px solid rgba(17, 24, 3, 0.2);
-  font-weight: 700;
-  font-size: 13px;
+  padding: 0 7px 5px;
+  border-bottom: 2px solid var(--ink, #111604);
+}
+
+.lcd-sound__header > div:first-child {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.lcd-sound__header strong {
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+.lcd-sound__header small {
+  max-width: 180px;
+  overflow: hidden;
+  color: rgba(17, 22, 4, 0.72);
+  font-size: 8px;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.lcd-sound__meter {
+  display: flex;
+  align-items: end;
+  gap: 2px;
+  height: 18px;
+}
+
+.lcd-sound__meter i {
+  width: 4px;
+  height: 5px;
+  border: 1px solid var(--ink, #111604);
+}
+
+.lcd-sound__meter i:nth-child(2) { height: 8px; }
+.lcd-sound__meter i:nth-child(3) { height: 11px; }
+.lcd-sound__meter i:nth-child(4) { height: 14px; }
+.lcd-sound__meter i:nth-child(5) { height: 17px; }
+
+.lcd-sound__meter i.is-on {
+  background: var(--ink, #111604);
 }
 
 .lcd-sound__list {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 6px;
+  padding: 4px 5px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  scrollbar-width: none;
 }
+
+.lcd-sound__list::-webkit-scrollbar { display: none; }
 
 .lcd-sound__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 6px;
-  font-size: 12px;
-  border-radius: 2px;
+  min-height: 29px;
+  padding: 4px 7px;
+  font-size: 11px;
+  border-radius: 0;
   background: transparent;
   border: none;
   color: inherit;
@@ -53,6 +97,11 @@
   font-weight: 700;
 }
 
+.lcd-sound__row:focus-visible {
+  outline: 2px solid var(--ink, #111604);
+  outline-offset: -2px;
+}
+
 .lcd-sound__label {
   flex: 1;
   white-space: nowrap;
@@ -64,8 +113,15 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  max-width: 58%;
+  font-size: 10px;
   opacity: 0.9;
+}
+
+.lcd-sound__value > span:not(.lcd-sound__arrows) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lcd-sound__arrows {
@@ -74,12 +130,22 @@
 }
 
 .lcd-sound__footer {
-  height: 24px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 40px;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  border-top: 1px solid rgba(17, 24, 3, 0.2);
-  font-size: 11px;
+  padding: 4px 7px 0;
+  border-top: 2px solid var(--ink, #111604);
+  font-size: 10px;
   font-weight: 600;
 }
+
+.lcd-sound__footer span:nth-child(2) {
+  overflow: hidden;
+  font-size: 8px;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lcd-sound__footer span:last-child { text-align: right; }

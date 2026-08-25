@@ -6,7 +6,7 @@ import BrowserFeature from "@/features/browser/BrowserFeature";
 import ClockFeature from "@/features/clock/ClockFeature";
 import SnakeFeature from "@/features/snake/SnakeFeature";
 import SoundFeature from "@/features/sound/SoundFeature";
-import { playKeypadTone } from "@/features/sound/nokiaAudioEngine";
+import { pauseAudioEngine, playKeypadTone } from "@/features/sound/nokiaAudioEngine";
 import { loadSoundSettings } from "@/features/sound/soundStorage";
 import { BROWSER_START_URL } from "@/features/browser/browserAddress";
 import {
@@ -102,6 +102,17 @@ const NokiaLauncher = ({ apps }) => {
     return () => {
       clearTimeout(timeout);
       if (interval !== null) clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    const pauseWhenHidden = () => {
+      if (document.visibilityState === "hidden") pauseAudioEngine();
+    };
+    document.addEventListener("visibilitychange", pauseWhenHidden);
+    return () => {
+      document.removeEventListener("visibilitychange", pauseWhenHidden);
+      pauseAudioEngine();
     };
   }, []);
 

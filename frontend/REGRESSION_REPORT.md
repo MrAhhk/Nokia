@@ -101,3 +101,29 @@ The tab cap intentionally follows the product North Star: useful multitasking wi
 
 ### Verdict
 **SAFE TO MERGE AND INSTALLED ON PHYSICAL DEVICE**
+
+## Run: 2026-08-25 — Restored on-demand sounds and system-tone apply
+**Change type:** Sound restoration, battery optimization, UI refinement, and explicit system integration
+**Files changed:** Sound UI/engine/tests, launcher lifecycle hooks, native tone bridge, Android manifest, packaged sound assets, Play disclosures
+**Triggered by:** User requested the sound library restored without background battery use, a clearer Nokia-style Sound screen, original keypad feedback, and one-time access for applying ringtone/alarm tones.
+
+### Flows tested
+
+| Flow | Result | Notes |
+|---|---|---|
+| Packaged sound restoration | ✅ Pass | 64 local sound files (18,619,232 bytes) are packaged again. Provenance is recorded separately; undocumented MP3 rights remain a release blocker. |
+| On-demand audio loading | ✅ Pass | The engine fetches/decodes only the selected sound or pressed keypad sample. No catalogue preload runs at startup. |
+| Background battery behavior | ✅ Automated pass | Hiding/unmounting the launcher stops pending/active sounds, repeating vibration, timers, and suspends WebAudio. No service, wake lock, polling loop, or persistent executor was added. |
+| Nokia keypad sample selection | ✅ Automated pass | Exact-key lazy loading is covered; pressing `5` requests only `sounds/dtmf/5.wav`, with a synthesized fallback if decoding fails. |
+| Sound-screen UI | ✅ Build pass; physical visual pending | Compact olive LCD rows, static five-segment volume meter, touch/D-pad action rows, selection inversion, and status feedback compile successfully. The connected phone was locked before screenshot inspection. |
+| One-time system access | ✅ Native build pass | `WRITE_SETTINGS` opens only after explicit Apply. One special-access grant covers both ringtone and alarm; Android 10+ is supported. |
+| System ringtone/alarm apply safety | ✅ Static and native build pass | Only a validated packaged asset is inserted, only its exact app-owned previous URI may be deleted, and user media is never enumerated. |
+| Full Jest regression | ✅ Pass | 32 suites, 103 tests. |
+| Production web build | ✅ Pass | Fresh `npm run build` completed successfully. |
+| Capacitor Android sync | ✅ Pass | Fresh `npx cap sync android` completed successfully. |
+| Android tests and APK | ✅ Pass | `testDebugUnitTest assembleDebug`; debug APK is 27,709,938 bytes. |
+| Physical-device install | ✅ Pass | Fresh APK installed successfully on connected OPPO CPH2237. |
+| Physical sound/haptic/system-tone sign-off | ⚠️ Pending | The phone was asleep and locked. No lock-screen bypass was attempted, and the test did not change the real system ringtone/alarm. |
+
+### Verdict
+**BUILD SAFE AND INSTALLED; UNLOCKED-PHONE AUDIO/UI SIGN-OFF AND MP3 RIGHTS EVIDENCE REMAIN BEFORE RELEASE.**

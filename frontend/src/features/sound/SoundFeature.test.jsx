@@ -47,13 +47,13 @@ describe("SoundFeature", () => {
     _resetAudioContext();
   });
 
-  test("renders sound settings list with all sections and handles keypad navigation", () => {
+  test("renders sound settings list with all sections and handles keypad navigation", async () => {
     const featureRef = createRef();
     const onExit = jest.fn();
 
-    act(() => root.render(<SoundFeature ref={featureRef} onExit={onExit} />));
+    await act(async () => root.render(<SoundFeature ref={featureRef} onExit={onExit} />));
 
-    expect(container.textContent).toContain("Tones");
+    expect(container.textContent).toContain("Sound");
     expect(container.textContent).toContain("Ringtone");
     expect(container.textContent).toContain("Ringing volume");
     expect(container.textContent).toContain("Keypad tones");

@@ -10,7 +10,7 @@ Do **not** reuse the earlier blanket “No off-device transmission” answer wit
 
 - The launcher reads installed-app names, icons, package names, and launch activities only to display and open apps on the device. This inventory remains on-device and is never sold, shared, or used for analytics or advertising.
 - The optional Nokia System Keyboard processes text locally to enter it into the app selected by the user. It does not store or transmit keyboard input.
-- Sound preferences (tone choice, launcher volume, keypad feedback, and vibration preference) are stored locally in WebView storage. They are not transmitted, and the internal Sound screen does not read shared media or change the device's default ringtone, notification, or alarm.
+- Sound preferences (tone choice, launcher volume, keypad feedback, and vibration preference) are stored locally in WebView storage and are not transmitted. On Android 10+, a user may explicitly grant “modify system settings” access and choose an in-app action that copies one packaged tone into MediaStore and makes it the device ringtone or alarm. The app does not read shared media, request broad storage access, or change a system tone without that separate action.
 - Play Integrity does not add a runtime permission. The final permission declaration must still be generated from the signed AAB; the current manifest separately contains camera, microphone, network, phone, audio-policy, notification-policy, and installed-app visibility permissions for existing product features.
 
 ### Play Integrity processing

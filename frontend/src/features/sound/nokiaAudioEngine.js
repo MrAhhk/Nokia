@@ -19,6 +19,8 @@ import { triggerHaptic } from "../../lib/launcherApps";
 
 let audioCtx = null;
 const activeSoundStoppers = new Set();
+const activeCompositeStoppers = new Set();
+const pendingSoundStoppers = new Set();
 const audioBufferCache = new Map();
 let activeKeypadStopper = null;
 let suspendTimer = null;
@@ -112,6 +114,40 @@ export const preloadAllSounds = () => {
   Object.entries(SOUND_ASSET_PATHS).forEach(([key, path]) => {
     preloadSound(key, path).catch(() => {});
   });
+};
+
+const playAssetOnDemand = (soundKey, volume, loop, fallbackFactory, isTransient = false) => {
+  const assetPath = SOUND_ASSET_PATHS[soundKey];
+  const cachedBuffer = audioBufferCache.get(soundKey);
+  let innerHandle = null;
+  let cancelled = false;
+
+  const stop = () => {
+    cancelled = true;
+    pendingSoundStoppers.delete(stop);
+    innerHandle?.stop?.();
+  };
+
+  if (cachedBuffer) {
+    innerHandle = playBuffer(cachedBuffer, volume, loop, isTransient);
+    return { stop };
+  }
+
+  if (!assetPath || typeof fetch !== "function") {
+    innerHandle = fallbackFactory();
+    return { stop };
+  }
+
+  pendingSoundStoppers.add(stop);
+  preloadSound(soundKey, assetPath).then((buffer) => {
+    pendingSoundStoppers.delete(stop);
+    if (cancelled) return;
+    innerHandle = buffer
+      ? playBuffer(buffer, volume, loop, isTransient)
+      : fallbackFactory();
+  });
+
+  return { stop };
 };
 
 // Convert volume level 1-5 to clear audible gain value (0.08 to 0.45)
@@ -268,16 +304,22 @@ export const playKeypadTone = (key, toneType = KEYPAD_TONE_TYPES.DTMF, volume = 
 
   // 1. Nokia Button Click Mode
   if (toneType === KEYPAD_TONE_TYPES.CLICK) {
-    const buffer = audioBufferCache.get("key_click");
-    handle = buffer
-      ? playBuffer(buffer, volume, false, true)
-      : playTone([2000, 2600], 14, volumeToGain(volume) * 0.8, "triangle", true);
+    handle = playAssetOnDemand(
+      "nokia_button_click",
+      volume,
+      false,
+      () => playTone([2000, 2600], 14, volumeToGain(volume) * 0.8, "triangle", true),
+      true,
+    );
   } else if (toneType === KEYPAD_TONE_TYPES.BEEP) {
     // 2. Beep Mode
-    const buffer = audioBufferCache.get("key_beep");
-    handle = buffer
-      ? playBuffer(buffer, volume, false, true)
-      : playTone(1000, 35, volumeToGain(volume), "square", true);
+    handle = playAssetOnDemand(
+      "key_beep",
+      volume,
+      false,
+      () => playTone(1000, 35, volumeToGain(volume), "square", true),
+      true,
+    );
   } else {
     // 3. DTMF Mode (Default) - Single stream with baked Nokia button click sound
     let dtmfKey = "default";
@@ -288,18 +330,16 @@ export const playKeypadTone = (key, toneType = KEYPAD_TONE_TYPES.DTMF, volume = 
       dtmfKey = "default";
     }
 
-    const dtmfBuffer =
-      audioBufferCache.get(`dtmf_${dtmfKey}`) ||
-      audioBufferCache.get("dtmf_default") ||
-      audioBufferCache.get("key_click");
-
-    if (dtmfBuffer) {
-      handle = playBuffer(dtmfBuffer, volume, false, true);
-    } else {
-      // Fallback to dual-tone synthesis if buffer not ready
+    handle = playAssetOnDemand(
+      `dtmf_${dtmfKey}`,
+      volume,
+      false,
+      () => {
       const freqs = DTMF_FREQUENCIES[key] || [941, 1477];
-      handle = playTone(freqs, 50, volumeToGain(volume), "triangle", true);
-    }
+        return playTone(freqs, 50, volumeToGain(volume), "triangle", true);
+      },
+      true,
+    );
   }
 
   if (handle?.stop) {
@@ -414,28 +454,25 @@ export const playNotificationTone = (toneType = MESSAGE_ALERT_TYPES.ASCENDING, v
   let audioHandle = null;
 
   if (toneType === MESSAGE_ALERT_TYPES.ASCENDING) {
-    const buffer = audioBufferCache.get("sms_ascending");
-    audioHandle = buffer ? playBuffer(buffer, volume, false) : playSequence(NOKIA_ASCENDING_SEQUENCE, volume, false, "triangle");
+    audioHandle = playAssetOnDemand("sms_ascending", volume, false, () => playSequence(NOKIA_ASCENDING_SEQUENCE, volume, false, "triangle"));
   } else if (toneType === MESSAGE_ALERT_TYPES.STANDARD) {
-    const buffer = audioBufferCache.get("sms_standard");
-    audioHandle = buffer ? playBuffer(buffer, volume, false) : playSequence(NOKIA_SMS_SEQUENCE, volume, false, "square");
+    audioHandle = playAssetOnDemand("sms_standard", volume, false, () => playSequence(NOKIA_SMS_SEQUENCE, volume, false, "square"));
   } else if (toneType === MESSAGE_ALERT_TYPES.SPECIAL) {
-    const buffer = audioBufferCache.get("sms_special");
-    audioHandle = buffer ? playBuffer(buffer, volume, false) : playSequence(NOKIA_SPECIAL_SEQUENCE, volume, false, "square");
+    audioHandle = playAssetOnDemand("sms_special", volume, false, () => playSequence(NOKIA_SPECIAL_SEQUENCE, volume, false, "square"));
   } else if (toneType === MESSAGE_ALERT_TYPES.BEEP) {
-    const buffer = audioBufferCache.get("sms_beep");
-    audioHandle = buffer ? playBuffer(buffer, volume, false) : playTone(NOTES.E6, 60, volumeToGain(volume), "square");
+    audioHandle = playAssetOnDemand("sms_beep", volume, false, () => playTone(NOTES.E6, 60, volumeToGain(volume), "square"));
   }
 
   const originalStop = audioHandle?.stop;
-  return {
-    stop: () => {
+  const stop = () => {
       if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
         try { navigator.vibrate(0); } catch (_e) {}
       }
       originalStop?.();
-    },
+      activeCompositeStoppers.delete(stop);
   };
+  activeCompositeStoppers.add(stop);
+  return { stop };
 };
 
 /**
@@ -462,10 +499,7 @@ export const playRingtone = (toneType = RINGTONE_TYPES.NOKIA_TUNE_SERIES30, volu
     }
   }
 
-  const buffer = audioBufferCache.get(toneType);
-  const audioHandle = buffer
-    ? playBuffer(buffer, volume, loop)
-    : (() => {
+  const audioHandle = playAssetOnDemand(toneType, volume, loop, () => {
         if (toneType === RINGTONE_TYPES.RING_RING) {
           return playSequence([[440, 400, 100], [440, 400, 1200]], volume, loop, "triangle");
         }
@@ -473,11 +507,10 @@ export const playRingtone = (toneType = RINGTONE_TYPES.NOKIA_TUNE_SERIES30, volu
           return playSequence([[NOTES.E5, 120, 80], [NOTES.B4, 160, 1000]], volume, loop, "square");
         }
         return playSequence(NOKIA_TUNE_SEQUENCE, volume, loop, "square");
-      })();
+      });
 
   const originalStop = audioHandle?.stop;
-  return {
-    stop: () => {
+  const stop = () => {
       if (vibrationInterval) {
         clearInterval(vibrationInterval);
         vibrationInterval = null;
@@ -487,8 +520,10 @@ export const playRingtone = (toneType = RINGTONE_TYPES.NOKIA_TUNE_SERIES30, volu
         try { navigator.vibrate(0); } catch (_e) {}
       }
       originalStop?.();
-    },
+      activeCompositeStoppers.delete(stop);
   };
+  activeCompositeStoppers.add(stop);
+  return { stop };
 };
 
 /**
@@ -518,25 +553,15 @@ export const playAlarmTone = (toneType = ALARM_TONE_TYPES.PULSE, volume = 4, loo
   let audioHandle = null;
 
   if (toneType === ALARM_TONE_TYPES.PULSE) {
-    const buffer = audioBufferCache.get("pulse");
-    audioHandle = buffer
-      ? playBuffer(buffer, volume, loop)
-      : playSequence([[NOTES.G6, 80, 50], [NOTES.A6, 80, 50], [NOTES.C7, 140, 600]], volume, loop, "square");
+    audioHandle = playAssetOnDemand("pulse", volume, loop, () => playSequence([[NOTES.G6, 80, 50], [NOTES.A6, 80, 50], [NOTES.C7, 140, 600]], volume, loop, "square"));
   } else if (toneType === ALARM_TONE_TYPES.NOKIA_ALARM) {
-    const buffer = audioBufferCache.get("nokia_alarm");
-    audioHandle = buffer
-      ? playBuffer(buffer, volume, loop)
-      : playSequence(NOKIA_ALARM_SEQUENCE, volume, loop, "square");
+    audioHandle = playAssetOnDemand("nokia_alarm", volume, loop, () => playSequence(NOKIA_ALARM_SEQUENCE, volume, loop, "square"));
   } else if (toneType === ALARM_TONE_TYPES.BEEP) {
-    const buffer = audioBufferCache.get("alarm_beep");
-    audioHandle = buffer
-      ? playBuffer(buffer, volume, loop)
-      : playSequence([[NOTES.A6, 120, 880]], volume, loop, "square");
+    audioHandle = playAssetOnDemand("alarm_beep", volume, loop, () => playSequence([[NOTES.A6, 120, 880]], volume, loop, "square"));
   }
 
   const originalStop = audioHandle?.stop;
-  return {
-    stop: () => {
+  const stop = () => {
       if (vibrationInterval) {
         clearInterval(vibrationInterval);
         vibrationInterval = null;
@@ -545,14 +570,22 @@ export const playAlarmTone = (toneType = ALARM_TONE_TYPES.PULSE, volume = 4, loo
         try { navigator.vibrate(0); } catch (_e) {}
       }
       originalStop?.();
-    },
+      activeCompositeStoppers.delete(stop);
   };
+  activeCompositeStoppers.add(stop);
+  return { stop };
 };
 
 /**
  * Stop all active ongoing audio loops / tones and release audio hardware
  */
 export const stopAllSounds = () => {
+  activeCompositeStoppers.forEach((stopFn) => {
+    try { stopFn(); } catch (_e) {}
+  });
+  activeCompositeStoppers.clear();
+  pendingSoundStoppers.forEach((stopFn) => stopFn());
+  pendingSoundStoppers.clear();
   if (activeKeypadStopper) {
     try { activeKeypadStopper(); } catch (_e) {}
     activeKeypadStopper = null;
@@ -564,4 +597,18 @@ export const stopAllSounds = () => {
   });
   activeSoundStoppers.clear();
   scheduleContextSuspend();
+};
+
+export const pauseAudioEngine = () => {
+  stopAllSounds();
+  if (suspendTimer) {
+    clearTimeout(suspendTimer);
+    suspendTimer = null;
+  }
+  if (audioCtx && audioCtx.state === "running") {
+    audioCtx.suspend?.().catch(() => {});
+  }
+  if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+    try { navigator.vibrate(0); } catch (_e) {}
+  }
 };

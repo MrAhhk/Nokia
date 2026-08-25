@@ -70,7 +70,7 @@ test("the built-in browser never summons the system keyboard over the launcher k
   expect(browserController).toContain("MutationObserver");
 });
 
-test("sound preferences do not require broad media or system-settings access", () => {
+test("system tone application uses one explicit special grant and no media permissions", () => {
   const manifest = fs.readFileSync(
     path.resolve(__dirname, "../android/app/src/main/AndroidManifest.xml"),
     "utf8",
@@ -83,12 +83,16 @@ test("sound preferences do not require broad media or system-settings access", (
     "utf8",
   );
 
-  expect(manifest).not.toContain("android.permission.WRITE_SETTINGS");
+  expect(manifest.match(/android\.permission\.WRITE_SETTINGS/g)).toHaveLength(1);
   expect(manifest).not.toContain("android.permission.READ_MEDIA_AUDIO");
   expect(manifest).not.toContain("android.permission.READ_EXTERNAL_STORAGE");
   expect(manifest).not.toContain("android.permission.WRITE_EXTERNAL_STORAGE");
-  expect(plugin).not.toContain("setDefaultTone");
-  expect(plugin).not.toContain("ACTION_MANAGE_WRITE_SETTINGS");
+  expect(plugin).toContain("getSystemToneAccess");
+  expect(plugin).toContain("requestSystemToneAccess");
+  expect(plugin).toContain("applySystemTone");
+  expect(plugin).toContain("ACTION_MANAGE_WRITE_SETTINGS");
+  expect(plugin).toContain("Settings.System.canWrite");
+  expect(plugin).not.toContain("DISPLAY_NAME + \"=?\"");
 });
 
 test("native haptics are bounded and classified as interaction feedback", () => {

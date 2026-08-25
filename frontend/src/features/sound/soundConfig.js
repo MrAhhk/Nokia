@@ -162,6 +162,7 @@ export const DEFAULT_SOUND_SETTINGS = Object.freeze({
 export const SOUND_ASSET_PATHS = Object.freeze({
   // Official Nokia Mechanical Button Click & Keypad sounds
   key_click: "./sounds/key_click.mp3",
+  nokia_button_click: "./sounds/nokia_button_click.mp3",
   key_tick: "./sounds/key_tick.mp3",
   key_beep: "./sounds/modern/modern_beep.mp3",
 

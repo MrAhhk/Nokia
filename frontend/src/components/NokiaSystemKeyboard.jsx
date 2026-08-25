@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Keypad from "./Keypad";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
-import { playKeypadTone } from "@/features/sound/nokiaAudioEngine";
+import { pauseAudioEngine, playKeypadTone } from "@/features/sound/nokiaAudioEngine";
 import { loadSoundSettings } from "@/features/sound/soundStorage";
 import "./AgedHardwareTheme.css";
 
@@ -73,6 +73,17 @@ const NokiaSystemKeyboard = () => {
       if (typeof window !== "undefined") {
         window.resetNokiaKeyboard = null;
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    const pauseWhenHidden = () => {
+      if (document.visibilityState === "hidden") pauseAudioEngine();
+    };
+    document.addEventListener("visibilitychange", pauseWhenHidden);
+    return () => {
+      document.removeEventListener("visibilitychange", pauseWhenHidden);
+      pauseAudioEngine();
     };
   }, []);
 

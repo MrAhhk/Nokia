@@ -424,6 +424,152 @@ public class LauncherAppsPlugin extends Plugin {
             call.resolve();
         }
     }
+
+    @PluginMethod
+    public void getSystemToneAccess(PluginCall call) {
+        JSObject result = new JSObject();
+        boolean supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q;
+        result.put("supported", supported);
+        result.put("granted", supported && Settings.System.canWrite(getContext()));
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestSystemToneAccess(PluginCall call) {
+        JSObject result = new JSObject();
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            result.put("opened", false);
+            result.put("supported", false);
+            call.resolve(result);
+            return;
+        }
+
+        try {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
+            intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            result.put("opened", true);
+            result.put("supported", true);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("Unable to open system-tone access: " + error.getMessage(), error);
+        }
+    }
+
+    @PluginMethod
+    public void applySystemTone(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            JSObject result = new JSObject();
+            result.put("success", false);
+            result.put("supported", false);
+            call.resolve(result);
+            return;
+        }
+        if (!Settings.System.canWrite(getContext())) {
+            JSObject result = new JSObject();
+            result.put("success", false);
+            result.put("permissionRequired", true);
+            call.resolve(result);
+            return;
+        }
+
+        final String toneType = call.getString("toneType", "");
+        final String rawAssetPath = call.getString("assetPath", "");
+        final String rawTitle = call.getString("title", "Nokia Launcher tone");
+        if (!("ringtone".equals(toneType) || "alarm".equals(toneType))) {
+            call.reject("toneType must be ringtone or alarm");
+            return;
+        }
+
+        String cleanAssetPath = rawAssetPath.startsWith("./")
+            ? rawAssetPath.substring(2)
+            : rawAssetPath;
+        if (!cleanAssetPath.startsWith("sounds/")
+            || cleanAssetPath.contains("..")
+            || !cleanAssetPath.matches("[A-Za-z0-9_./-]+\\.(mp3|wav)")) {
+            call.reject("Invalid packaged tone path");
+            return;
+        }
+
+        final String assetPath = "public/" + cleanAssetPath;
+        final String title = rawTitle.replaceAll("[^A-Za-z0-9 _.-]", "").trim();
+        new Thread(() -> applyPackagedSystemTone(call, toneType, assetPath, title), "tone-apply").start();
+    }
+
+    private void applyPackagedSystemTone(PluginCall call, String toneType, String assetPath, String title) {
+        Uri insertedUri = null;
+        try {
+            boolean ringtone = "ringtone".equals(toneType);
+            int ringtoneType = ringtone
+                ? android.media.RingtoneManager.TYPE_RINGTONE
+                : android.media.RingtoneManager.TYPE_ALARM;
+            String extension = assetPath.toLowerCase(Locale.ROOT).endsWith(".wav") ? ".wav" : ".mp3";
+            String mimeType = ".wav".equals(extension) ? "audio/wav" : "audio/mpeg";
+            String safeTitle = title.isEmpty() ? "Nokia Launcher tone" : title.substring(0, Math.min(title.length(), 64));
+            String fileName = "nokia_launcher_" + toneType + "_" + System.currentTimeMillis() + extension;
+
+            android.content.ContentValues values = new android.content.ContentValues();
+            values.put(android.provider.MediaStore.Audio.Media.DISPLAY_NAME, fileName);
+            values.put(android.provider.MediaStore.Audio.Media.TITLE, safeTitle);
+            values.put(android.provider.MediaStore.Audio.Media.MIME_TYPE, mimeType);
+            values.put(android.provider.MediaStore.Audio.Media.IS_RINGTONE, ringtone ? 1 : 0);
+            values.put(android.provider.MediaStore.Audio.Media.IS_ALARM, ringtone ? 0 : 1);
+            values.put(android.provider.MediaStore.Audio.Media.IS_NOTIFICATION, 0);
+            values.put(android.provider.MediaStore.Audio.Media.IS_MUSIC, 0);
+            values.put(android.provider.MediaStore.Audio.Media.RELATIVE_PATH,
+                (ringtone ? android.os.Environment.DIRECTORY_RINGTONES : android.os.Environment.DIRECTORY_ALARMS)
+                    + "/Nokia Launcher");
+            values.put(android.provider.MediaStore.Audio.Media.IS_PENDING, 1);
+
+            Uri collection = android.provider.MediaStore.Audio.Media.getContentUri(
+                android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY);
+            insertedUri = getContext().getContentResolver().insert(collection, values);
+            if (insertedUri == null) throw new IllegalStateException("Unable to create system tone");
+
+            try (java.io.InputStream input = getContext().getAssets().open(assetPath);
+                 java.io.OutputStream output = getContext().getContentResolver().openOutputStream(insertedUri)) {
+                if (output == null) throw new IllegalStateException("Unable to write system tone");
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) >= 0) output.write(buffer, 0, read);
+            }
+
+            android.content.ContentValues ready = new android.content.ContentValues();
+            ready.put(android.provider.MediaStore.Audio.Media.IS_PENDING, 0);
+            getContext().getContentResolver().update(insertedUri, ready, null, null);
+            android.media.RingtoneManager.setActualDefaultRingtoneUri(
+                getContext(), ringtoneType, insertedUri);
+
+            String preferenceKey = "owned_system_tone_" + toneType;
+            android.content.SharedPreferences preferences = getContext().getSharedPreferences(
+                "nokia_launcher_tones", Context.MODE_PRIVATE);
+            String previousUri = preferences.getString(preferenceKey, null);
+            preferences.edit().putString(preferenceKey, insertedUri.toString()).apply();
+            if (previousUri != null && !previousUri.equals(insertedUri.toString())) {
+                try {
+                    getContext().getContentResolver().delete(Uri.parse(previousUri), null, null);
+                } catch (Exception ignored) {
+                    // Delete only the exact URI previously inserted and owned by this app.
+                }
+            }
+
+            JSObject result = new JSObject();
+            result.put("success", true);
+            result.put("uri", insertedUri.toString());
+            call.resolve(result);
+        } catch (Exception error) {
+            if (insertedUri != null) {
+                try { getContext().getContentResolver().delete(insertedUri, null, null); }
+                catch (Exception ignored) {}
+            }
+            JSObject result = new JSObject();
+            result.put("success", false);
+            result.put("error", error.getMessage());
+            call.resolve(result);
+        }
+    }
+
     @PluginMethod
     public void openNotificationAccessSettings(PluginCall call) {
         try {

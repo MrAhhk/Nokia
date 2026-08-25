@@ -8,6 +8,7 @@ import {
   preloadSound,
   preloadAllSounds,
   stopAllSounds,
+  pauseAudioEngine,
   _resetAudioContext,
 } from "./nokiaAudioEngine";
 import {
@@ -18,12 +19,14 @@ import {
 } from "./soundConfig";
 
 describe("nokiaAudioEngine", () => {
+  const originalFetch = global.fetch;
   let mockAudioContext;
   let createdOscillators;
   let createdGainNodes;
   let createdBufferSources;
 
   beforeEach(() => {
+    global.fetch = undefined;
     _resetAudioContext();
     createdOscillators = [];
     createdGainNodes = [];
@@ -83,6 +86,53 @@ describe("nokiaAudioEngine", () => {
   afterEach(() => {
     stopAllSounds();
     _resetAudioContext();
+    global.fetch = originalFetch;
+  });
+
+  test("loads only the pressed keypad sample on demand", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+    });
+
+    const handle = playKeypadTone("5", KEYPAD_TONE_TYPES.DTMF, 4, false);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith("./sounds/dtmf/5.wav");
+    handle.stop();
+  });
+
+  test("pauses audio and vibration immediately when the app is backgrounded", () => {
+    mockAudioContext.suspend = jest.fn().mockResolvedValue(undefined);
+    const originalVibrate = navigator.vibrate;
+    Object.defineProperty(navigator, "vibrate", { configurable: true, value: jest.fn() });
+    playTone(440, 1000, 0.2);
+
+    pauseAudioEngine();
+
+    expect(mockAudioContext.suspend).toHaveBeenCalledTimes(1);
+    expect(navigator.vibrate).toHaveBeenCalledWith(0);
+    Object.defineProperty(navigator, "vibrate", { configurable: true, value: originalVibrate });
+  });
+
+  test("background pause cancels repeating ringtone vibration", () => {
+    jest.useFakeTimers();
+    const originalVibrate = navigator.vibrate;
+    const vibrate = jest.fn();
+    Object.defineProperty(navigator, "vibrate", { configurable: true, value: vibrate });
+    playRingtone(RINGTONE_TYPES.NOKIA_TUNE, 4, true, true);
+
+    pauseAudioEngine();
+    const callsAfterPause = vibrate.mock.calls.length;
+    expect(jest.getTimerCount()).toBe(0);
+    jest.advanceTimersByTime(20_000);
+
+    expect(vibrate).toHaveBeenCalledWith(0);
+    expect(vibrate).toHaveBeenCalledTimes(callsAfterPause);
+    Object.defineProperty(navigator, "vibrate", { configurable: true, value: originalVibrate });
+    jest.useRealTimers();
   });
 
   test("plays single and dual tones with proper gain envelope", () => {

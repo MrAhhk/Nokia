@@ -86,3 +86,25 @@ test("applies the selected packaged ringtone after access is granted", async () 
   act(() => root.unmount());
   container.remove();
 });
+
+test("can apply the selected message alert as the phone notification sound", async () => {
+  getSystemToneAccess.mockResolvedValue({ supported: true, granted: true });
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  await act(async () => root.render(<SoundFeature onExit={() => {}} />));
+
+  const notificationAction = container.querySelector('[data-testid="sound-row-apply_notification"]');
+  expect(notificationAction).not.toBeNull();
+  await act(async () => notificationAction.click());
+
+  expect(applySystemTone).toHaveBeenCalledWith(
+    "notification",
+    "./sounds/sms_ascending.mp3",
+    "Ascending",
+  );
+  expect(container.textContent).toContain("Notification applied");
+
+  act(() => root.unmount());
+  container.remove();
+});

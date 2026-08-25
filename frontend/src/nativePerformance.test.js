@@ -92,6 +92,8 @@ test("system tone application uses one explicit special grant and no media permi
   expect(plugin).toContain("applySystemTone");
   expect(plugin).toContain("ACTION_MANAGE_WRITE_SETTINGS");
   expect(plugin).toContain("Settings.System.canWrite");
+  expect(plugin).toContain("TYPE_NOTIFICATION");
+  expect(plugin).toContain("DIRECTORY_NOTIFICATIONS");
   expect(plugin).not.toContain("DISPLAY_NAME + \"=?\"");
 });
 

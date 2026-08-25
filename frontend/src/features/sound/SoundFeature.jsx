@@ -36,6 +36,7 @@ import "./sound.css";
 const ALL_SOUND_ROWS = Object.freeze([
   ...SOUND_MENU_SECTIONS,
   { id: "apply_ringtone", label: "Use as phone ringtone", toneType: "ringtone", isAction: true },
+  { id: "apply_notification", label: "Use as phone notification", toneType: "notification", isAction: true },
   { id: "apply_alarm", label: "Use as phone alarm", toneType: "alarm", isAction: true },
   { id: "android_sound", label: "Android sound settings", isAction: true },
 ]);
@@ -124,9 +125,15 @@ const SoundFeature = forwardRef(({ onExit }, ref) => {
       return;
     }
 
-    const settingKey = row.toneType === "ringtone" ? "ringtone" : "alarmTone";
+    const settingKey = row.toneType === "ringtone"
+      ? "ringtone"
+      : row.toneType === "notification"
+        ? "messageAlert"
+        : "alarmTone";
     const selectedTone = settings[settingKey];
-    const assetPath = SOUND_ASSET_PATHS[selectedTone];
+    const assetPath = SOUND_ASSET_PATHS[
+      row.toneType === "notification" ? `sms_${selectedTone}` : selectedTone
+    ];
     if (!assetPath || selectedTone === "off") {
       setSystemStatus("Choose a tone first");
       return;
@@ -138,7 +145,7 @@ const SoundFeature = forwardRef(({ onExit }, ref) => {
       getOptionLabel(settingKey, selectedTone),
     );
     setSystemStatus(result?.success
-      ? `${row.toneType === "ringtone" ? "Ringtone" : "Alarm"} applied`
+      ? `${row.toneType === "ringtone" ? "Ringtone" : row.toneType === "notification" ? "Notification" : "Alarm"} applied`
       : "Could not apply tone");
   }, [settings]);
 

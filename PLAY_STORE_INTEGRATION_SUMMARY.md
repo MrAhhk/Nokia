@@ -5,8 +5,10 @@
 > `PLAY_STORE_DATA_SAFETY.md`, the final merged manifest from the signed AAB,
 > current Play Console declarations, and a fresh release audit as the sources
 > of truth. Sound playback is app-local by default. Android 10+ users can
-> explicitly grant `WRITE_SETTINGS` once and then apply a packaged ringtone or
-> alarm; no shared-media read or broad storage permission is requested.
+> explicitly accept a dismissible first-launch setup, grant `WRITE_SETTINGS`
+> once, and apply packaged ringtone, notification, and alarm defaults. The
+> same actions remain available later in Sound settings. No shared-media read
+> or broad storage permission is requested.
 
 ## Nokia Launcher - May 2026 Compliance Complete
 

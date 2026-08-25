@@ -477,8 +477,8 @@ public class LauncherAppsPlugin extends Plugin {
         final String toneType = call.getString("toneType", "");
         final String rawAssetPath = call.getString("assetPath", "");
         final String rawTitle = call.getString("title", "Nokia Launcher tone");
-        if (!("ringtone".equals(toneType) || "alarm".equals(toneType))) {
-            call.reject("toneType must be ringtone or alarm");
+        if (!("ringtone".equals(toneType) || "notification".equals(toneType) || "alarm".equals(toneType))) {
+            call.reject("toneType must be ringtone, notification, or alarm");
             return;
         }
 
@@ -501,9 +501,12 @@ public class LauncherAppsPlugin extends Plugin {
         Uri insertedUri = null;
         try {
             boolean ringtone = "ringtone".equals(toneType);
+            boolean notification = "notification".equals(toneType);
             int ringtoneType = ringtone
                 ? android.media.RingtoneManager.TYPE_RINGTONE
-                : android.media.RingtoneManager.TYPE_ALARM;
+                : notification
+                    ? android.media.RingtoneManager.TYPE_NOTIFICATION
+                    : android.media.RingtoneManager.TYPE_ALARM;
             String extension = assetPath.toLowerCase(Locale.ROOT).endsWith(".wav") ? ".wav" : ".mp3";
             String mimeType = ".wav".equals(extension) ? "audio/wav" : "audio/mpeg";
             String safeTitle = title.isEmpty() ? "Nokia Launcher tone" : title.substring(0, Math.min(title.length(), 64));
@@ -514,11 +517,15 @@ public class LauncherAppsPlugin extends Plugin {
             values.put(android.provider.MediaStore.Audio.Media.TITLE, safeTitle);
             values.put(android.provider.MediaStore.Audio.Media.MIME_TYPE, mimeType);
             values.put(android.provider.MediaStore.Audio.Media.IS_RINGTONE, ringtone ? 1 : 0);
-            values.put(android.provider.MediaStore.Audio.Media.IS_ALARM, ringtone ? 0 : 1);
-            values.put(android.provider.MediaStore.Audio.Media.IS_NOTIFICATION, 0);
+            values.put(android.provider.MediaStore.Audio.Media.IS_ALARM, ringtone || notification ? 0 : 1);
+            values.put(android.provider.MediaStore.Audio.Media.IS_NOTIFICATION, notification ? 1 : 0);
             values.put(android.provider.MediaStore.Audio.Media.IS_MUSIC, 0);
             values.put(android.provider.MediaStore.Audio.Media.RELATIVE_PATH,
-                (ringtone ? android.os.Environment.DIRECTORY_RINGTONES : android.os.Environment.DIRECTORY_ALARMS)
+                (ringtone
+                    ? android.os.Environment.DIRECTORY_RINGTONES
+                    : notification
+                        ? android.os.Environment.DIRECTORY_NOTIFICATIONS
+                        : android.os.Environment.DIRECTORY_ALARMS)
                     + "/Nokia Launcher");
             values.put(android.provider.MediaStore.Audio.Media.IS_PENDING, 1);
 

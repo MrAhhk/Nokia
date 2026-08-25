@@ -127,3 +127,23 @@ The tab cap intentionally follows the product North Star: useful multitasking wi
 
 ### Verdict
 **BUILD SAFE AND INSTALLED; UNLOCKED-PHONE AUDIO/UI SIGN-OFF AND MP3 RIGHTS EVIDENCE REMAIN BEFORE RELEASE.**
+
+## Run: 2026-08-26 — First-launch Nokia system-tone setup
+**Change type:** Explicit first-run setup and notification-tone extension
+**Files changed:** Launcher onboarding, tone setup state/UI/tests, Sound actions, native MediaStore bridge, Play disclosures
+**Triggered by:** User clarified that the launcher should ask on initial use to set its ringtone, alarm, and notification sound.
+
+### Flows tested
+
+| Flow | Result | Notes |
+|---|---|---|
+| First Android launch | ✅ Automated pass | A native install with no saved decision displays a finite olive-LCD setup for Calls, Messages, and Alarms. Browser preview and the keyboard surface do not show it. |
+| No unsolicited permission screen | ✅ Automated pass | Mounting the launcher does not call the access request or change a system tone. |
+| Explicit acceptance | ✅ Automated pass | “Set Nokia tones,” green Send, center Select, or key 5 may begin setup. Android’s one `WRITE_SETTINGS` screen opens only after acceptance. |
+| Dismissal | ✅ Automated pass | “Not now” or red End saves `skipped`; the prompt does not return on later launches. |
+| Return from Android access | ✅ Automated pass | A single visibility event checks the grant and sequentially applies ringtone, notification, and alarm. There is no polling or background service. |
+| Notification-tone safety | ✅ Static/native pass | The native bridge accepts `notification`, uses `TYPE_NOTIFICATION` and `DIRECTORY_NOTIFICATIONS`, and retains exact app-owned URI cleanup. |
+| Later manual control | ✅ Automated pass | Sound settings now includes “Use as phone notification” beside ringtone and alarm actions. |
+
+### Verdict
+**AUTOMATED BEHAVIOR COMPLETE; FRESH-INSTALL PHYSICAL UI AND ANDROID-GRANT RETURN FLOW REQUIRE FINAL DEVICE SIGN-OFF.**

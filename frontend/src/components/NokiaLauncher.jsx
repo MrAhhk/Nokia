@@ -6,12 +6,21 @@ import BrowserFeature from "@/features/browser/BrowserFeature";
 import ClockFeature from "@/features/clock/ClockFeature";
 import SnakeFeature from "@/features/snake/SnakeFeature";
 import SoundFeature from "@/features/sound/SoundFeature";
+import ToneSetupPrompt from "@/features/sound/ToneSetupPrompt";
 import { pauseAudioEngine, playKeypadTone } from "@/features/sound/nokiaAudioEngine";
 import { loadSoundSettings } from "@/features/sound/soundStorage";
+import {
+  TONE_SETUP_STATES,
+  buildSystemToneSelections,
+  loadToneSetupState,
+  saveToneSetupState,
+} from "@/features/sound/toneSetupState";
 import { BROWSER_START_URL } from "@/features/browser/browserAddress";
 import {
   cycleNotificationMode,
+  applySystemTone,
   getDeviceStatus,
+  getSystemToneAccess,
   launchInstalledApp,
   makePhoneCall,
   openDefaultMaps,
@@ -19,6 +28,7 @@ import {
   openNotificationAccessSettings,
   openSystemSetting,
   openWebUrl,
+  requestSystemToneAccess,
   toggleSirenSound,
   triggerHaptic,
 } from "@/lib/launcherApps";
@@ -78,6 +88,16 @@ const NokiaLauncher = ({ apps }) => {
   const [dialActive, setDialActive] = useState(false);
   const [dialNumber, setDialNumber] = useState("");
   const [deviceStatus, setDeviceStatus] = useState(null);
+  const nativeToneSetupAvailable = Boolean(window.Capacitor?.Plugins?.LauncherApps);
+  const [toneSetupState, setToneSetupState] = useState(() =>
+    nativeToneSetupAvailable ? loadToneSetupState() : TONE_SETUP_STATES.SKIPPED
+  );
+  const [toneSetupBusy, setToneSetupBusy] = useState(false);
+  const [toneSetupMessage, setToneSetupMessage] = useState("");
+
+  const toneSetupVisible = nativeToneSetupAvailable
+    && toneSetupState !== TONE_SETUP_STATES.APPLIED
+    && toneSetupState !== TONE_SETUP_STATES.SKIPPED;
 
   // Shared multi-tap module keeps timing/cycling out of the launcher controller.
   const multiTapComposerRef = useRef(null);
@@ -104,6 +124,72 @@ const NokiaLauncher = ({ apps }) => {
       if (interval !== null) clearInterval(interval);
     };
   }, []);
+
+  const applyInitialSystemTones = useCallback(async () => {
+    setToneSetupBusy(true);
+    setToneSetupMessage("Setting phone tones");
+    const tones = buildSystemToneSelections(loadSoundSettings());
+    try {
+      for (const tone of tones) {
+        const result = await applySystemTone(tone.toneType, tone.assetPath, tone.title);
+        if (!result?.success) throw new Error("tone-apply-failed");
+      }
+      saveToneSetupState(TONE_SETUP_STATES.APPLIED);
+      setToneSetupState(TONE_SETUP_STATES.APPLIED);
+    } catch (_error) {
+      setToneSetupMessage("Could not set every tone");
+    } finally {
+      setToneSetupBusy(false);
+    }
+  }, []);
+
+  const acceptToneSetup = useCallback(async () => {
+    if (toneSetupBusy) return;
+    setToneSetupBusy(true);
+    setToneSetupMessage("Checking Android access");
+    try {
+      const access = await getSystemToneAccess();
+      if (!access?.supported) {
+        setToneSetupMessage("Not supported on this phone");
+        return;
+      }
+      if (!access.granted) {
+        saveToneSetupState(TONE_SETUP_STATES.AWAITING_ACCESS);
+        setToneSetupState(TONE_SETUP_STATES.AWAITING_ACCESS);
+        setToneSetupMessage("Allow access, then return");
+        await requestSystemToneAccess();
+        return;
+      }
+      await applyInitialSystemTones();
+    } catch (_error) {
+      setToneSetupMessage("Could not open tone access");
+    } finally {
+      setToneSetupBusy(false);
+    }
+  }, [applyInitialSystemTones, toneSetupBusy]);
+
+  const skipToneSetup = useCallback(() => {
+    if (toneSetupBusy) return;
+    saveToneSetupState(TONE_SETUP_STATES.SKIPPED);
+    setToneSetupState(TONE_SETUP_STATES.SKIPPED);
+  }, [toneSetupBusy]);
+
+  useEffect(() => {
+    if (toneSetupState !== TONE_SETUP_STATES.AWAITING_ACCESS) return undefined;
+    const finishAfterGrant = () => {
+      if (document.visibilityState !== "visible") return;
+      getSystemToneAccess()
+        .then((access) => {
+          if (access?.granted) return applyInitialSystemTones();
+          setToneSetupMessage("Access not granted");
+          return null;
+        })
+        .catch(() => setToneSetupMessage("Could not check tone access"));
+    };
+    document.addEventListener("visibilitychange", finishAfterGrant);
+    finishAfterGrant();
+    return () => document.removeEventListener("visibilitychange", finishAfterGrant);
+  }, [applyInitialSystemTones, toneSetupState]);
 
   useEffect(() => {
     const pauseWhenHidden = () => {
@@ -383,6 +469,12 @@ const NokiaLauncher = ({ apps }) => {
       const soundPrefs = loadSoundSettings();
       playKeypadTone(key, soundPrefs.keypadTone, soundPrefs.volume, soundPrefs.vibrate);
 
+      if (toneSetupVisible) {
+        if (key === "END") skipToneSetup();
+        if (key === "SEND" || key === "SELECT" || key === "5") acceptToneSetup();
+        return;
+      }
+
       if (currentView === "camera") {
         cameraFeatureRef.current?.handleKey(key);
         return;
@@ -533,7 +625,10 @@ const NokiaLauncher = ({ apps }) => {
       handleBack,
       clearPending,
       handleOpenApp,
-      openSettings
+      openSettings,
+      toneSetupVisible,
+      acceptToneSetup,
+      skipToneSetup,
     ]
   );
 
@@ -542,7 +637,14 @@ const NokiaLauncher = ({ apps }) => {
     <div className="nokia-launcher h-full w-full flex flex-col overflow-hidden select-none" data-testid="nokia-launcher">
       {/* Top Screen - 50% */}
       <div className="nokia-launcher__screen h-1/2 w-full relative flex flex-col">
-        {currentView === "camera" ? (
+        {toneSetupVisible ? (
+          <ToneSetupPrompt
+            busy={toneSetupBusy}
+            message={toneSetupMessage}
+            onAccept={acceptToneSetup}
+            onSkip={skipToneSetup}
+          />
+        ) : currentView === "camera" ? (
           <CameraFeature
             ref={cameraFeatureRef}
             onExit={() => setCurrentView(cameraReturnView)}

@@ -5,7 +5,7 @@ const path = require('node:path');
 const artifacts = path.resolve(__dirname, '..', 'artifacts');
 const baseUrl = process.env.SITE_URL || 'http://127.0.0.1:4173';
 
-async function verifyPage(page, screenshotName, mobile = false) {
+async function verifyPage(page, screenshotName, mobile = false, staticFallback = false) {
   const errors = [];
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(`console:${message.text()}`);
@@ -14,8 +14,16 @@ async function verifyPage(page, screenshotName, mobile = false) {
 
   let capturedPayload;
   await page.route('**/api/subscribe', async (route) => {
+    if (staticFallback) {
+      await route.fulfill({ status: 404, contentType: 'application/json', body: '{"error":"not found"}' });
+    } else {
+      capturedPayload = route.request().postDataJSON();
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    }
+  });
+  await page.route('https://formsubmit.co/ajax/**', async (route) => {
     capturedPayload = route.request().postDataJSON();
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"success":"true"}' });
   });
 
   await page.goto(baseUrl, { waitUntil: 'networkidle' });
@@ -51,7 +59,10 @@ async function verifyPage(page, screenshotName, mobile = false) {
   assert.equal(await page.locator('.reveal:not(.is-visible)').count(), 0);
 
   await page.screenshot({ path: path.join(artifacts, screenshotName), fullPage: true });
-  assert.deepEqual(errors, []);
+  const unexpectedErrors = staticFallback
+    ? errors.filter((entry) => !entry.includes('status of 404'))
+    : errors;
+  assert.deepEqual(unexpectedErrors, []);
 }
 
 let browser;
@@ -64,7 +75,7 @@ let browser;
   const desktop = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   await verifyPage(desktop, 'desktop.png');
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  await verifyPage(mobile, 'mobile.png', true);
+  await verifyPage(mobile, 'mobile.png', true, true);
   console.log('UI checks passed at 1440x1000 and 390x844.');
 })().catch((error) => {
   console.error(error);

@@ -25,15 +25,32 @@ form?.addEventListener('submit', async (event) => {
   statusNode.textContent = 'Saving your place…';
 
   try {
-    const response = await fetch('/api/subscribe', {
+    const payload = {
+      email: emailInput.value.trim(),
+      company: form.elements.company.value,
+      startedAt: Number(startedAt.value)
+    };
+
+    let response = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: emailInput.value.trim(),
-        company: form.elements.company.value,
-        startedAt: Number(startedAt.value)
-      })
+      body: JSON.stringify(payload)
     });
+
+    if (response.status === 404 || response.status === 405) {
+      response = await fetch('https://formsubmit.co/ajax/mr.ahhk142857%40gmail.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          email: payload.email,
+          _replyto: payload.email,
+          _subject: 'New Nokia Retro Phone early-access signup',
+          _template: 'table',
+          _captcha: 'false',
+          source: 'Nokia Retro Phone website'
+        })
+      });
+    }
 
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'Unable to join right now.');

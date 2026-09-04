@@ -1,0 +1,9 @@
+{
+  "name": "Nokia Retro Phone",
+  "short_name": "Nokia Retro",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080b0a",
+  "theme_color": "#0b0e0d",
+  "icons": []
+}

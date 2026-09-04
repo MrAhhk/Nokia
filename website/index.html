@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0e0d" />
+    <meta
+      name="description"
+      content="Nokia Retro Phone is a calm Android launcher inspired by the useful, focused phones of the Nokia era."
+    />
+    <meta property="og:title" content="Nokia Retro Phone" />
+    <meta property="og:description" content="Make your phone a tool again." />
+    <meta property="og:type" content="website" />
+    <title>Nokia Retro Phone — Make your phone a tool again</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/script.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header" data-header>
+      <a class="brand" href="#top" aria-label="Nokia Retro Phone home">
+        <span class="brand-mark" aria-hidden="true">
+          <span class="brand-mark__screen"></span>
+          <span class="brand-mark__key"></span>
+        </span>
+        <span>Nokia Retro Phone</span>
+      </a>
+
+      <nav class="desktop-nav" aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#preview">Preview</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+
+      <a class="button button--compact" href="#early-access">
+        Join early access
+        <span aria-hidden="true">→</span>
+      </a>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="hero-copy reveal">
+          <p class="eyebrow"><span></span> Android launcher · coming soon</p>
+          <h1>Make your phone<br /><em>a tool again.</em></h1>
+          <p class="hero-intro">
+            A calm, intentional home screen inspired by the Nokia era—modern essentials,
+            without the feed, noise, or endless scroll.
+          </p>
+
+          <form class="signup-form" id="early-access" novalidate>
+            <label class="sr-only" for="email">Email address</label>
+            <div class="input-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 6.5h18v11H3zM4 7.5l8 6 8-6" />
+              </svg>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                inputmode="email"
+                autocomplete="email"
+                placeholder="Enter your email"
+                maxlength="254"
+                required
+              />
+            </div>
+            <input class="form-honeypot" name="company" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+            <input name="startedAt" type="hidden" value="" />
+            <button class="button" type="submit">
+              <span data-button-label>Join early access</span>
+              <span aria-hidden="true">→</span>
+            </button>
+            <p class="form-status" role="status" aria-live="polite" data-form-status></p>
+          </form>
+
+          <ul class="trust-list" aria-label="Product principles">
+            <li>
+              <span class="trust-icon" aria-hidden="true">⌁</span>
+              <span><strong>Privacy first</strong><small>Only your email, nothing else.</small></span>
+            </li>
+            <li>
+              <span class="trust-icon" aria-hidden="true">◇</span>
+              <span><strong>Finite by design</strong><small>No feeds. No streaks.</small></span>
+            </li>
+            <li>
+              <span class="trust-icon" aria-hidden="true">○</span>
+              <span><strong>Quiet by default</strong><small>No ads. No attention traps.</small></span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="phone-stage reveal" id="preview" aria-label="Interactive Nokia Retro Phone preview">
+          <p class="phone-hint"><span>Try the keypad</span><span aria-hidden="true">↘</span></p>
+          <div class="phone-shadow" aria-hidden="true"></div>
+          <article class="phone" data-phone>
+            <div class="phone-speaker" aria-hidden="true"></div>
+            <div class="lcd" aria-live="polite">
+              <div class="lcd-status" aria-hidden="true">
+                <span class="signal-bars"><i></i><i></i><i></i><i></i></span>
+                <span class="lcd-wordmark">NOKIA RETRO</span>
+                <span class="battery"><i></i></span>
+              </div>
+              <div class="lcd-view" data-lcd-view>
+                <p class="lcd-kicker">FRIDAY · SEPT 05</p>
+                <p class="lcd-time" data-lcd-time>23:25</p>
+                <div class="lcd-rule"></div>
+                <p class="lcd-message" data-lcd-message>Choose what matters.</p>
+              </div>
+              <div class="lcd-softkeys"><span data-soft-left>Menu</span><span data-soft-right>Focus</span></div>
+            </div>
+
+            <div class="controls">
+              <button class="call-key" type="button" data-action="call" aria-label="Open phone preview"><span>⌕</span></button>
+              <div class="dpad" aria-label="Preview navigation">
+                <button type="button" data-action="previous" aria-label="Previous preview">‹</button>
+                <button type="button" data-action="select" aria-label="Select preview">●</button>
+                <button type="button" data-action="next" aria-label="Next preview">›</button>
+              </div>
+              <button class="end-key" type="button" data-action="end" aria-label="Return to home preview"><span>—</span></button>
+            </div>
+
+            <div class="keypad" aria-label="Dial pad preview">
+              <button type="button" data-key="1"><strong>1</strong><small>.,?</small></button>
+              <button type="button" data-key="2"><strong>2</strong><small>ABC</small></button>
+              <button type="button" data-key="3"><strong>3</strong><small>DEF</small></button>
+              <button type="button" data-key="4"><strong>4</strong><small>GHI</small></button>
+              <button type="button" data-key="5"><strong>5</strong><small>JKL</small></button>
+              <button type="button" data-key="6"><strong>6</strong><small>MNO</small></button>
+              <button type="button" data-key="7"><strong>7</strong><small>PQRS</small></button>
+              <button type="button" data-key="8"><strong>8</strong><small>TUV</small></button>
+              <button type="button" data-key="9"><strong>9</strong><small>WXYZ</small></button>
+              <button type="button" data-key="*"><strong>*</strong><small>+</small></button>
+              <button type="button" data-key="0"><strong>0</strong><small>_</small></button>
+              <button type="button" data-key="#"><strong>#</strong><small>↵</small></button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="proof-strip" aria-label="Product statement">
+        <span class="pixel-stars" aria-hidden="true">✦ ✦ ✦</span>
+        <blockquote>“Less phone. More life.”</blockquote>
+        <span class="pixel-stars" aria-hidden="true">✦ ✦ ✦</span>
+      </section>
+
+      <section class="section" id="features">
+        <div class="section-heading reveal">
+          <p class="eyebrow"><span></span> Built with restraint</p>
+          <h2>Everything essential.<br />Nothing that pulls you back.</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card reveal">
+            <span class="feature-index">HOME</span>
+            <div class="feature-glyph" aria-hidden="true">□</div>
+            <h3>One clear screen</h3>
+            <p>Time, calls, messages, maps, and camera stay close. Everything else waits quietly in the menu.</p>
+          </article>
+          <article class="feature-card reveal">
+            <span class="feature-index">INPUT</span>
+            <div class="feature-glyph" aria-hidden="true">⌁</div>
+            <h3>Tactile navigation</h3>
+            <p>A focused keypad and predictable menus bring back deliberate, muscle-memory interaction.</p>
+          </article>
+          <article class="feature-card reveal">
+            <span class="feature-index">DEFAULT</span>
+            <div class="feature-glyph" aria-hidden="true">○</div>
+            <h3>Calm by default</h3>
+            <p>No infinite feed, autoplay, streak, or attention score. Finish the task, then put the phone down.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section how" id="how-it-works">
+        <div class="how-copy reveal">
+          <p class="eyebrow"><span></span> How it works</p>
+          <h2>A launcher that knows<br />when to get out of the way.</h2>
+          <p>Nokia Retro Phone replaces the noisy Android home screen with one calm surface. Your apps remain available; they simply stop competing for your attention.</p>
+          <a class="text-link" href="#early-access">Get beta access <span aria-hidden="true">→</span></a>
+        </div>
+        <ol class="steps reveal">
+          <li><span>1</span><div><strong>Install</strong><p>Set Nokia Retro Phone as your Android launcher.</p></div></li>
+          <li><span>2</span><div><strong>Choose essentials</strong><p>Keep the tools you actually need within reach.</p></div></li>
+          <li><span>3</span><div><strong>Leave sooner</strong><p>Complete the task without falling into a feed.</p></div></li>
+        </ol>
+      </section>
+
+      <section class="section faq" id="faq">
+        <div class="section-heading reveal">
+          <p class="eyebrow"><span></span> Questions, answered</p>
+          <h2>Before you switch.</h2>
+        </div>
+        <div class="faq-list reveal">
+          <details>
+            <summary>Is this a real phone?</summary>
+            <p>No. Nokia Retro Phone is an Android launcher that gives your current phone a calmer, keypad-inspired interface.</p>
+          </details>
+          <details>
+            <summary>Will my existing apps still work?</summary>
+            <p>Yes. Essential apps remain available through a simple menu; the launcher changes how you reach them, not what your phone can run.</p>
+          </details>
+          <details>
+            <summary>Does it track my activity?</summary>
+            <p>The product is designed around privacy and minimal permissions. This early-access page collects only the email address you choose to submit.</p>
+          </details>
+          <details>
+            <summary>When can I try it?</summary>
+            <p>The Android beta is being prepared now. Join the early-access list and you’ll hear when a testing place opens.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="final-cta reveal">
+        <p class="eyebrow"><span></span> Your phone can feel quiet again</p>
+        <h2>Ready to leave<br />the scroll behind?</h2>
+        <a class="button" href="#early-access">Join early access <span aria-hidden="true">→</span></a>
+      </section>
+    </main>
+
+    <footer>
+      <a class="brand brand--footer" href="#top">
+        <span class="brand-mark" aria-hidden="true"><span class="brand-mark__screen"></span><span class="brand-mark__key"></span></span>
+        <span>Nokia Retro Phone</span>
+      </a>
+      <p>Independent Android launcher. Not affiliated with Nokia Corporation.</p>
+      <p>© <span data-year></span> Nokia Retro Phone</p>
+    </footer>
+  </body>
+</html>

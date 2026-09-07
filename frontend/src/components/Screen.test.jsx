@@ -36,8 +36,8 @@ describe("home status icons", () => {
   });
 
   test("renders the live carrier and date, with a fallback when no network is available", () => {
-    expect(renderHome({ carrierName: "MobiFone" })).toContain('aria-label="MobiFone"');
-    expect(renderHome({})).toContain('aria-label="Nokia"');
-    expect(renderHome({})).toContain('aria-label="Fri, 21 Aug"');
+    expect(renderHome({ carrierName: "MobiFone" })).toContain('>MobiFone</div>');
+    expect(renderHome({})).toContain('>MobiFone</div>');
+    expect(renderHome({})).toContain('>Fri, 21 Aug</div>');
   });
 });

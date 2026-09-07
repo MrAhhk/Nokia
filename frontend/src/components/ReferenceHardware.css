@@ -24,7 +24,7 @@
   flex: 0 0 50.4%;
   height: 50.4%;
   min-height: 0;
-  padding: 0 5.5%;
+  padding: 0 4.6%;
   padding-bottom: 1.6cqh;
   background: #0a0c0c;
 }
@@ -48,9 +48,8 @@
   font-family: "Courier New", monospace;
   font-weight: 900;
 }
-.lcd-carrier { font-size: 10.4cqw; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -.045em; }
-.pixel-text { display: inline-block; height: .85em; width: auto; max-width: 100%; vertical-align: middle; }
-.lcd-date { margin-top: 5.2cqh; font-size: 5.9cqw; line-height: 1; letter-spacing: -.06em; }
+.lcd-carrier { font-family: "Courier New", "Lucida Console", monospace; font-size: 10.4cqw; line-height: 1.15; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -.075em; }
+.lcd-date { margin-top: 5.2cqh; font-family: "Courier New", "Lucida Console", monospace; font-size: 5.9cqw; line-height: 1; font-weight: 700; letter-spacing: -.09em; }
 .nokia-launcher .lcd-home .lcd-time {
   position: absolute;
   top: 56%;
@@ -64,7 +63,8 @@
   border-top: 2px solid var(--ink);
   transform: none;
   font-size: 5.7cqw;
-  font-weight: 900;
+  font-family: "Courier New", "Lucida Console", monospace;
+  font-weight: 700;
   line-height: 1;
   text-shadow: none;
 }
@@ -76,6 +76,8 @@
   padding-right: 4%;
   background: var(--ink);
   color: var(--lcd);
+  letter-spacing: -.06em;
+  white-space: nowrap;
   clip-path: polygon(0 0,100% 0,100% 100%,26% 100%);
 }
 .lcd-home .lcd-time::before, .lcd-home .lcd-time::after { content: none; }

@@ -1,5 +1,4 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import PixelText from "./PixelText";
 import {
   BatteryCharging,
   Bell,
@@ -117,8 +116,8 @@ const Screen = ({
         <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
 
         <div className="lcd-identity">
-          <div className="lcd-carrier"><PixelText>{deviceStatus?.carrierName || "Nokia"}</PixelText></div>
-          <div className="lcd-date"><PixelText>{`${currentTime.toLocaleDateString("en-US", { weekday: "short" })}, ${String(currentTime.getDate()).padStart(2, "0")} ${currentTime.toLocaleDateString("en-US", { month: "short" })}`}</PixelText></div>
+          <div className="lcd-carrier">{deviceStatus?.carrierName || "MobiFone"}</div>
+          <div className="lcd-date">{`${currentTime.toLocaleDateString("en-US", { weekday: "short" })}, ${String(currentTime.getDate()).padStart(2, "0")} ${currentTime.toLocaleDateString("en-US", { month: "short" })}`}</div>
         </div>
 
         <button
@@ -128,7 +127,7 @@ const Screen = ({
           aria-label={`Open Clock, current time ${formattedTime}`}
           onClick={onClockClick}
         >
-          <span><PixelText>{formattedTime}</PixelText></span>
+          <span>{formattedTime}</span>
         </button>
 
         <div className="lcd-shortcuts" data-testid="home-menu">

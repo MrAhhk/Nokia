@@ -290,7 +290,6 @@ const HomeShortcut = memo(({ item, isSelected, onClick }) => {
       aria-label={`Open ${item.label}`}
     >
       <span className="lcd-shortcut__icon"><Icon aria-hidden="true" /></span>
-      <span>{item.label}</span>
     </button>
   );
 });

@@ -29,7 +29,15 @@ describe("home status icons", () => {
     expect(markup).not.toContain('class="lcd-time is-selected" style="background');
   });
 
-  test("exposes the home search box as the built-in browser entry", () => {
+  test("keeps the browser reachable through Go to without the removed search bar", () => {
     expect(renderHome({})).toContain('aria-label="Open built-in browser"');
+    expect(renderHome({})).toContain('Go to');
+    expect(renderHome({})).not.toContain('class="lcd-search');
+  });
+
+  test("renders the live carrier and date, with a fallback when no network is available", () => {
+    expect(renderHome({ carrierName: "MobiFone" })).toContain('aria-label="MobiFone"');
+    expect(renderHome({})).toContain('aria-label="Nokia"');
+    expect(renderHome({})).toContain('aria-label="Fri, 21 Aug"');
   });
 });

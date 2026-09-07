@@ -299,6 +299,16 @@ public class LauncherAppsPlugin extends Plugin {
         result.put("vpn", vpn);
         result.put("bluetooth", bluetooth);
         result.put("batteryLevel", batteryLevel);
+        // Public operator label; no new permission or per-key bridge request.
+        String carrierName = "";
+        try {
+            android.telephony.TelephonyManager telephony =
+                (android.telephony.TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+            if (telephony != null) carrierName = telephony.getNetworkOperatorName();
+        } catch (RuntimeException ignored) {
+            // Wi-Fi-only devices and vendor restrictions use the UI fallback.
+        }
+        result.put("carrierName", carrierName == null ? "" : carrierName);
         result.put("charging", plugged != 0);
         result.put("powerSave", power != null && power.isPowerSaveMode());
         result.put("silent", audio != null && audio.getRingerMode() != AudioManager.RINGER_MODE_NORMAL);

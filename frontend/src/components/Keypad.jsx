@@ -170,6 +170,8 @@ const LAUNCHER_NUMBER_KEYS = [
 const LauncherKeypad = ({ onPress }) => (
   <div className="hardware-keypad" data-testid="keypad">
     <div className="hardware-controls">
+      <button type="button" className="hardware-soft hardware-soft-left hardware-button" onClick={() => onPress("TAB")} aria-label="Next item"><span /></button>
+      <button type="button" className="hardware-soft hardware-soft-right hardware-button" onClick={() => onPress("BACK")} aria-label="Back"><span /></button>
       <button
         type="button"
         className="hardware-call hardware-button"
@@ -179,19 +181,19 @@ const LauncherKeypad = ({ onPress }) => (
       ><span /></button>
 
       <div className="hardware-dpad" aria-label="Directional pad">
-        <button type="button" className="dpad-up" onClick={() => onPress("UP")} aria-label="Up">⌃</button>
-        <button type="button" className="dpad-left" onClick={() => onPress("LEFT")} aria-label="Left">‹</button>
+        <button type="button" className="dpad-up" onClick={() => onPress("UP")} aria-label="Up" />
+        <button type="button" className="dpad-left" onClick={() => onPress("LEFT")} aria-label="Left" />
         <button type="button" className="dpad-select" data-testid="keypad-btn-select" onClick={() => onPress("SELECT")} aria-label="Select" />
-        <button type="button" className="dpad-right" onClick={() => onPress("RIGHT")} aria-label="Right">›</button>
-        <button type="button" className="dpad-down" onClick={() => onPress("DOWN")} aria-label="Down">⌄</button>
+        <button type="button" className="dpad-right" onClick={() => onPress("RIGHT")} aria-label="Right" />
+        <button type="button" className="dpad-down" onClick={() => onPress("DOWN")} aria-label="Down" />
       </div>
 
       <button
         type="button"
         className="hardware-end hardware-button"
         data-testid="keypad-btn-end"
-        onClick={() => onPress("END")}
-        aria-label="End call"
+        onClick={() => onPress("HOME")}
+        aria-label="Home"
       ><span /></button>
     </div>
 

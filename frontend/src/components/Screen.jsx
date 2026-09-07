@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from "react";
+import PixelText from "./PixelText";
 import {
   BatteryCharging,
   Bell,
@@ -112,8 +113,13 @@ const Screen = ({
 
   if (currentView === "home") {
     return (
-      <div className="lcd-screen" data-testid="screen-home">
+      <div className="lcd-screen lcd-home" data-testid="screen-home">
         <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
+
+        <div className="lcd-identity">
+          <div className="lcd-carrier"><PixelText>{deviceStatus?.carrierName || "Nokia"}</PixelText></div>
+          <div className="lcd-date"><PixelText>{`${currentTime.toLocaleDateString("en-US", { weekday: "short" })}, ${String(currentTime.getDate()).padStart(2, "0")} ${currentTime.toLocaleDateString("en-US", { month: "short" })}`}</PixelText></div>
+        </div>
 
         <button
           type="button"
@@ -122,17 +128,7 @@ const Screen = ({
           aria-label={`Open Clock, current time ${formattedTime}`}
           onClick={onClockClick}
         >
-          {formattedTime}
-        </button>
-
-        <button
-          type="button"
-          className={`lcd-search ${selectedHomeTarget === "search" ? "is-selected" : ""}`}
-          data-testid="home-search"
-          aria-label="Open built-in browser"
-          onClick={onSearchFocus}
-        >
-          <Search aria-hidden="true" />
+          <span><PixelText>{formattedTime}</PixelText></span>
         </button>
 
         <div className="lcd-shortcuts" data-testid="home-menu">
@@ -147,13 +143,13 @@ const Screen = ({
         </div>
 
         <div className="lcd-softkeys" aria-label="Home screen actions">
+          <button type="button" className={selectedHomeTarget === "search" ? "is-selected" : ""} onClick={onSearchFocus} aria-label="Open built-in browser">Go to</button>
           <button
             type="button"
             onClick={onOpenMenu}
           >
             Menu
           </button>
-          <span aria-hidden="true" />
           <button
             type="button"
             onClick={onOpenSettings}

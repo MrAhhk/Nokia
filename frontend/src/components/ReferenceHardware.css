@@ -1,16 +1,16 @@
 /* Approved September reference. Static materials; no animated paint effects. */
 .nokia-launcher {
-  --lcd: #92972e;
-  --lcd-light: #a0a53a;
-  --lcd-dark: #777c23;
-  --ink: #0b1000;
+  --lcd: #7c7e12;
+  --lcd-light: #858712;
+  --lcd-dark: #73750c;
+  --ink: #030400;
   container-type: size;
   border-radius: 4.5cqw;
   box-shadow: inset 0 0 0 2px #030404, inset 0 1px 2px #515454, inset 0 -12px 24px rgba(0,0,0,.52);
   background: #080a0a;
 }
 .nokia-wordmark {
-  flex: 0 0 6.8%;
+  flex: 0 0 6.9%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -19,10 +19,10 @@
   letter-spacing: -.055em;
   text-shadow: 0 0 3px #fff, 0 0 7px #ffffff40;
 }
-.nokia-wordmark svg { width: 34%; height: auto; max-height: 65%; }
+.nokia-wordmark svg { width: 34%; height: auto; max-height: 65%; transform: translateY(.7cqh); }
 .nokia-launcher .nokia-launcher__screen {
-  flex: 0 0 50.4%;
-  height: 50.4%;
+  flex: 0 0 50.5%;
+  height: 50.5%;
   min-height: 0;
   padding: 0 5.4%;
   padding-bottom: 1.6cqh;
@@ -32,13 +32,13 @@
   flex: 1 1 0;
   height: auto;
   min-height: 0;
-  padding: 1.1cqh 6.4% max(.8cqh, env(safe-area-inset-bottom));
+  padding: 1.1cqh 6.4% max(1.3cqh, env(safe-area-inset-bottom));
 }
 .lcd-home {
   display: block;
   padding: 0;
 }
-.lcd-home .lcd-status { position: absolute; top: 5%; left: 4%; right: 4%; }
+.lcd-home .lcd-status { position: absolute; top: 3.2%; left: 4%; right: 4%; }
 .lcd-home .lcd-identity {
   position: absolute;
   top: 19%;
@@ -49,7 +49,10 @@
   font-weight: 900;
 }
 .lcd-carrier { font-family: "Courier New", "Lucida Console", monospace; font-size: 12.1cqw; line-height: 1.08; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -.085em; }
-.lcd-date { margin-top: 4.6cqh; font-family: "Courier New", "Lucida Console", monospace; font-size: 7.2cqw; line-height: 1; font-weight: 700; letter-spacing: -.095em; }
+.pixel-text { display: inline-block; max-width: 100%; vertical-align: middle; }
+.lcd-carrier .pixel-text { height: 1em; width: 62%; }
+.lcd-date { margin-top: 1.6cqh; font-family: "Courier New", "Lucida Console", monospace; font-size: 7.2cqw; line-height: 1; font-weight: 700; letter-spacing: -.095em; }
+.lcd-date .pixel-text { height: 1em; width: 42%; }
 .nokia-launcher .lcd-home .lcd-time {
   position: absolute;
   top: 56%;
@@ -80,14 +83,15 @@
   white-space: nowrap;
   clip-path: polygon(0 0,100% 0,100% 100%,26% 100%);
 }
+.lcd-time .pixel-text { width: auto; height: 1em; }
 .lcd-home .lcd-time::before, .lcd-home .lcd-time::after { content: none; }
 .lcd-home .lcd-time.is-selected { outline: 1px solid var(--ink); outline-offset: 3px; }
 .lcd-home .lcd-shortcuts { position: absolute; top: 69%; left: 2%; right: 2%; height: 17%; padding: 0; }
-.lcd-home .lcd-shortcut { font-size: 0; gap: 0; letter-spacing: .025em; }
+.lcd-home .lcd-shortcut { font-size: 3.6cqw; gap: 1cqh; letter-spacing: .025em; }
 .lcd-home .lcd-shortcut__icon { width: 9cqw; height: 9cqw; }
 .lcd-home .lcd-shortcut__icon svg { filter: none; }
-.lcd-home .lcd-softkeys { position: absolute; left: 3.5%; right: 3.5%; bottom: 3%; font-size: 3.5cqw; }
-.nokia-launcher .hardware-keypad { max-width: none; grid-template-rows: minmax(0, 1fr) minmax(0, 1.86fr); gap: .5cqh; }
+.lcd-home .lcd-softkeys { position: absolute; left: 3.5%; right: 3.5%; bottom: 1.8%; font-size: 3.5cqw; }
+.nokia-launcher .hardware-keypad { max-width: none; grid-template-rows: minmax(0, 1fr) minmax(0, 1.86fr); gap: .2cqh; }
 .hardware-controls { grid-template-columns: 1fr 1.46fr 1fr; grid-template-rows: .72fr 1fr; gap: 1.65cqh 4.2cqw; }
 .hardware-controls .hardware-button { width: 100%; height: 100%; min-height: 0; border-radius: 2.6cqw; }
 .hardware-soft-left { grid-area: 1 / 1; }
@@ -104,7 +108,7 @@
   border: 6px solid #070808;
   border-radius: 6cqw;
   background-color: #111415;
-  box-shadow: 0 3px 4px #000, inset 0 0 0 3px #fafafa, inset 0 0 0 5px #b9babb, inset 0 0 0 8px #0b0c0c, inset 0 -8px 10px rgba(0,0,0,.7);
+  box-shadow: 0 3px 4px #000, inset 0 0 0 4px #fafafa, inset 0 0 0 7px #b9babb, inset 0 0 0 10px #0b0c0c, inset 0 -8px 10px rgba(0,0,0,.7);
 }
 .nokia-launcher .hardware-dpad .dpad-select { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
 .hardware-numbers { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: .8cqh 2.8cqw; }

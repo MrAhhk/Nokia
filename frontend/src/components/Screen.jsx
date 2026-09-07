@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef } from "react";
+import PixelText from "./PixelText";
 import {
   BatteryCharging,
   Bell,
@@ -116,8 +117,8 @@ const Screen = ({
         <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
 
         <div className="lcd-identity">
-          <div className="lcd-carrier">{deviceStatus?.carrierName || "MobiFone"}</div>
-          <div className="lcd-date">{`${currentTime.toLocaleDateString("en-US", { weekday: "short" })}, ${String(currentTime.getDate()).padStart(2, "0")} ${currentTime.toLocaleDateString("en-US", { month: "short" })}`}</div>
+          <div className="lcd-carrier"><PixelText>{deviceStatus?.carrierName || "MobiFone"}</PixelText></div>
+          <div className="lcd-date"><PixelText>{`${currentTime.toLocaleDateString("en-US", { weekday: "short" })}, ${String(currentTime.getDate()).padStart(2, "0")} ${currentTime.toLocaleDateString("en-US", { month: "short" })}`}</PixelText></div>
         </div>
 
         <button
@@ -127,7 +128,7 @@ const Screen = ({
           aria-label={`Open Clock, current time ${formattedTime}`}
           onClick={onClockClick}
         >
-          <span>{formattedTime}</span>
+          <span><PixelText>{formattedTime}</PixelText></span>
         </button>
 
         <div className="lcd-shortcuts" data-testid="home-menu">
@@ -290,6 +291,7 @@ const HomeShortcut = memo(({ item, isSelected, onClick }) => {
       aria-label={`Open ${item.label}`}
     >
       <span className="lcd-shortcut__icon"><Icon aria-hidden="true" /></span>
+      <span>{item.label}</span>
     </button>
   );
 });

@@ -272,7 +272,7 @@ public final class BuiltInBrowserController {
         if (browserContainer != null) return;
 
         browserContainer = new FrameLayout(activity);
-        GradientDrawable shell = roundedDrawable(CHROME, dp(9), dpInt(1), CHROME_LINE);
+        GradientDrawable shell = roundedDrawable(CHROME, dp(9), 0, Color.TRANSPARENT);
         browserContainer.setBackground(shell);
         browserContainer.setClipToOutline(true);
 

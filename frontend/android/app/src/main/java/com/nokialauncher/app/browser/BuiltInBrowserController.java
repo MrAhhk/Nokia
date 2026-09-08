@@ -340,7 +340,7 @@ public final class BuiltInBrowserController {
         });
         LinearLayout addressAndTabs = new LinearLayout(activity);
         addressAndTabs.setGravity(Gravity.CENTER_VERTICAL);
-        addressAndTabs.setBackground(roundedDrawable(Color.WHITE, dp(16), dpInt(1), CHROME_LINE));
+        addressAndTabs.setBackgroundColor(Color.TRANSPARENT);
         LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
         addressAndTabs.addView(addressField, addressParams);
 

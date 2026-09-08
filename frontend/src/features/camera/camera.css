@@ -3,6 +3,8 @@
   position: relative;
   padding: 0;
   overflow: hidden;
+  border: 0;
+  border-radius: 0;
   background: #080a09;
 }
 
@@ -52,24 +54,37 @@
 .camera-native-slot__fallback {
   position: absolute;
   inset: 0;
+
+.camera-native-slot__fallback {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
   opacity: 0.32;
   font: 700 18px/1 "Lucida Console", monospace;
 }
 
-.camera-readout,
+.camera-readout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  font-family: "Lucida Console", "Courier New", monospace;
+  font-size: clamp(10px, 3vw, 14px);
+  font-weight: 800;
+  text-shadow: 0.3px 0 0 currentColor;
+}
+.camera-readout > :last-child { text-align: right; }
+
 .camera-softkeys {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   align-items: end;
   font-family: "Lucida Console", "Courier New", monospace;
-  font-size: clamp(9px, 2.8vw, 13px);
-  font-weight: 700;
+  font-size: clamp(14px, 4.4vw, 19px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor;
 }
-
-.camera-readout { grid-template-columns: 1fr 1fr; align-items: center; }
-.camera-readout > :last-child,
 .camera-softkeys > :last-child { text-align: right; }
 .camera-softkeys > :nth-child(2) { text-align: center; }
 

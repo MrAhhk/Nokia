@@ -393,10 +393,7 @@ public final class BuiltInCameraController {
         activity.runOnUiThread(() -> {
             if (activeRecording != null) activeRecording.stop();
             if (cameraProvider != null) cameraProvider.unbindAll();
-            camera = null;
-            imageCapture = null;
-            videoCapture = null;
-            detachPreview();
+            removePreview();
             removeMediaView();
             JSObject result = new JSObject();
             result.put("stopped", true);
@@ -408,10 +405,7 @@ public final class BuiltInCameraController {
         activity.runOnUiThread(() -> {
             if (activeRecording != null) activeRecording.stop();
             if (cameraProvider != null) cameraProvider.unbindAll();
-            camera = null;
-            imageCapture = null;
-            videoCapture = null;
-            detachPreview();
+            removePreview();
             removeMediaView();
         });
     }
@@ -461,10 +455,6 @@ public final class BuiltInCameraController {
         cameraChromeView.setFlash(flashName());
         previewContainer.setOnTouchListener((view, event) -> handlePreviewTouch(event));
         attachToRoot(previewContainer);
-        if (cameraProvider != null) {
-            bindUseCases(call);
-            return;
-        }
         ListenableFuture<ProcessCameraProvider> future = ProcessCameraProvider.getInstance(activity);
         future.addListener(() -> {
             try {
@@ -609,6 +599,9 @@ public final class BuiltInCameraController {
         if (previewContainer != null) previewContainer.removeAllViews();
         previewContainer = null;
         previewView = null;
+        camera = null;
+        imageCapture = null;
+        videoCapture = null;
         if (cameraChromeView != null) cameraChromeView.release();
         cameraChromeView = null;
     }
@@ -789,7 +782,6 @@ public final class BuiltInCameraController {
             float iconSize = dp(28);
             float galleryLeft = dp(22);
             RectF galleryBox = new RectF(galleryLeft, controlY - iconSize / 2f, galleryLeft + iconSize, controlY + iconSize / 2f);
-            drawPill(canvas, galleryBox.left - dp(5), galleryBox.top - dp(5), galleryBox.right + dp(5), galleryBox.bottom + dp(5));
             if (galleryThumbnail != null && !galleryThumbnail.isRecycled()) {
                 drawCenterCrop(canvas, galleryThumbnail, galleryBox);
             }

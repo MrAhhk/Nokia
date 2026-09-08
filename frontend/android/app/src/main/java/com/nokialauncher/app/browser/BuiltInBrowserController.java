@@ -252,12 +252,7 @@ public final class BuiltInBrowserController {
     public void stop() {
         active = false;
         hideKeyboard();
-        for (WebView tab : tabs) tab.onPause();
         detachFromRoot();
-    }
-
-    private void releaseBrowserViews() {
-        stop();
         for (WebView tab : tabs) destroyWebView(tab);
         tabs.clear();
         activeTabIndex = -1;
@@ -270,7 +265,7 @@ public final class BuiltInBrowserController {
     }
 
     public void destroy() {
-        activity.runOnUiThread(this::releaseBrowserViews);
+        activity.runOnUiThread(this::stop);
     }
 
     private void ensureBrowserView() {
@@ -330,12 +325,12 @@ public final class BuiltInBrowserController {
         addressField.setTextColor(INK);
         addressField.setHintTextColor(Color.rgb(104, 108, 99));
         addressField.setHint("Search or enter address");
-        addressField.setPadding(dpInt(12), 0, dpInt(10), 0);
+        addressField.setPadding(dpInt(12), 0, dpInt(8), 0);
         addressField.setSelectAllOnFocus(true);
         addressField.setShowSoftInputOnFocus(false);
         addressField.setImeOptions(EditorInfo.IME_ACTION_GO);
         addressField.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
-        addressField.setBackground(roundedDrawable(Color.WHITE, dp(16), dpInt(1), CHROME_LINE));
+        addressField.setBackgroundColor(Color.TRANSPARENT);
         addressField.setOnEditorActionListener((view, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_GO || (event != null && event.getKeyCode() == android.view.KeyEvent.KEYCODE_ENTER)) {
                 navigateFromAddress();
@@ -343,17 +338,24 @@ public final class BuiltInBrowserController {
             }
             return false;
         });
-        LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(0, dpInt(34), 1f);
-        addressParams.setMargins(dpInt(2), 0, dpInt(5), 0);
-        bar.addView(addressField, addressParams);
+        LinearLayout addressAndTabs = new LinearLayout(activity);
+        addressAndTabs.setGravity(Gravity.CENTER_VERTICAL);
+        addressAndTabs.setBackground(roundedDrawable(Color.WHITE, dp(16), dpInt(1), CHROME_LINE));
+        LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        addressAndTabs.addView(addressField, addressParams);
 
         tabCountButton = controlButton("1", "Tabs");
         tabCountButton.setTextSize(14);
-        tabCountButton.setBackground(roundedDrawable(Color.TRANSPARENT, dp(5), dpInt(1), INK));
+        tabCountButton.setBackgroundColor(Color.TRANSPARENT);
         tabCountButton.setOnClickListener(this::showTabsMenu);
-        LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(dpInt(31), dpInt(29));
-        tabParams.setMargins(0, 0, dpInt(4), 0);
-        bar.addView(tabCountButton, tabParams);
+        TextView divider = new TextView(activity);
+        divider.setBackgroundColor(CHROME_LINE);
+        addressAndTabs.addView(divider, new LinearLayout.LayoutParams(dpInt(1), dpInt(20)));
+        addressAndTabs.addView(tabCountButton, new LinearLayout.LayoutParams(dpInt(38), ViewGroup.LayoutParams.MATCH_PARENT));
+
+        LinearLayout.LayoutParams navigationParams = new LinearLayout.LayoutParams(0, dpInt(34), 1f);
+        navigationParams.setMargins(dpInt(2), 0, dpInt(4), 0);
+        bar.addView(addressAndTabs, navigationParams);
 
         TextView menu = controlButton("⋮", "Browser menu");
         menu.setTextSize(22);

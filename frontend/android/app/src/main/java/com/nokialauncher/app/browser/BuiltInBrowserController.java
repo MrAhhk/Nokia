@@ -48,10 +48,11 @@ public final class BuiltInBrowserController {
     private static final int CHROME_LINE = Color.rgb(192, 196, 184);
     private static final String DISABLE_SYSTEM_IME_SCRIPT =
         "(function(){"
-            + "const mark=()=>document.querySelectorAll('input,textarea,[contenteditable=\"true\"]')"
-            + ".forEach(el=>el.setAttribute('inputmode','none'));"
-            + "mark();"
-            + "if(!window.__nokiaImeObserver){window.__nokiaImeObserver=new MutationObserver(mark);"
+            + "const selector='input,textarea,[contenteditable=\"true\"]';"
+            + "const mark=root=>{if(root.matches&&root.matches(selector))root.setAttribute('inputmode','none');"
+            + "if(root.querySelectorAll)root.querySelectorAll(selector).forEach(el=>el.setAttribute('inputmode','none'));};"
+            + "mark(document);"
+            + "if(!window.__nokiaImeObserver){window.__nokiaImeObserver=new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{if(node.nodeType===1)mark(node);})));"
             + "window.__nokiaImeObserver.observe(document.documentElement,{childList:true,subtree:true});}"
             + "})();";
 
@@ -82,6 +83,7 @@ public final class BuiltInBrowserController {
     private final Activity activity;
     private final BrowserStateListener stateListener;
     private FrameLayout browserContainer;
+    private LinearLayout browserSurface;
     private FrameLayout webHost;
     private LinearLayout chromeBar;
     private WebView webView;
@@ -265,6 +267,7 @@ public final class BuiltInBrowserController {
         chromeBar = null;
         chromeDivider = null;
         progressBar = null;
+        browserSurface = null;
         browserContainer = null;
     }
 
@@ -276,12 +279,13 @@ public final class BuiltInBrowserController {
         if (browserContainer != null) return;
 
         browserContainer = new FrameLayout(activity);
-        GradientDrawable shell = roundedDrawable(CHROME, dp(9), 0, Color.TRANSPARENT);
-        browserContainer.setBackground(shell);
-        browserContainer.setClipToOutline(true);
+        browserContainer.setBackgroundColor(Color.rgb(8, 10, 9));
 
         LinearLayout column = new LinearLayout(activity);
+        browserSurface = column;
         column.setOrientation(LinearLayout.VERTICAL);
+        column.setBackground(roundedDrawable(CHROME, dp(9), 0, Color.TRANSPARENT));
+        column.setClipToOutline(true);
         browserContainer.addView(column, new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
@@ -505,8 +509,8 @@ public final class BuiltInBrowserController {
             chromeBar.setBackgroundColor(pageColor);
             applyTextColor(chromeBar, foreground);
         }
-        if (browserContainer != null) {
-            browserContainer.setBackground(roundedDrawable(pageColor, dp(9), 0, Color.TRANSPARENT));
+        if (browserSurface != null) {
+            browserSurface.setBackground(roundedDrawable(pageColor, dp(9), 0, Color.TRANSPARENT));
         }
         if (addressField != null) addressField.setHintTextColor(Color.argb(150, Color.red(foreground), Color.green(foreground), Color.blue(foreground)));
         if (chromeDivider != null) chromeDivider.setBackgroundColor(Color.argb(80, Color.red(foreground), Color.green(foreground), Color.blue(foreground)));

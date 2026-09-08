@@ -3,7 +3,7 @@ const COMMANDS = {
   RIGHT: "forward",
   UP: "scroll-up",
   DOWN: "scroll-down",
-  SELECT: "focus-address",
+  SELECT: "submit",
   SEND: "submit",
   END: "exit",
   "#": "tabs",

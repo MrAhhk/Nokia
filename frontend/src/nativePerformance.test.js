@@ -41,6 +41,12 @@ test("launcher window draws edge-to-edge and hides both system bars", () => {
   expect(source).toContain("WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars()");
   expect(source).toContain("SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION");
   expect(source).toContain("setNavigationBarColor(Color.TRANSPARENT)");
+  const cutoutStyle = fs.readFileSync(
+    path.resolve(__dirname, "../android/app/src/main/res/values-v28/styles.xml"),
+    "utf8",
+  );
+  expect(cutoutStyle).toContain("windowLayoutInDisplayCutoutMode");
+  expect(cutoutStyle).toContain("shortEdges");
 });
 
 test("the Play launcher entry cannot create a second WebView Home task", () => {

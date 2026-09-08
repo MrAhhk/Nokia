@@ -30,6 +30,18 @@ test("activity resume delegates WebView lifecycle without forcing redraws", () =
   expect(onResume).not.toContain("getWebView().onResume()");
 });
 
+test("launcher window draws edge-to-edge and hides both system bars", () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, "../android/app/src/main/java/com/nokialauncher/app/MainActivity.java"),
+    "utf8",
+  );
+
+  expect(source).toContain("setDecorFitsSystemWindows(false)");
+  expect(source).toContain("WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars()");
+  expect(source).toContain("SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION");
+  expect(source).toContain("setNavigationBarColor(Color.TRANSPARENT)");
+});
+
 test("the Play launcher entry cannot create a second WebView Home task", () => {
   const manifest = fs.readFileSync(
     path.resolve(__dirname, "../android/app/src/main/AndroidManifest.xml"),

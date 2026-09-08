@@ -134,3 +134,15 @@ test("native haptics are bounded and classified as interaction feedback", () => 
     expect(source).toContain("Math.min(1000");
   });
 });
+
+test("flashlight action toggles the native camera torch", () => {
+  const plugin = fs.readFileSync(
+    path.resolve(__dirname, "../android/app/src/main/java/com/nokialauncher/app/LauncherAppsPlugin.java"),
+    "utf8",
+  );
+
+  expect(plugin).toContain("toggleFlashlight");
+  expect(plugin).toContain("CameraManager");
+  expect(plugin).toContain("setTorchMode");
+  expect(plugin).toContain("flashlightPermissionCallback");
+});

@@ -321,6 +321,12 @@ export const cycleNotificationMode = async () => {
   return launcherApps.cycleNotificationMode();
 };
 
+export const toggleFlashlight = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.toggleFlashlight) return { enabled: false, supported: false };
+  return launcherApps.toggleFlashlight();
+};
+
 export const showCameraMedia = (media) =>
   callCameraMethod("showCameraMedia", media, { shown: false });
 

@@ -36,7 +36,7 @@ test("physical launcher controls preserve logical keys and twenty rapid alternat
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => root.render(<Keypad variant="launcher" onKeypadPress={onKeypadPress} />));
-  for (const [label, key] of [["Next item", "TAB"], ["Back", "BACK"], ["Call", "SEND"], ["Home", "HOME"], ["Up", "UP"], ["Left", "LEFT"], ["Select", "SELECT"], ["Right", "RIGHT"], ["Down", "DOWN"]]) {
+  for (const [label, key] of [["Go to", "GOTO"], ["Settings", "SETTINGS"], ["Tab", "TAB"], ["Home", "HOME"], ["Up", "UP"], ["Left", "LEFT"], ["Select", "SELECT"], ["Right", "RIGHT"], ["Down", "DOWN"]]) {
     act(() => container.querySelector(`button[aria-label="${label}"]`).click());
     expect(onKeypadPress).toHaveBeenLastCalledWith(key);
   }
@@ -47,4 +47,31 @@ test("physical launcher controls preserve logical keys and twenty rapid alternat
   expect(onKeypadPress.mock.calls.map(([key]) => key).join("")).toBe("23".repeat(10));
   act(() => root.unmount());
   container.remove();
+});
+
+test("launcher zero key emits flashlight on long press and zero on short press", () => {
+  jest.useFakeTimers();
+  const onKeypadPress = jest.fn();
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  act(() => root.render(<Keypad variant="launcher" onKeypadPress={onKeypadPress} />));
+  const zero = container.querySelector('[data-testid="keypad-btn-0"]');
+
+  act(() => zero.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+  act(() => jest.advanceTimersByTime(600));
+  expect(onKeypadPress).toHaveBeenLastCalledWith("FLASHLIGHT");
+  act(() => zero.dispatchEvent(new Event("pointerup", { bubbles: true })));
+  act(() => zero.click());
+  expect(onKeypadPress).toHaveBeenCalledTimes(1);
+
+  onKeypadPress.mockClear();
+  act(() => zero.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+  act(() => zero.dispatchEvent(new Event("pointerup", { bubbles: true })));
+  act(() => zero.click());
+  expect(onKeypadPress).toHaveBeenLastCalledWith("0");
+
+  act(() => root.unmount());
+  container.remove();
+  jest.useRealTimers();
 });

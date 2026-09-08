@@ -30,6 +30,7 @@ import {
   openWebUrl,
   requestSystemToneAccess,
   toggleSirenSound,
+  toggleFlashlight,
   triggerHaptic,
 } from "@/lib/launcherApps";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
@@ -481,7 +482,20 @@ const NokiaLauncher = ({ apps }) => {
         setCurrentView("home");
         return;
       }
-      if (key === "TAB") key = "RIGHT";
+      if (key === "GOTO") {
+        openBuiltInBrowser();
+        return;
+      }
+      if (key === "SETTINGS") {
+        openSettings(currentView);
+        return;
+      }
+      if (key === "FLASHLIGHT") {
+        toggleFlashlight().catch((error) =>
+          console.error("Unable to toggle flashlight:", error)
+        );
+        return;
+      }
       if (key === "BACK") {
         if (["camera", "clock", "browser", "snake", "sound"].includes(currentView) || toneSetupVisible) {
           key = "END";
@@ -499,6 +513,20 @@ const NokiaLauncher = ({ apps }) => {
         if (key === "END") skipToneSetup();
         if (key === "SEND" || key === "SELECT" || key === "5") acceptToneSetup();
         return;
+      }
+
+      // The green key is a contextual Tab key: browser tabs in the built-in
+      // browser, and next focus target everywhere else.
+      if (key === "TAB") {
+        if (currentView === "browser") {
+          browserFeatureRef.current?.handleKey("#");
+          return;
+        }
+        if (currentView === "home" && !dialActive) {
+          handleNavigation("right");
+          return;
+        }
+        key = "RIGHT";
       }
 
       if (currentView === "camera") {
@@ -571,6 +599,18 @@ const NokiaLauncher = ({ apps }) => {
       }
 
       if (["UP", "DOWN", "LEFT", "RIGHT"].includes(key)) {
+        if (currentView === "home" && !dialActive) {
+          if (key === "UP") {
+            setCurrentView("menu");
+            return;
+          }
+          if (key === "LEFT" || key === "RIGHT" || key === "DOWN") {
+            // Go to is intentionally not selectable from the D-pad. The
+            // dedicated white soft key is the only entry to that surface.
+            if (HOME_FOCUS_TARGETS[selectedIndex] !== "search") handleSelect();
+            return;
+          }
+        }
         handleNavigation(key.toLowerCase());
         return;
       }
@@ -604,9 +644,10 @@ const NokiaLauncher = ({ apps }) => {
         return;
       }
 
-      // ─── Home Screen * opens Menu ───
+      // ─── Home Screen * starts a USSD/dial string ───
       if (currentView === "home" && key === "*") {
-        setCurrentView("menu");
+        setDialActive(true);
+        setDialNumber("*");
         return;
       }
 
@@ -655,6 +696,7 @@ const NokiaLauncher = ({ apps }) => {
       toneSetupVisible,
       acceptToneSetup,
       skipToneSetup,
+      openBuiltInBrowser,
     ]
   );
 

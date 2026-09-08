@@ -14,6 +14,9 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraManager;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.os.BatteryManager;
@@ -51,6 +54,7 @@ import org.json.JSONArray;
 public class LauncherAppsPlugin extends Plugin {
     private BuiltInCameraController cameraController;
     private BuiltInBrowserController browserController;
+    private boolean flashlightOn = false;
 
     @Override
     protected void handleOnPause() {
@@ -442,6 +446,63 @@ public class LauncherAppsPlugin extends Plugin {
         result.put("supported", supported);
         result.put("granted", supported && Settings.System.canWrite(getContext()));
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public void toggleFlashlight(PluginCall call) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            JSObject result = new JSObject();
+            result.put("enabled", false);
+            result.put("supported", false);
+            call.resolve(result);
+            return;
+        }
+        if (getPermissionState("camera") != PermissionState.GRANTED) {
+            requestPermissionForAlias("camera", call, "flashlightPermissionCallback");
+            return;
+        }
+        setFlashlight(call);
+    }
+
+    @PermissionCallback
+    private void flashlightPermissionCallback(PluginCall call) {
+        if (getPermissionState("camera") != PermissionState.GRANTED) {
+            call.reject("Camera permission is required for the flashlight");
+            return;
+        }
+        setFlashlight(call);
+    }
+
+    private void setFlashlight(PluginCall call) {
+        try {
+            CameraManager manager = (CameraManager) getContext().getSystemService(Context.CAMERA_SERVICE);
+            String torchCameraId = null;
+            if (manager != null) {
+                for (String cameraId : manager.getCameraIdList()) {
+                    Boolean hasFlash = manager.getCameraCharacteristics(cameraId)
+                        .get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                    if (Boolean.TRUE.equals(hasFlash)) {
+                        torchCameraId = cameraId;
+                        break;
+                    }
+                }
+            }
+            if (manager == null || torchCameraId == null) {
+                JSObject result = new JSObject();
+                result.put("enabled", false);
+                result.put("supported", false);
+                call.resolve(result);
+                return;
+            }
+            flashlightOn = !flashlightOn;
+            manager.setTorchMode(torchCameraId, flashlightOn);
+            JSObject result = new JSObject();
+            result.put("enabled", flashlightOn);
+            result.put("supported", true);
+            call.resolve(result);
+        } catch (CameraAccessException | SecurityException error) {
+            call.reject("flashlight_unavailable", error);
+        }
     }
 
     @PluginMethod

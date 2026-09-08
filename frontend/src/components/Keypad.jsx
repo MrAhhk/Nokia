@@ -1,4 +1,4 @@
-import { memo, useRef, useCallback } from "react";
+import { memo, useRef, useCallback, useEffect } from "react";
 import { 
   Phone, 
   PhoneOff, 
@@ -177,17 +177,51 @@ const HandsetLegend = ({ end = false }) => (
   </svg>
 );
 
-const LauncherKeypad = ({ onPress }) => (
+const LauncherKeypad = ({ onPress }) => {
+  const longPressTimerRef = useRef(null);
+  const longPressFiredRef = useRef(false);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearLongPress, [clearLongPress]);
+
+  const handleZeroPointerDown = useCallback(() => {
+    clearLongPress();
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      onPress("FLASHLIGHT");
+    }, 550);
+  }, [clearLongPress, onPress]);
+
+  const handleZeroPointerUp = useCallback(() => {
+    clearLongPress();
+  }, [clearLongPress]);
+
+  const handleZeroClick = useCallback(() => {
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+    onPress("0");
+  }, [onPress]);
+
+  return (
   <div className="physical-keypad" data-testid="keypad">
     <div className="physical-controls">
-      <button type="button" className="physical-key physical-soft-left" onClick={() => onPress("TAB")} aria-label="Next item"><span className="physical-key__face"><svg viewBox="0 0 70 38" aria-hidden="true"><path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg></span></button>
-      <button type="button" className="physical-key physical-soft-right" onClick={() => onPress("BACK")} aria-label="Back"><span className="physical-key__face"><svg viewBox="0 0 70 38" aria-hidden="true"><path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg></span></button>
+      <button type="button" className="physical-key physical-soft-left" onClick={() => onPress("GOTO")} aria-label="Go to"><span className="physical-key__face"><svg viewBox="0 0 70 38" aria-hidden="true"><path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg></span></button>
+      <button type="button" className="physical-key physical-soft-right" onClick={() => onPress("SETTINGS")} aria-label="Settings"><span className="physical-key__face"><svg viewBox="0 0 70 38" aria-hidden="true"><path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg></span></button>
       <button
         type="button"
         className="physical-key physical-call"
-        data-testid="keypad-btn-send"
-        onClick={() => onPress("SEND")}
-        aria-label="Call"
+        data-testid="keypad-btn-tab"
+        onClick={() => onPress("TAB")}
+        aria-label="Tab"
       ><span className="physical-key__face"><HandsetLegend /></span></button>
 
       <div className="physical-dpad" role="group" aria-label="Directional pad">
@@ -215,7 +249,11 @@ const LauncherKeypad = ({ onPress }) => (
           key={key.number}
           data-testid={`keypad-btn-${key.number === "*" ? "star" : key.number === "#" ? "hash" : key.number}`}
           className="physical-key physical-number"
-          onClick={() => onPress(key.number)}
+          onClick={key.number === "0" ? handleZeroClick : () => onPress(key.number)}
+          onPointerDown={key.number === "0" ? handleZeroPointerDown : undefined}
+          onPointerUp={key.number === "0" ? handleZeroPointerUp : undefined}
+          onPointerCancel={key.number === "0" ? handleZeroPointerUp : undefined}
+          onPointerLeave={key.number === "0" ? handleZeroPointerUp : undefined}
           aria-label={key.number}
         >
           <span className="physical-key__face">
@@ -226,6 +264,7 @@ const LauncherKeypad = ({ onPress }) => (
       ))}
     </div>
   </div>
-);
+  );
+};
 
 export default memo(Keypad);

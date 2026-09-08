@@ -37,6 +37,7 @@ test("launcher window draws edge-to-edge and hides both system bars", () => {
   );
 
   expect(source).toContain("setDecorFitsSystemWindows(false)");
+  expect(source).toContain("FLAG_FULLSCREEN");
   expect(source).toContain("WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars()");
   expect(source).toContain("SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION");
   expect(source).toContain("setNavigationBarColor(Color.TRANSPARENT)");

@@ -37,6 +37,23 @@ describe("unified Nokia key grammar", () => {
     expect(resolveContextualIntent(KEY_INTENTS.GREEN, "default")).toBe(KEY_INTENTS.RECENT_APPS);
   });
 
+  it("preserves the accepted launcher grammar for every existing context", () => {
+    const expected = {
+      home: { SOFT_LEFT: "GOTO", GREEN: "RECENT_APPS", SOFT_RIGHT: "SETTINGS" },
+      dial: { SOFT_LEFT: "SEND", GREEN: "SEND", SOFT_RIGHT: "DELETE" },
+      browser: { SOFT_LEFT: "DELETE", GREEN: "TAB", SOFT_RIGHT: "BACK" },
+      menu: { SOFT_LEFT: "DELETE", GREEN: "RECENT_APPS", SOFT_RIGHT: "BACK" },
+      settings: { SOFT_LEFT: "DELETE", GREEN: "RECENT_APPS", SOFT_RIGHT: "BACK" },
+    };
+
+    Object.entries(expected).forEach(([context, mappings]) => {
+      Object.entries(mappings).forEach(([key, intent]) => {
+        expect(resolveContextualIntent(KEY_INTENTS[key], context)).toBe(KEY_INTENTS[intent]);
+      });
+    });
+    expect(KEY_INTENTS.END).toBe("END");
+  });
+
   it("shares one lower-case T9 alphabet and a complete punctuation cycle", () => {
     expect(NOKIA_MULTI_TAP_CYCLES[2]).toEqual(["a", "b", "c", "2"]);
     expect(NOKIA_MULTI_TAP_CYCLES[1]).toEqual(expect.arrayContaining([".", ",", "?", "!", "@", "1"]));

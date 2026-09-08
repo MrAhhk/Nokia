@@ -47,6 +47,8 @@ test("launcher window draws edge-to-edge and hides both system bars", () => {
   );
   expect(cutoutStyle).toContain("windowLayoutInDisplayCutoutMode");
   expect(cutoutStyle).toContain("shortEdges");
+  expect(cutoutStyle).toContain("Theme.AppCompat.DayNight.NoActionBar");
+  expect(cutoutStyle).toContain("windowActionBar");
 });
 
 test("the Play launcher entry cannot create a second WebView Home task", () => {

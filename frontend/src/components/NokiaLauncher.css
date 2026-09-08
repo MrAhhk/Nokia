@@ -7,7 +7,7 @@
   --ink: #111803;
   background: var(--shell);
   color: var(--ink);
-  font-family: "Courier New", "Lucida Console", monospace;
+  font-family: "Consolas", "Roboto Mono", "Lucida Console", "Courier New", monospace;
 }
 
 .nokia-launcher button {
@@ -174,8 +174,9 @@
 .lcd-dial-label {
   display: flex;
   align-items: end;
-  font-size: clamp(15px, 4vw, 20px);
-  font-weight: 700;
+  font-size: clamp(16px, 4.4vw, 22px);
+  font-weight: 800;
+  text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor;
 }
 
 .lcd-dial-number {
@@ -197,8 +198,24 @@
   display: flex;
   align-items: end;
   justify-content: space-between;
-  font-size: clamp(12px, 3.5vw, 17px);
-  font-weight: 700;
+  font-size: clamp(14px, 4.4vw, 19px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.lcd-dial-softkeys button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 800;
+  padding: 4px 8px;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor;
 }
 
 .nokia-launcher .lcd-time {
@@ -317,9 +334,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   align-items: end;
-  font-size: clamp(11px, 3.4vw, 16px);
-  font-weight: 700;
+  font-size: clamp(14px, 4.4vw, 19px);
+  font-weight: 800;
   line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 .lcd-softkeys > :nth-child(2) { text-align: center; }
@@ -331,6 +349,8 @@
   background: transparent;
   color: inherit;
   cursor: pointer;
+  font-weight: 800;
+  text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor;
 }
 
 .lcd-softkeys button.is-selected {
@@ -349,19 +369,22 @@
   justify-content: center;
   font-family: "Lucida Console", "Courier New", monospace;
   font-size: clamp(38px, 11vw, 58px);
+  font-weight: 800;
   line-height: 0.9;
   letter-spacing: 0.04em;
   transform: scaleX(0.88);
-  text-shadow: 1px 0 var(--ink);
+  text-shadow: 1px 0 var(--ink), -0.35px 0 var(--ink);
 }
 
 .lcd-list-title {
   display: flex;
   align-items: center;
   padding: 0 2px;
-  font-size: clamp(15px, 4.2vw, 21px);
-  font-weight: 700;
+  font-size: clamp(17px, 4.8vw, 23px);
+  font-weight: 800;
   line-height: 1;
+  letter-spacing: -0.02em;
+  text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor;
 }
 
 .lcd-list-header {
@@ -384,8 +407,8 @@
   border-radius: 0;
   background: transparent;
   color: inherit;
-  font-size: clamp(11px, 3vw, 15px);
-  font-weight: 700;
+  font-size: clamp(12px, 3.4vw, 16px);
+  font-weight: 800;
   text-align: left;
 }
 
@@ -400,6 +423,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 800;
+  text-shadow: 0.3px 0 0 currentColor;
 }
 
 .lcd-list-search.is-active {
@@ -444,17 +469,20 @@
   border-radius: 0;
   background: transparent;
   color: var(--ink);
-  font-size: clamp(17px, 4.6vw, 23px);
-  font-weight: 700;
+  font-size: clamp(18px, 5.2vw, 24px);
+  font-weight: 800;
   line-height: 1;
   text-align: left;
   cursor: pointer;
+  letter-spacing: -0.02em;
 }
 
 .lcd-list-row span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 800;
+  text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor;
 }
 
 .lcd-list-row.is-selected {
@@ -469,17 +497,19 @@
 
 .lcd-list-empty {
   padding: 8px;
-  font-size: clamp(17px, 4.6vw, 23px);
-  font-weight: 700;
+  font-size: clamp(18px, 5.2vw, 24px);
+  font-weight: 800;
+  text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor;
 }
 
 .lcd-list-softkeys {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   align-items: end;
-  font-size: clamp(11px, 3.4vw, 16px);
-  font-weight: 700;
+  font-size: clamp(14px, 4.4vw, 19px);
+  font-weight: 800;
   line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 .lcd-list-softkeys > :nth-child(2) { text-align: center; }
@@ -491,6 +521,8 @@
   background: transparent;
   color: inherit;
   cursor: pointer;
+  font-weight: 800;
+  text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor;
 }
 
 .lcd-list-softkeys button:focus-visible {

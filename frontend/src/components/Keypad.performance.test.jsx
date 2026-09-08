@@ -36,7 +36,7 @@ test("physical launcher controls preserve logical keys and twenty rapid alternat
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => root.render(<Keypad variant="launcher" onKeypadPress={onKeypadPress} />));
-  for (const [label, key] of [["Go to", "GOTO"], ["Settings", "SETTINGS"], ["Tab", "TAB"], ["Home", "HOME"], ["Up", "UP"], ["Left", "LEFT"], ["Select", "SELECT"], ["Right", "RIGHT"], ["Down", "DOWN"]]) {
+  for (const [label, key] of [["Go to or Delete", "SOFT_LEFT"], ["Settings or Back", "SOFT_RIGHT"], ["Call or Tab", "GREEN"], ["Home", "END"], ["Up", "UP"], ["Left", "LEFT"], ["Select", "SELECT"], ["Right", "RIGHT"], ["Down", "DOWN"]]) {
     act(() => container.querySelector(`button[aria-label="${label}"]`).click());
     expect(onKeypadPress).toHaveBeenLastCalledWith(key);
   }
@@ -74,4 +74,67 @@ test("launcher zero key emits flashlight on long press and zero on short press",
   act(() => root.unmount());
   container.remove();
   jest.useRealTimers();
+});
+
+test("launcher hash and end keys expose deliberate long-press intents", () => {
+  jest.useFakeTimers();
+  const onKeypadPress = jest.fn();
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  act(() => root.render(<Keypad variant="launcher" onKeypadPress={onKeypadPress} />));
+
+  const hash = container.querySelector('[data-testid="keypad-btn-hash"]');
+  act(() => hash.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+  act(() => jest.advanceTimersByTime(600));
+  expect(onKeypadPress).toHaveBeenLastCalledWith("NOTIFICATION_MODE");
+  act(() => hash.dispatchEvent(new Event("pointerup", { bubbles: true })));
+  act(() => hash.click());
+  expect(onKeypadPress).toHaveBeenCalledTimes(1);
+
+  const end = container.querySelector('[data-testid="keypad-btn-end"]');
+  act(() => end.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+  act(() => jest.advanceTimersByTime(600));
+  expect(onKeypadPress).toHaveBeenLastCalledWith("LOCK_SCREEN");
+  act(() => end.dispatchEvent(new Event("pointerup", { bubbles: true })));
+  act(() => end.click());
+  expect(onKeypadPress).toHaveBeenCalledTimes(2);
+
+  act(() => root.unmount());
+  container.remove();
+  jest.useRealTimers();
+});
+
+test("supports simultaneous multi-touch pointerdown on multiple keys without losing inputs", () => {
+  const onKeypadPress = jest.fn();
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  act(() => root.render(<Keypad variant="launcher" onKeypadPress={onKeypadPress} />));
+
+  const key2 = container.querySelector('[data-testid="keypad-btn-2"]');
+  const key3 = container.querySelector('[data-testid="keypad-btn-3"]');
+
+  // Both fingers land simultaneously (multi-touch)
+  act(() => {
+    key2.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    key3.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  });
+
+  expect(onKeypadPress).toHaveBeenCalledWith("2");
+  expect(onKeypadPress).toHaveBeenCalledWith("3");
+  expect(onKeypadPress).toHaveBeenCalledTimes(2);
+
+  // Subsequent synthetic click events from browser must be deduplicated
+  act(() => {
+    key2.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    key3.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    key2.click();
+    key3.click();
+  });
+
+  expect(onKeypadPress).toHaveBeenCalledTimes(2);
+
+  act(() => root.unmount());
+  container.remove();
 });

@@ -63,14 +63,15 @@
 .snake-overlay strong { font-size: clamp(19px, 6vw, 30px); }
 .snake-overlay span { font-size: clamp(10px, 2.8vw, 13px); }
 
-.snake-readout { gap: 8px; font-size: clamp(10px, 2.8vw, 13px); font-weight: 700; }
-.snake-softkeys { align-items: end; }
+.snake-readout { gap: 8px; font-size: clamp(11px, 3vw, 15px); font-weight: 800; text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor; }
+.snake-softkeys { align-items: end; font-size: clamp(14px, 4.4vw, 19px); font-weight: 800; }
 .snake-softkeys button {
   min-width: 68px;
   padding: 2px 4px;
   border: 0;
   background: transparent;
   color: inherit;
-  font-weight: 700;
+  font-weight: 800;
+  text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor;
 }
 .snake-softkeys button:focus-visible { outline: 1px solid var(--ink); }

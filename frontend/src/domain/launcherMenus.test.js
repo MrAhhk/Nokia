@@ -74,6 +74,7 @@ describe("launcher menu models", () => {
       .toEqual({ name: "System", packageName: "com.android.settings" });
     expect(SETTINGS_ITEMS.map((item) => item.label)).toEqual([
       "Snake",
+      "Default Launcher",
       "Display",
       "Sound",
       "Keyboard",
@@ -85,6 +86,7 @@ describe("launcher menu models", () => {
       .filter((item) => item.nativeSetting)
       .map((item) => item.nativeSetting);
     expect(nativeSettings).toEqual([
+      "default-launcher",
       "display",
       "keyboard",
       "digital-wellbeing",

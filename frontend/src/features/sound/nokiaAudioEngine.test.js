@@ -152,6 +152,32 @@ describe("nokiaAudioEngine", () => {
     handle.stop();
   });
 
+  test("plays DTMF keypad tone for HASH key", () => {
+    createdOscillators.length = 0;
+    const handle = playKeypadTone("HASH", KEYPAD_TONE_TYPES.DTMF, 4);
+    expect(createdOscillators.length).toBe(2);
+    // DTMF row 941, col 1477
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(941, 0);
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(1477, 0);
+    handle.stop();
+  });
+
+  test("plays DTMF 0 audio for control/navigation keys (green, red, d-pad, soft keys)", () => {
+    createdOscillators.length = 0;
+    const greenHandle = playKeypadTone("GREEN", KEYPAD_TONE_TYPES.DTMF, 4);
+    expect(createdOscillators.length).toBe(2);
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(941, 0);
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(1336, 0);
+    greenHandle.stop();
+
+    createdOscillators.length = 0;
+    const upHandle = playKeypadTone("UP", KEYPAD_TONE_TYPES.DTMF, 4);
+    expect(createdOscillators.length).toBe(2);
+    expect(createdOscillators[0].frequency.setValueAtTime).toHaveBeenCalledWith(941, 0);
+    expect(createdOscillators[1].frequency.setValueAtTime).toHaveBeenCalledWith(1336, 0);
+    upHandle.stop();
+  });
+
   test("returns null when keypad tone is OFF", () => {
     const handle = playKeypadTone("5", KEYPAD_TONE_TYPES.OFF);
     expect(handle).toBeNull();

@@ -1,44 +1,49 @@
 import { createMultiTapComposer } from "../../domain/multiTapComposer";
+import { NOKIA_MULTI_TAP_CYCLES } from "../../domain/keyGrammar";
 import { getBrowserCommand } from "./browserCommands";
 
-export const BROWSER_MULTI_TAP_CYCLES = {
-  "1": [".", ",", "?", "!", "1"],
-  "2": ["A", "B", "C", "2"],
-  "3": ["D", "E", "F", "3"],
-  "4": ["G", "H", "I", "4"],
-  "5": ["J", "K", "L", "5"],
-  "6": ["M", "N", "O", "6"],
-  "7": ["P", "Q", "R", "S", "7"],
-  "8": ["T", "U", "V", "8"],
-  "9": ["W", "X", "Y", "Z", "9"],
-};
+export const BROWSER_MULTI_TAP_CYCLES = NOKIA_MULTI_TAP_CYCLES;
 
 export const createBrowserKeypadController = ({
   send,
   onExit = () => {},
   delay = 500,
+  getCapsLock = () => false,
+  onCapsLockToggle = () => {},
 }) => {
   const composer = createMultiTapComposer({
     cycles: BROWSER_MULTI_TAP_CYCLES,
     delay,
     onPreview: (text) => {
-      if (text) send("input-preview", { text });
+      if (text) send("input-preview", { text: getCapsLock() ? text.toUpperCase() : text });
     },
-    onCommit: (text) => send("input-commit", { text }),
+    onCommit: (text) => send("input-commit", { text: getCapsLock() ? text.toUpperCase() : text }),
   });
 
   const handleKey = (key) => {
     if (composer.press(key)) return;
 
-    if (key === "*") {
+    if (key === "DELETE") {
       if (composer.cancelPending()) send("input-cancel-preview", {});
       else send("backspace", {});
+      return;
+    }
+
+    if (key === "*") {
+      composer.commit();
+      send("input-text", { text: "*" });
       return;
     }
 
     if (key === "0") {
       composer.commit();
       send("input-text", { text: " " });
+      return;
+    }
+
+    if (key === "#" || key === "CAPS_LOCK") {
+      composer.commit();
+      onCapsLockToggle();
       return;
     }
 

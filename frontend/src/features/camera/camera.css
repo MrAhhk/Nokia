@@ -54,10 +54,6 @@
 .camera-native-slot__fallback {
   position: absolute;
   inset: 0;
-
-.camera-native-slot__fallback {
-  position: absolute;
-  inset: 0;
   display: grid;
   place-items: center;
   opacity: 0.32;

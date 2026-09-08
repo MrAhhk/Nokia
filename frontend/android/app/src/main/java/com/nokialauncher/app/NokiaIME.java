@@ -156,10 +156,19 @@ public class NokiaIME extends InputMethodService {
     public void onComputeInsets(InputMethodService.Insets outInsets) {
         super.onComputeInsets(outInsets);
         if (!isFullscreenMode()) {
-            // Force contentTopInsets and visibleTopInsets to 0 (top of the IME window)
-            // to ensure the system sends the full keyboard height bottom layout inset to target apps.
-            outInsets.contentTopInsets = 0;
-            outInsets.visibleTopInsets = 0;
+            int fallback = outInsets.visibleTopInsets;
+            int inputHeight = mInputArea != null ? mInputArea.getHeight() : 0;
+            View decor = (getWindow() != null && getWindow().getWindow() != null)
+                ? getWindow().getWindow().getDecorView()
+                : null;
+            int decorHeight = (decor != null && decor.getHeight() > 0)
+                ? decor.getHeight()
+                : getResources().getDisplayMetrics().heightPixels;
+
+            int top = InputSessionPolicy.computeTopInsets(decorHeight, inputHeight, fallback);
+            outInsets.contentTopInsets = top;
+            outInsets.visibleTopInsets = top;
+            outInsets.touchableInsets = InputMethodService.Insets.TOUCHABLE_INSETS_VISIBLE;
         }
     }
 
@@ -233,11 +242,19 @@ public class NokiaIME extends InputMethodService {
             });
         }
 
+        private long mLastDpadPressTime = 0;
+
         @JavascriptInterface
         public void sendDpadKey(final String direction) {
             postToMainThread(new Runnable() {
                 @Override
                 public void run() {
+                    long now = System.currentTimeMillis();
+                    if (now - mLastDpadPressTime < 35) {
+                        return;
+                    }
+                    mLastDpadPressTime = now;
+
                     int keyCode = 0;
                     if ("UP".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_UP;
                     else if ("DOWN".equals(direction)) keyCode = KeyEvent.KEYCODE_DPAD_DOWN;

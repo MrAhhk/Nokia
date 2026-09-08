@@ -40,6 +40,21 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
     onKeypadPress(keyNumber);
   }, [onKeypadPress]);
 
+  const recentPointerRef = useRef(new Map());
+
+  const handlePointerDown = useCallback((key) => {
+    recentPointerRef.current.set(key, Date.now());
+    handleKeyPress(key);
+  }, [handleKeyPress]);
+
+  const handleClick = useCallback((key) => {
+    const lastTime = recentPointerRef.current.get(key) || 0;
+    if (Date.now() - lastTime < 450) {
+      return;
+    }
+    handleKeyPress(key);
+  }, [handleKeyPress]);
+
   if (variant === "launcher") {
     return (
       <LauncherKeypad
@@ -55,7 +70,8 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
         {/* Green Call Button */}
         <button
           data-testid="keypad-btn-send"
-          onClick={() => handleKeyPress("SEND")}
+          onPointerDown={() => handlePointerDown("SEND")}
+          onClick={() => handleClick("SEND")}
           className={`
             flex items-center justify-center h-12 md:h-14 rounded-md border 
             shadow-[0_4px_0_rgba(34,197,94,0.1)] active:translate-y-[4px] active:shadow-none 
@@ -68,7 +84,8 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
         {/* Center Select Button */}
         <button
           data-testid="keypad-btn-select"
-          onClick={() => handleKeyPress("SELECT")}
+          onPointerDown={() => handlePointerDown("SELECT")}
+          onClick={() => handleClick("SELECT")}
           className={`
             flex items-center justify-center h-12 md:h-14 rounded-md border 
             shadow-[0_4px_0_rgba(255,255,255,0.05)] active:translate-y-[4px] active:shadow-none 
@@ -81,7 +98,8 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
         {/* Red End Call Button */}
         <button
           data-testid="keypad-btn-end"
-          onClick={() => handleKeyPress("END")}
+          onPointerDown={() => handlePointerDown("END")}
+          onClick={() => handleClick("END")}
           className={`
             flex items-center justify-center h-12 md:h-14 rounded-md border 
             shadow-[0_4px_0_rgba(239,68,68,0.1)] active:translate-y-[4px] active:shadow-none 
@@ -100,7 +118,8 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
             <button
               key={key.number}
               data-testid={`keypad-btn-${key.number === "*" ? "star" : key.number === "#" ? "hash" : key.number}`}
-              onClick={() => handleKeyPress(key.number)}
+              onPointerDown={() => handlePointerDown(key.number)}
+              onClick={() => handleClick(key.number)}
               className={`
                 relative flex flex-col items-center justify-center rounded-md border border-white/10 
                 shadow-[0_4px_0_rgba(255,255,255,0.05)] active:translate-y-[4px] active:shadow-none 
@@ -177,94 +196,224 @@ const HandsetLegend = ({ end = false }) => (
   </svg>
 );
 
-const LauncherKeypad = ({ onPress }) => {
-  const longPressTimerRef = useRef(null);
-  const longPressFiredRef = useRef(false);
+const LauncherKeypad = memo(({ onPress }) => {
+  const longPressTimersRef = useRef(new Map());
+  const longPressFiredRef = useRef(new Map());
+  const recentPointerRef = useRef(new Map());
 
-  const clearLongPress = useCallback(() => {
-    if (longPressTimerRef.current !== null) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
+  const clearAllLongPress = useCallback(() => {
+    longPressTimersRef.current.forEach((timer) => clearTimeout(timer));
+    longPressTimersRef.current.clear();
+  }, []);
+
+  useEffect(() => clearAllLongPress, [clearAllLongPress]);
+
+  const handlePointerDownKey = useCallback((key) => {
+    recentPointerRef.current.set(key, Date.now());
+    onPress(key);
+  }, [onPress]);
+
+  const handleClickKey = useCallback((key) => {
+    const lastTime = recentPointerRef.current.get(key) || 0;
+    if (Date.now() - lastTime < 450) {
+      return;
+    }
+    onPress(key);
+  }, [onPress]);
+
+  const startLongPress = useCallback((key, longKey) => {
+    if (longPressTimersRef.current.has(key)) {
+      clearTimeout(longPressTimersRef.current.get(key));
+    }
+    longPressFiredRef.current.set(key, false);
+    const timer = setTimeout(() => {
+      longPressFiredRef.current.set(key, true);
+      longPressTimersRef.current.delete(key);
+      onPress(longKey);
+    }, 360);
+    longPressTimersRef.current.set(key, timer);
+  }, [onPress]);
+
+  const finishLongPress = useCallback((key, shortKey) => {
+    if (longPressTimersRef.current.has(key)) {
+      clearTimeout(longPressTimersRef.current.get(key));
+      longPressTimersRef.current.delete(key);
+      if (!longPressFiredRef.current.get(key)) {
+        recentPointerRef.current.set(key, Date.now());
+        onPress(shortKey);
+      }
+    }
+  }, [onPress]);
+
+  const cancelLongPress = useCallback((key) => {
+    if (longPressTimersRef.current.has(key)) {
+      clearTimeout(longPressTimersRef.current.get(key));
+      longPressTimersRef.current.delete(key);
     }
   }, []);
 
-  useEffect(() => clearLongPress, [clearLongPress]);
-
-  const handleZeroPointerDown = useCallback(() => {
-    clearLongPress();
-    longPressFiredRef.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      longPressFiredRef.current = true;
-      onPress("FLASHLIGHT");
-    }, 550);
-  }, [clearLongPress, onPress]);
-
-  const handleZeroPointerUp = useCallback(() => {
-    clearLongPress();
-  }, [clearLongPress]);
-
-  const handleZeroClick = useCallback(() => {
-    if (longPressFiredRef.current) {
-      longPressFiredRef.current = false;
+  const handleClickLongPress = useCallback((key, shortKey) => {
+    if (longPressFiredRef.current.get(key)) {
+      longPressFiredRef.current.set(key, false);
       return;
     }
-    onPress("0");
+    const lastTime = recentPointerRef.current.get(key) || 0;
+    if (Date.now() - lastTime < 450) {
+      return;
+    }
+    onPress(shortKey);
   }, [onPress]);
 
   return (
-  <div className="physical-keypad" data-testid="keypad">
-    <div className="physical-controls">
-      <button type="button" className="physical-key physical-soft-left" onClick={() => onPress("GOTO")} aria-label="Go to"><span className="physical-key__face"><svg viewBox="0 0 70 38" aria-hidden="true"><path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg></span></button>
-      <button type="button" className="physical-key physical-soft-right" onClick={() => onPress("SETTINGS")} aria-label="Settings"><span className="physical-key__face"><svg viewBox="0 0 70 38" aria-hidden="true"><path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg></span></button>
-      <button
-        type="button"
-        className="physical-key physical-call"
-        data-testid="keypad-btn-tab"
-        onClick={() => onPress("TAB")}
-        aria-label="Tab"
-      ><span className="physical-key__face"><HandsetLegend /></span></button>
-
-      <div className="physical-dpad" role="group" aria-label="Directional pad">
-        <div className="physical-dpad__rocker" aria-hidden="true"><div className="physical-dpad__rim"><div className="physical-dpad__cap" /></div></div>
-        <button type="button" className="physical-dpad__hit physical-dpad__hit--up" onClick={() => onPress("UP")} aria-label="Up" />
-        <button type="button" className="physical-dpad__hit physical-dpad__hit--left" onClick={() => onPress("LEFT")} aria-label="Left" />
-        <button type="button" className="physical-dpad__hit physical-dpad__hit--select" data-testid="keypad-btn-select" onClick={() => onPress("SELECT")} aria-label="Select" />
-        <button type="button" className="physical-dpad__hit physical-dpad__hit--right" onClick={() => onPress("RIGHT")} aria-label="Right" />
-        <button type="button" className="physical-dpad__hit physical-dpad__hit--down" onClick={() => onPress("DOWN")} aria-label="Down" />
-      </div>
-
-      <button
-        type="button"
-        className="physical-key physical-end"
-        data-testid="keypad-btn-end"
-        onClick={() => onPress("HOME")}
-        aria-label="Home"
-      ><span className="physical-key__face"><HandsetLegend end /></span></button>
-    </div>
-
-    <div className="physical-numbers">
-      {LAUNCHER_NUMBER_KEYS.map((key) => (
+    <div className="physical-keypad" data-testid="keypad" onContextMenu={(e) => e.preventDefault()}>
+      <div className="physical-controls">
         <button
           type="button"
-          key={key.number}
-          data-testid={`keypad-btn-${key.number === "*" ? "star" : key.number === "#" ? "hash" : key.number}`}
-          className="physical-key physical-number"
-          onClick={key.number === "0" ? handleZeroClick : () => onPress(key.number)}
-          onPointerDown={key.number === "0" ? handleZeroPointerDown : undefined}
-          onPointerUp={key.number === "0" ? handleZeroPointerUp : undefined}
-          onPointerCancel={key.number === "0" ? handleZeroPointerUp : undefined}
-          onPointerLeave={key.number === "0" ? handleZeroPointerUp : undefined}
-          aria-label={key.number}
+          className="physical-key physical-soft-left"
+          onPointerDown={() => handlePointerDownKey("SOFT_LEFT")}
+          onClick={() => handleClickKey("SOFT_LEFT")}
+          aria-label="Go to or Delete"
         >
           <span className="physical-key__face">
-            <strong>{key.number === "*" ? <svg className="physical-star" viewBox="0 0 40 44" aria-hidden="true"><path d="M20 2v40M3 11l34 22M3 33L37 11" fill="none" stroke="currentColor" strokeWidth="4" /></svg> : key.number}</strong>
-            {key.number === "0" ? <span className="physical-accessory"><Globe2 /></span> : key.number === "#" ? <span className="physical-accessory"><House /><Music2 /></span> : <small>{key.letters.toLowerCase()}</small>}
+            <svg viewBox="0 0 70 38" aria-hidden="true">
+              <path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+            </svg>
           </span>
         </button>
-      ))}
+
+        <button
+          type="button"
+          className="physical-key physical-soft-right"
+          onPointerDown={() => handlePointerDownKey("SOFT_RIGHT")}
+          onClick={() => handleClickKey("SOFT_RIGHT")}
+          aria-label="Settings or Back"
+        >
+          <span className="physical-key__face">
+            <svg viewBox="0 0 70 38" aria-hidden="true">
+              <path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+            </svg>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className="physical-key physical-call"
+          data-testid="keypad-btn-tab"
+          onPointerDown={() => handlePointerDownKey("GREEN")}
+          onClick={() => handleClickKey("GREEN")}
+          aria-label="Call or Tab"
+        >
+          <span className="physical-key__face">
+            <HandsetLegend />
+          </span>
+        </button>
+
+        <div className="physical-dpad" role="group" aria-label="Directional pad">
+          <div className="physical-dpad__rocker" aria-hidden="true">
+            <div className="physical-dpad__rim">
+              <div className="physical-dpad__cap" />
+            </div>
+          </div>
+          <button
+            type="button"
+            className="physical-dpad__hit physical-dpad__hit--up"
+            onPointerDown={() => handlePointerDownKey("UP")}
+            onClick={() => handleClickKey("UP")}
+            aria-label="Up"
+          />
+          <button
+            type="button"
+            className="physical-dpad__hit physical-dpad__hit--left"
+            onPointerDown={() => handlePointerDownKey("LEFT")}
+            onClick={() => handleClickKey("LEFT")}
+            aria-label="Left"
+          />
+          <button
+            type="button"
+            className="physical-dpad__hit physical-dpad__hit--select"
+            data-testid="keypad-btn-select"
+            onPointerDown={() => handlePointerDownKey("SELECT")}
+            onClick={() => handleClickKey("SELECT")}
+            aria-label="Select"
+          />
+          <button
+            type="button"
+            className="physical-dpad__hit physical-dpad__hit--right"
+            onPointerDown={() => handlePointerDownKey("RIGHT")}
+            onClick={() => handleClickKey("RIGHT")}
+            aria-label="Right"
+          />
+          <button
+            type="button"
+            className="physical-dpad__hit physical-dpad__hit--down"
+            onPointerDown={() => handlePointerDownKey("DOWN")}
+            onClick={() => handleClickKey("DOWN")}
+            aria-label="Down"
+          />
+        </div>
+
+        <button
+          type="button"
+          className="physical-key physical-end"
+          data-testid="keypad-btn-end"
+          onClick={() => handleClickLongPress("END", "END")}
+          onPointerDown={() => startLongPress("END", "LOCK_SCREEN")}
+          onPointerUp={() => finishLongPress("END", "END")}
+          onPointerCancel={() => cancelLongPress("END")}
+          onContextMenu={(e) => e.preventDefault()}
+          aria-label="Home"
+        >
+          <span className="physical-key__face">
+            <HandsetLegend end />
+          </span>
+        </button>
+      </div>
+
+      <div className="physical-numbers">
+        {LAUNCHER_NUMBER_KEYS.map((key) => {
+          const isZero = key.number === "0";
+          const isHash = key.number === "#";
+          const isLongPress = isZero || isHash;
+          const longKey = isZero ? "FLASHLIGHT" : "NOTIFICATION_MODE";
+          const shortKey = isZero ? "0" : "HASH";
+
+          return (
+            <button
+              type="button"
+              key={key.number}
+              data-testid={`keypad-btn-${key.number === "*" ? "star" : isHash ? "hash" : key.number}`}
+              className="physical-key physical-number"
+              onClick={isLongPress ? () => handleClickLongPress(key.number, shortKey) : () => handleClickKey(key.number)}
+              onPointerDown={isLongPress ? () => startLongPress(key.number, longKey) : () => handlePointerDownKey(key.number)}
+              onPointerUp={isLongPress ? () => finishLongPress(key.number, shortKey) : undefined}
+              onPointerCancel={isLongPress ? () => cancelLongPress(key.number) : undefined}
+              onContextMenu={(e) => e.preventDefault()}
+              aria-label={key.number}
+            >
+              <span className="physical-key__face">
+                <strong>
+                  {key.number === "*" ? (
+                    <svg className="physical-star" viewBox="0 0 40 44" aria-hidden="true">
+                      <path d="M20 2v40M3 11l34 22M3 33L37 11" fill="none" stroke="currentColor" strokeWidth="4" />
+                    </svg>
+                  ) : (
+                    key.number
+                  )}
+                </strong>
+                {key.number === "0" ? (
+                  <span className="physical-accessory"><Globe2 /></span>
+                ) : isHash ? (
+                  <span className="physical-accessory"><House /><Music2 /></span>
+                ) : (
+                  <small>{key.letters.toLowerCase()}</small>
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
-  </div>
   );
-};
+});
 
 export default memo(Keypad);

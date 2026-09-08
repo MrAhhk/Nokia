@@ -163,7 +163,7 @@ const SoundFeature = forwardRef(({ onExit }, ref) => {
   }, [runAction, updateSetting]);
 
   const handleKey = useCallback((key) => {
-    if (key === "END" || key === "#") {
+    if (key === "BACK" || key === "END" || key === "#") {
       stopAllSounds();
       onExit?.();
       return;

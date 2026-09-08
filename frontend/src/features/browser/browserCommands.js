@@ -5,8 +5,11 @@ const COMMANDS = {
   DOWN: "scroll-down",
   SELECT: "submit",
   SEND: "submit",
+  BACK: "back",
   END: "exit",
-  "#": "tabs",
+  TAB: "tabs",
+  "TAB-NEXT": "tab-next",
+  "TAB-PREVIOUS": "tab-previous",
 };
 
 export const getBrowserCommand = (key) => COMMANDS[key] || null;

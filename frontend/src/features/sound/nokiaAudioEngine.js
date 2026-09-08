@@ -15,7 +15,7 @@ import {
   ALARM_VIBRATION_PATTERNS,
   MESSAGE_VIBRATION_PATTERNS,
 } from "./soundConfig";
-import { triggerHaptic } from "../../lib/launcherApps";
+import { triggerHaptic, playNativeKeypadTone, triggerKeyHaptic } from "../../lib/launcherApps";
 
 let audioCtx = null;
 const activeSoundStoppers = new Set();
@@ -25,8 +25,8 @@ const audioBufferCache = new Map();
 let activeKeypadStopper = null;
 let suspendTimer = null;
 
-// Dense dual-pulse mechanical tactile vibration pattern for keys (35ms pulse, 10ms gap, 45ms sustain)
-export const KEYPAD_HAPTIC_PATTERN = Object.freeze([0, 35, 10, 45]);
+// Crisp single-pulse mechanical tactile vibration pattern for keys (60ms authentic Nokia tactile thud)
+export const KEYPAD_HAPTIC_PATTERN = Object.freeze([0, 60]);
 
 export const _resetAudioContext = () => {
   if (suspendTimer) {
@@ -73,12 +73,10 @@ const ensureAudioContextRunning = () => {
 const scheduleContextSuspend = () => {
   if (suspendTimer) {
     clearTimeout(suspendTimer);
+    suspendTimer = null;
   }
-  suspendTimer = setTimeout(() => {
-    if (activeSoundStoppers.size === 0 && audioCtx && audioCtx.state === "running") {
-      audioCtx.suspend?.().catch(() => {});
-    }
-  }, 2000);
+  // AudioContext is kept active to avoid 20-50ms waking latency on Android.
+  // When app pauses, pauseAudioEngine() cleanly suspends AudioContext.
 };
 
 /**
@@ -113,6 +111,25 @@ export const preloadAllSounds = () => {
 
   Object.entries(SOUND_ASSET_PATHS).forEach(([key, path]) => {
     preloadSound(key, path).catch(() => {});
+  });
+};
+
+/**
+ * Preload critical keypad audio immediately so keystrokes have zero decode/fetch latency
+ */
+export const preloadKeypadAudio = () => {
+  if (typeof window === "undefined") return;
+  const keypadKeys = [
+    "nokia_button_click",
+    "key_beep",
+    "dtmf_default",
+    "dtmf_star",
+    "dtmf_hash",
+    ..."0123456789".split("").map((d) => `dtmf_${d}`),
+  ];
+  keypadKeys.forEach((key) => {
+    const path = SOUND_ASSET_PATHS[key];
+    if (path) preloadSound(key, path).catch(() => {});
   });
 };
 
@@ -286,11 +303,12 @@ export const playTone = (frequencies, durationMs = 50, gainValue = 0.25, type = 
  * Uses integrated authentic Nokia button click sound, monophonic voice stealing, and dense haptic vibration.
  */
 export const playKeypadTone = (key, toneType = KEYPAD_TONE_TYPES.DTMF, volume = 4, vibrate = true) => {
-  if (vibrate) {
-    triggerHaptic(KEYPAD_HAPTIC_PATTERN);
+  if (toneType === KEYPAD_TONE_TYPES.OFF) {
+    if (vibrate) {
+      triggerKeyHaptic(60).catch(() => {});
+    }
+    return null;
   }
-
-  if (toneType === KEYPAD_TONE_TYPES.OFF) return null;
 
   // Monophonic voice stealing: stop any previous ongoing key tone so keystrokes never overlap and distort
   if (activeKeypadStopper) {
@@ -300,9 +318,21 @@ export const playKeypadTone = (key, toneType = KEYPAD_TONE_TYPES.DTMF, volume = 
     activeKeypadStopper = null;
   }
 
+  // 1. Android Native ToneGenerator & Haptic (0ms Hardware Audio & Haptic)
+  if (typeof window !== "undefined" && window.Capacitor?.Plugins?.LauncherApps?.playKeypadTone) {
+    if (toneType === KEYPAD_TONE_TYPES.DTMF) {
+      playNativeKeypadTone(key, 200, vibrate).catch(() => {});
+      return { stop: () => {} };
+    }
+  }
+
+  if (vibrate) {
+    triggerKeyHaptic(60).catch(() => {});
+  }
+
   let handle = null;
 
-  // 1. Nokia Button Click Mode
+  // 2. Nokia Button Click Mode
   if (toneType === KEYPAD_TONE_TYPES.CLICK) {
     handle = playAssetOnDemand(
       "nokia_button_click",
@@ -312,7 +342,7 @@ export const playKeypadTone = (key, toneType = KEYPAD_TONE_TYPES.DTMF, volume = 
       true,
     );
   } else if (toneType === KEYPAD_TONE_TYPES.BEEP) {
-    // 2. Beep Mode
+    // 3. Beep Mode
     handle = playAssetOnDemand(
       "key_beep",
       volume,
@@ -321,25 +351,58 @@ export const playKeypadTone = (key, toneType = KEYPAD_TONE_TYPES.DTMF, volume = 
       true,
     );
   } else {
-    // 3. DTMF Mode (Default) - Single stream with baked Nokia button click sound
-    let dtmfKey = "default";
-    if (key === "*") dtmfKey = "star";
-    else if (key === "#") dtmfKey = "hash";
-    else if (/^[0-9]$/.test(String(key))) dtmfKey = String(key);
-    else if (key === "END" || key === "SEND" || key === "SELECT" || key === "UP" || key === "DOWN" || key === "LEFT" || key === "RIGHT") {
-      dtmfKey = "default";
-    }
+    // 4. DTMF Mode (Default Web/Preview) - 200ms warm DTMF tone
+    const isDtmfDigit = /^[0-9]$/.test(String(key));
+    const isStar = key === "*" || key === "STAR";
+    const isHash = key === "#" || key === "HASH";
+    const isNav =
+      key === "GREEN" ||
+      key === "CALL" ||
+      key === "SEND" ||
+      key === "END" ||
+      key === "RED" ||
+      key === "HOME" ||
+      key === "SOFT_LEFT" ||
+      key === "SOFT_RIGHT" ||
+      key === "GOTO" ||
+      key === "BACK" ||
+      key === "DELETE" ||
+      key === "UP" ||
+      key === "DOWN" ||
+      key === "LEFT" ||
+      key === "RIGHT" ||
+      key === "SELECT" ||
+      key === "TAB";
 
-    handle = playAssetOnDemand(
-      `dtmf_${dtmfKey}`,
-      volume,
-      false,
-      () => {
-      const freqs = DTMF_FREQUENCIES[key] || [941, 1477];
-        return playTone(freqs, 50, volumeToGain(volume), "triangle", true);
-      },
-      true,
-    );
+    if (isDtmfDigit || isStar || isHash || isNav) {
+      let dtmfKey = "default";
+      let normKey = String(key);
+      if (isStar) {
+        dtmfKey = "star";
+        normKey = "*";
+      } else if (isHash) {
+        dtmfKey = "hash";
+        normKey = "#";
+      } else if (isNav) {
+        // Navigator + D-pad sound = sound of button 0
+        dtmfKey = "0";
+        normKey = "0";
+      } else if (isDtmfDigit) {
+        dtmfKey = String(key);
+        normKey = String(key);
+      }
+
+      handle = playAssetOnDemand(
+        `dtmf_${dtmfKey}`,
+        volume,
+        false,
+        () => {
+          const freqs = DTMF_FREQUENCIES[normKey] || [941, 1336];
+          return playTone(freqs, 200, volumeToGain(volume), "triangle", true);
+        },
+        true,
+      );
+    }
   }
 
   if (handle?.stop) {

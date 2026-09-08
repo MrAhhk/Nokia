@@ -77,8 +77,9 @@
   border-radius: 0;
   background: transparent;
   color: inherit;
-  font-size: clamp(10px, 2.8vw, 13px);
-  font-weight: 700;
+  font-size: clamp(11px, 3.2vw, 15px);
+  font-weight: 800;
+  text-shadow: 0.3px 0 0 currentColor;
 }
 
 .tone-setup__choices button:first-child,
@@ -95,6 +96,12 @@
   align-items: end;
   justify-content: space-between;
   border-top: 2px solid var(--ink, #111803);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: clamp(14px, 4.4vw, 19px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.tone-setup__softkeys button {
+  font-weight: 800;
+  text-shadow: 0.35px 0 0 currentColor, -0.35px 0 0 currentColor;
 }

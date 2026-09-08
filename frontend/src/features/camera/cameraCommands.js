@@ -3,7 +3,7 @@ import { CAMERA_MODES, CAMERA_VIEWS } from "./cameraState";
 export const getCameraCommand = (state, key) => {
   if (state.view === CAMERA_VIEWS.CAMERA) {
     if (key === "SEND") return state.recording || state.finalizing ? null : { type: "OPEN_GALLERY" };
-    if (key === "END" || key === "#") {
+    if (key === "BACK" || key === "END" || key === "#") {
       return state.recording ? { type: "STOP_VIDEO_AND_EXIT" } : { type: "EXIT_CAMERA" };
     }
     if (key === "SELECT" || key === "5") {
@@ -21,7 +21,7 @@ export const getCameraCommand = (state, key) => {
   }
 
   if (state.view === CAMERA_VIEWS.GALLERY) {
-    if (key === "END" || key === "#" || key === "SEND") return { type: "BACK_TO_CAMERA" };
+    if (key === "BACK" || key === "END" || key === "#" || key === "SEND") return { type: "BACK_TO_CAMERA" };
     if (key === "SELECT" || key === "5") return { type: "OPEN_SELECTED_MEDIA" };
     if (["UP", "DOWN", "LEFT", "RIGHT"].includes(key)) {
       return { type: "MOVE_GALLERY", direction: key.toLowerCase() };
@@ -29,7 +29,7 @@ export const getCameraCommand = (state, key) => {
   }
 
   if (state.view === CAMERA_VIEWS.VIEWER) {
-    if (key === "END" || key === "#") return { type: "BACK_TO_GALLERY" };
+    if (key === "BACK" || key === "END" || key === "#") return { type: "BACK_TO_GALLERY" };
     if (key === "SELECT" || key === "5") return { type: "TOGGLE_PLAYBACK" };
     if (key === "LEFT" || key === "4") return { type: "PREVIOUS_MEDIA" };
     if (key === "RIGHT" || key === "6") return { type: "NEXT_MEDIA" };

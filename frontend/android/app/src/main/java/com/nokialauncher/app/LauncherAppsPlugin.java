@@ -1,6 +1,9 @@
 package com.nokialauncher;
 
+import android.app.role.RoleManager;
+
 import android.Manifest;
+import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -19,12 +22,17 @@ import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
+import android.media.ToneGenerator;
+import android.view.HapticFeedbackConstants;
+import android.view.View;
 import android.os.BatteryManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.provider.Settings;
+import android.telecom.TelecomManager;
 import android.view.inputmethod.InputMethodManager;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -55,6 +63,27 @@ public class LauncherAppsPlugin extends Plugin {
     private BuiltInCameraController cameraController;
     private BuiltInBrowserController browserController;
     private boolean flashlightOn = false;
+    private ToneGenerator toneGenerator;
+
+    private synchronized ToneGenerator getToneGenerator() {
+        if (toneGenerator == null) {
+            try {
+                toneGenerator = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+            } catch (Exception e) {
+                toneGenerator = null;
+            }
+        }
+        return toneGenerator;
+    }
+
+    private synchronized void releaseToneGenerator() {
+        if (toneGenerator != null) {
+            try {
+                toneGenerator.release();
+            } catch (Exception ignored) {}
+            toneGenerator = null;
+        }
+    }
 
     @Override
     protected void handleOnPause() {
@@ -69,6 +98,7 @@ public class LauncherAppsPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
+        releaseToneGenerator();
         if (cameraController != null) {
             cameraController.destroy();
             cameraController = null;
@@ -202,7 +232,7 @@ public class LauncherAppsPlugin extends Plugin {
         }
 
         placeDirectCall(call, number);
-     }
+    }
 
     @PermissionCallback
     private void phonePermissionCallback(PluginCall call) {
@@ -210,7 +240,6 @@ public class LauncherAppsPlugin extends Plugin {
             call.reject("phone_permission_denied");
             return;
         }
-
         String number = call.getString("number");
         if (number == null || number.trim().isEmpty()) {
             call.reject("Phone number is required");
@@ -221,10 +250,31 @@ public class LauncherAppsPlugin extends Plugin {
 
     private void placeDirectCall(PluginCall call, String number) {
         try {
-            Uri uri = Uri.parse("tel:" + number.trim());
+            Uri uri = Uri.fromParts("tel", number.trim(), null);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                try {
+                    TelecomManager telecomManager = (TelecomManager) getContext().getSystemService(Context.TELECOM_SERVICE);
+                    if (telecomManager != null) {
+                        Bundle extras = new Bundle();
+                        try {
+                            android.telecom.PhoneAccountHandle defaultAccount = telecomManager.getUserSelectedOutgoingPhoneAccount();
+                            if (defaultAccount != null) {
+                                extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, defaultAccount);
+                            }
+                        } catch (Exception ignored) {}
+                        telecomManager.placeCall(uri, extras);
+                        call.resolve();
+                        return;
+                    }
+                } catch (Exception ignored) {}
+            }
             Intent intent = new Intent(Intent.ACTION_CALL, uri);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(intent);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+            if (getActivity() != null) {
+                getActivity().startActivity(intent);
+            } else {
+                getContext().startActivity(intent);
+            }
             call.resolve();
         } catch (Exception e) {
             call.reject("Failed to make phone call: " + e.getMessage(), e);
@@ -235,7 +285,7 @@ public class LauncherAppsPlugin extends Plugin {
     public void openDefaultPhone(PluginCall call) {
         try {
             Intent intent = new Intent(Intent.ACTION_DIAL);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
             getContext().startActivity(intent);
             call.resolve();
         } catch (Exception e) {
@@ -372,6 +422,68 @@ public class LauncherAppsPlugin extends Plugin {
         JSObject result = new JSObject();
         result.put("notificationMode", getNotificationMode(audio));
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public void openRecentApps(PluginCall call) {
+        JSObject result = new JSObject();
+        if (NokiaAccessibilityService.openRecentApps()) {
+            result.put("opened", true);
+            call.resolve(result);
+            return;
+        }
+
+        try {
+            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            result.put("opened", false);
+            result.put("needsActivation", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            result.put("opened", false);
+            result.put("error", e.getMessage());
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void lockScreen(PluginCall call) {
+        JSObject result = new JSObject();
+
+        if (NokiaAccessibilityService.lockScreen()) {
+            result.put("locked", true);
+            result.put("method", "accessibility");
+            call.resolve(result);
+            return;
+        }
+
+        DevicePolicyManager policy = (DevicePolicyManager)
+            getContext().getSystemService(Context.DEVICE_POLICY_SERVICE);
+        ComponentName admin = new ComponentName(getContext(), NokiaDeviceAdminReceiver.class);
+        if (policy != null && policy.isAdminActive(admin)) {
+            try {
+                policy.lockNow();
+                result.put("locked", true);
+                result.put("method", "device-admin");
+                call.resolve(result);
+                return;
+            } catch (SecurityException ignored) {
+            }
+        }
+
+        try {
+            Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            result.put("locked", false);
+            result.put("needsActivation", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            result.put("locked", false);
+            result.put("error", e.getMessage());
+            call.resolve(result);
+        }
     }
 
     private String getNotificationMode(AudioManager audio) {
@@ -660,12 +772,97 @@ public class LauncherAppsPlugin extends Plugin {
         }
     }
 
+
+    @PluginMethod
+    public void isDefaultLauncher(PluginCall call) {
+        JSObject result = new JSObject();
+        boolean isDefault = false;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            RoleManager roleManager = (RoleManager) getContext().getSystemService(Context.ROLE_SERVICE);
+            if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
+                isDefault = roleManager.isRoleHeld(RoleManager.ROLE_HOME);
+            }
+        }
+        if (!isDefault) {
+            Intent intent = new Intent(Intent.ACTION_MAIN);
+            intent.addCategory(Intent.CATEGORY_HOME);
+            ResolveInfo resolveInfo = getContext().getPackageManager().resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY);
+            if (resolveInfo != null && resolveInfo.activityInfo != null) {
+                isDefault = getContext().getPackageName().equals(resolveInfo.activityInfo.packageName);
+            }
+        }
+        result.put("isDefault", isDefault);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestDefaultLauncher(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            RoleManager roleManager = (RoleManager) getContext().getSystemService(Context.ROLE_SERVICE);
+            if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
+                if (!roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
+                    Intent roleIntent = roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME);
+                    if (getActivity() != null) {
+                        getActivity().startActivity(roleIntent);
+                        JSObject result = new JSObject();
+                        result.put("requested", true);
+                        call.resolve(result);
+                        return;
+                    }
+                } else {
+                    JSObject result = new JSObject();
+                    result.put("requested", false);
+                    result.put("alreadyDefault", true);
+                    call.resolve(result);
+                    return;
+                }
+            }
+        }
+        try {
+            Intent intent = new Intent(Settings.ACTION_HOME_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("requested", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            try {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(intent);
+                JSObject result = new JSObject();
+                result.put("requested", true);
+                call.resolve(result);
+            } catch (Exception fallbackErr) {
+                call.reject("Cannot open default home settings: " + fallbackErr.getMessage());
+            }
+        }
+    }
+
     @PluginMethod
     public void openSystemSetting(PluginCall call) {
         String setting = call.getString("setting", "settings");
         Intent intent;
 
         switch (setting) {
+            case "default-launcher":
+            case "home":
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    RoleManager roleManager = (RoleManager) getContext().getSystemService(Context.ROLE_SERVICE);
+                    if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
+                        Intent roleIntent = roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME);
+                        if (getActivity() != null) {
+                            getActivity().startActivity(roleIntent);
+                            call.resolve();
+                            return;
+                        }
+                    }
+                }
+                intent = new Intent(Settings.ACTION_HOME_SETTINGS);
+                if (intent.resolveActivity(getContext().getPackageManager()) == null) {
+                    intent = new Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS);
+                }
+                break;
             case "display":
                 intent = new Intent(Settings.ACTION_DISPLAY_SETTINGS);
                 break;
@@ -910,6 +1107,109 @@ public class LauncherAppsPlugin extends Plugin {
     @PluginMethod
     public void hideCameraMedia(PluginCall call) {
         cameraController().hideMedia(call);
+    }
+
+    private void triggerNativeKeyHaptic(int durationMs) {
+        try {
+            Context ctx = getContext();
+            if (ctx != null) {
+                Vibrator vibrator = (Vibrator) ctx.getSystemService(Context.VIBRATOR_SERVICE);
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    int duration = durationMs > 0 ? durationMs : 60;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE));
+                    } else {
+                        vibrator.vibrate(duration);
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
+    @PluginMethod
+    public void triggerKeyHaptic(PluginCall call) {
+        int duration = call.getInt("duration", 60);
+        triggerNativeKeyHaptic(duration);
+        JSObject res = new JSObject();
+        res.put("success", true);
+        call.resolve(res);
+    }
+
+    @PluginMethod
+    public void playKeypadTone(PluginCall call) {
+        String key = call.getString("key", "");
+        int duration = call.getInt("duration", 200);
+        boolean haptic = call.getBoolean("haptic", true);
+
+        if (haptic) {
+            triggerNativeKeyHaptic(60);
+        }
+
+        int tone = -1;
+        switch (key) {
+            case "0":
+            // Navigator + D-pad keys produce the exact same tone as 0 in Nokia 1280 Launcher
+            case "GREEN":
+            case "CALL":
+            case "SEND":
+            case "END":
+            case "RED":
+            case "HOME":
+            case "SOFT_LEFT":
+            case "SOFT_RIGHT":
+            case "GOTO":
+            case "BACK":
+            case "DELETE":
+            case "UP":
+            case "DOWN":
+            case "LEFT":
+            case "RIGHT":
+            case "SELECT":
+            case "TAB":
+                tone = ToneGenerator.TONE_DTMF_0;
+                break;
+            case "1": tone = ToneGenerator.TONE_DTMF_1; break;
+            case "2": tone = ToneGenerator.TONE_DTMF_2; break;
+            case "3": tone = ToneGenerator.TONE_DTMF_3; break;
+            case "4": tone = ToneGenerator.TONE_DTMF_4; break;
+            case "5": tone = ToneGenerator.TONE_DTMF_5; break;
+            case "6": tone = ToneGenerator.TONE_DTMF_6; break;
+            case "7": tone = ToneGenerator.TONE_DTMF_7; break;
+            case "8": tone = ToneGenerator.TONE_DTMF_8; break;
+            case "9": tone = ToneGenerator.TONE_DTMF_9; break;
+            case "*":
+            case "STAR":
+                tone = ToneGenerator.TONE_DTMF_S;
+                break;
+            case "#":
+            case "HASH":
+                tone = ToneGenerator.TONE_DTMF_P;
+                break;
+            default:
+                tone = -1;
+                break;
+        }
+
+        if (tone >= 0) {
+            ToneGenerator tg = getToneGenerator();
+            if (tg != null) {
+                try {
+                    tg.startTone(tone, duration);
+                } catch (Exception e) {
+                    releaseToneGenerator();
+                    ToneGenerator retryTg = getToneGenerator();
+                    if (retryTg != null) {
+                        try {
+                            retryTg.startTone(tone, duration);
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        }
+
+        JSObject res = new JSObject();
+        res.put("success", true);
+        call.resolve(res);
     }
 
      private boolean isSystemApp(ResolveInfo resolveInfo) {

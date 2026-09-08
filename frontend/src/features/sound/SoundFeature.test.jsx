@@ -85,8 +85,8 @@ describe("SoundFeature", () => {
     });
     expect(ringtoneRow.textContent).toContain("Ring ring");
 
-    // Press END to exit
-    act(() => featureRef.current.handleKey("END"));
+    // Press the white Back key to exit this surface.
+    act(() => featureRef.current.handleKey("BACK"));
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 });

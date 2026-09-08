@@ -53,6 +53,15 @@ describe("camera keypad commands", () => {
     expect(getCameraCommand(recording, "END")).toEqual({ type: "STOP_VIDEO_AND_EXIT" });
   });
 
+  test("white Back follows the current camera surface instead of acting like red Home", () => {
+    const camera = createCameraState();
+    const gallery = { ...camera, view: CAMERA_VIEWS.GALLERY };
+    const viewer = { ...camera, view: CAMERA_VIEWS.VIEWER };
+    expect(getCameraCommand(camera, "BACK")).toEqual({ type: "EXIT_CAMERA" });
+    expect(getCameraCommand(gallery, "BACK")).toEqual({ type: "BACK_TO_CAMERA" });
+    expect(getCameraCommand(viewer, "BACK")).toEqual({ type: "BACK_TO_GALLERY" });
+  });
+
   test("star toggles the composition grid only while idle", () => {
     const idle = createCameraState();
     expect(getCameraCommand(idle, "*")).toEqual({ type: "TOGGLE_GRID" });

@@ -182,7 +182,7 @@ const ClockFeature = forwardRef(({ onExit }, ref) => {
       resetActiveMode();
       return;
     }
-    if (key === "END" || key === "#") onExit();
+    if (key === "BACK" || key === "END" || key === "#") onExit();
   }, [activatePrimary, adjustTimer, changeMode, mode, onExit, resetActiveMode]);
 
   useImperativeHandle(ref, () => ({ handleKey }), [handleKey]);

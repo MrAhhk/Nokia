@@ -34,7 +34,7 @@ describe("SnakeFeature", () => {
     expect(container.textContent).toContain("RUNNING");
     act(() => featureRef.current.handleKey("5"));
     expect(container.textContent).toContain("PAUSED");
-    act(() => featureRef.current.handleKey("END"));
+    act(() => featureRef.current.handleKey("BACK"));
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 

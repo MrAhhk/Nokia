@@ -29,11 +29,13 @@ const getNativeBounds = (element) => {
   };
 };
 
-const BrowserFeature = forwardRef(({ initialUrl = BROWSER_START_URL, onExit }, ref) => {
+const BrowserFeature = forwardRef(({ initialUrl = BROWSER_START_URL, onExit, openTabs = false }, ref) => {
   const surfaceRef = useRef(null);
   const initialUrlRef = useRef(initialUrl);
   const onExitRef = useRef(onExit);
   const keypadControllerRef = useRef(null);
+  const tabsModeRef = useRef(openTabs);
+  const capsLockRef = useRef(false);
   const [nativeReady, setNativeReady] = useState(true);
   onExitRef.current = onExit;
 
@@ -43,8 +45,11 @@ const BrowserFeature = forwardRef(({ initialUrl = BROWSER_START_URL, onExit }, r
         console.warn(`Browser command ${command} failed:`, error)
       ),
       onExit: () => {
+        tabsModeRef.current = false;
         stopBuiltInBrowser().catch(() => {}).finally(() => onExitRef.current());
       },
+      getCapsLock: () => capsLockRef.current,
+      onCapsLockToggle: () => { capsLockRef.current = !capsLockRef.current; },
     });
   }
 
@@ -54,11 +59,15 @@ const BrowserFeature = forwardRef(({ initialUrl = BROWSER_START_URL, onExit }, r
     try {
       const result = await startBuiltInBrowser({ ...bounds, url: initialUrlRef.current });
       setNativeReady(result?.native !== false);
+      if (openTabs) {
+        tabsModeRef.current = true;
+        await controlBuiltInBrowser("tabs", {});
+      }
     } catch (error) {
       console.error("Built-in browser unavailable:", error);
       setNativeReady(false);
     }
-  }, []);
+  }, [openTabs]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(startBrowser);
@@ -102,6 +111,23 @@ const BrowserFeature = forwardRef(({ initialUrl = BROWSER_START_URL, onExit }, r
   }, [onExit]);
 
   const handleKey = useCallback((key) => {
+    if (key === "TAB") {
+      tabsModeRef.current = true;
+      keypadControllerRef.current?.handleKey("TAB");
+      return;
+    }
+    if (tabsModeRef.current && key === "LEFT") {
+      keypadControllerRef.current?.handleKey("TAB-PREVIOUS");
+      return;
+    }
+    if (tabsModeRef.current && key === "RIGHT") {
+      keypadControllerRef.current?.handleKey("TAB-NEXT");
+      return;
+    }
+    if (key === "END") {
+      tabsModeRef.current = false;
+      capsLockRef.current = false;
+    }
     keypadControllerRef.current?.handleKey(key);
   }, []);
 

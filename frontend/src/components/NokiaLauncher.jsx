@@ -7,7 +7,7 @@ import ClockFeature from "@/features/clock/ClockFeature";
 import SnakeFeature from "@/features/snake/SnakeFeature";
 import SoundFeature from "@/features/sound/SoundFeature";
 import ToneSetupPrompt from "@/features/sound/ToneSetupPrompt";
-import { pauseAudioEngine, playKeypadTone } from "@/features/sound/nokiaAudioEngine";
+import { pauseAudioEngine, playKeypadTone, preloadKeypadAudio } from "@/features/sound/nokiaAudioEngine";
 import { loadSoundSettings } from "@/features/sound/soundStorage";
 import {
   TONE_SETUP_STATES,
@@ -31,9 +31,17 @@ import {
   requestSystemToneAccess,
   toggleSirenSound,
   toggleFlashlight,
+  lockScreen,
+  openRecentApps,
   triggerHaptic,
 } from "@/lib/launcherApps";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
+import {
+  KEY_INTENTS,
+  NOKIA_MULTI_TAP_CYCLES,
+  dispatchKey,
+  resolveContextualIntent,
+} from "@/domain/keyGrammar";
 import {
   HOME_FOCUS_TARGETS,
   SETTINGS_ITEMS,
@@ -49,20 +57,9 @@ import "./NokiaLauncher.css";
 import "./AgedHardwareTheme.css";
 import "./ReferenceHardware.css";
 
-// Multi-tap cycle: letters first, number at the end (classic Nokia)
-const MULTI_TAP_CYCLES = {
-  "2": ["A", "B", "C", "2"],
-  "3": ["D", "E", "F", "3"],
-  "4": ["G", "H", "I", "4"],
-  "5": ["J", "K", "L", "5"],
-  "6": ["M", "N", "O", "6"],
-  "7": ["P", "Q", "R", "S", "7"],
-  "8": ["T", "U", "V", "8"],
-  "9": ["W", "X", "Y", "Z", "9"],
-};
-
 // How long (ms) of inactivity before the pending char is auto-committed
 const MULTI_TAP_DELAY = 250;
+const HOME_APP_TARGETS = HOME_FOCUS_TARGETS.filter((target) => !["clock", "search"].includes(target));
 
 const NokiaLauncher = ({ apps }) => {
   const [currentView, setCurrentView] = useState("home");
@@ -85,10 +82,17 @@ const NokiaLauncher = ({ apps }) => {
   // committedText: fully confirmed characters | pendingChar: character being cycled right now
   const [committedText, setCommittedText] = useState("");
   const [pendingChar, setPendingChar] = useState("");
+  const [capsLock, setCapsLock] = useState(false);
+  const capsLockRef = useRef(capsLock);
+  capsLockRef.current = capsLock;
 
   // Dialer state for home screen numbers
   const [dialActive, setDialActive] = useState(false);
+  const dialActiveRef = useRef(false);
+  dialActiveRef.current = dialActive;
   const [dialNumber, setDialNumber] = useState("");
+  const [isCalling, setIsCalling] = useState(false);
+  const [openBrowserTabs, setOpenBrowserTabs] = useState(false);
   const [deviceStatus, setDeviceStatus] = useState(null);
   const nativeToneSetupAvailable = Boolean(window.Capacitor?.Plugins?.LauncherApps);
   const [toneSetupState, setToneSetupState] = useState(() =>
@@ -105,10 +109,10 @@ const NokiaLauncher = ({ apps }) => {
   const multiTapComposerRef = useRef(null);
   if (multiTapComposerRef.current === null) {
     multiTapComposerRef.current = createMultiTapComposer({
-      cycles: MULTI_TAP_CYCLES,
+      cycles: NOKIA_MULTI_TAP_CYCLES,
       delay: MULTI_TAP_DELAY,
-      onPreview: setPendingChar,
-      onCommit: (character) => setCommittedText((text) => text + character),
+      onPreview: (character) => setPendingChar(capsLockRef.current ? character.toUpperCase() : character),
+      onCommit: (character) => setCommittedText((text) => text + (capsLockRef.current ? character.toUpperCase() : character)),
     });
   }
 
@@ -194,6 +198,7 @@ const NokiaLauncher = ({ apps }) => {
   }, [applyInitialSystemTones, toneSetupState]);
 
   useEffect(() => {
+    preloadKeypadAudio();
     const pauseWhenHidden = () => {
       if (document.visibilityState === "hidden") pauseAudioEngine();
     };
@@ -271,16 +276,24 @@ const NokiaLauncher = ({ apps }) => {
   const activateSearch = useCallback(() => {
     searchActiveRef.current = true;
     setSearchActive(true);
+    setCapsLock(false);
     setCommittedText("");
     clearPending();
     setSelectedIndex(0);
   }, [clearPending]);
 
   const openBuiltInBrowser = useCallback(() => {
+    setOpenBrowserTabs(false);
+    setCurrentView("browser");
+  }, []);
+
+  const openBuiltInTabs = useCallback(() => {
+    setOpenBrowserTabs(true);
     setCurrentView("browser");
   }, []);
 
   const closeBuiltInBrowser = useCallback(() => {
+    setOpenBrowserTabs(false);
     setCurrentView("home");
   }, []);
 
@@ -289,8 +302,12 @@ const NokiaLauncher = ({ apps }) => {
     setSearchActive(false);
     setCommittedText("");
     clearPending();
+    dialActiveRef.current = false;
     setDialActive(false);
     setDialNumber("");
+    setIsCalling(false);
+    setOpenBrowserTabs(false);
+    setCapsLock(false);
     setCurrentView("home");
     setSelectedIndex(HOME_FOCUS_TARGETS.indexOf("phone"));
   }, [clearPending]);
@@ -338,10 +355,22 @@ const NokiaLauncher = ({ apps }) => {
     [currentView, visibleMenuItems.length]
   );
 
+  const handleHomeCursor = useCallback((direction) => {
+    setSelectedIndex((previous) => {
+      const currentTarget = HOME_FOCUS_TARGETS[previous];
+      const currentAppIndex = Math.max(0, HOME_APP_TARGETS.indexOf(currentTarget));
+      const nextAppIndex = direction === "left"
+        ? (currentAppIndex > 0 ? currentAppIndex - 1 : HOME_APP_TARGETS.length - 1)
+        : (currentAppIndex < HOME_APP_TARGETS.length - 1 ? currentAppIndex + 1 : 0);
+      return HOME_FOCUS_TARGETS.indexOf(HOME_APP_TARGETS[nextAppIndex]);
+    });
+  }, []);
+
   const handleOpenApp = useCallback((app) => {
     if (!app) return;
     if (app.action === "default-phone") {
-      openDefaultPhone().catch((err) => console.error("Error opening phone:", err));
+      dialActiveRef.current = true;
+      setDialActive(true);
       return;
     }
     if (app.action === "default-maps") {
@@ -391,13 +420,6 @@ const NokiaLauncher = ({ apps }) => {
     }
   }, [currentView, selectedIndex, visibleMenuItems, handleOpenApp, homeShortcuts, openBuiltInBrowser, activateSetting]);
 
-  const handleSettingClick = useCallback((setting) => {
-    if (!setting) return;
-    const index = visibleMenuItems.findIndex((item) => item.id === setting.id);
-    if (index >= 0) setSelectedIndex(index);
-    activateSetting(setting);
-  }, [activateSetting, visibleMenuItems]);
-
   const handleBack = useCallback(() => {
     if (currentView === "menu") {
       if (pendingChar) { clearPending(); return; }
@@ -422,6 +444,165 @@ const NokiaLauncher = ({ apps }) => {
     }
   }, [currentView, searchActive, committedText, pendingChar, clearPending, settingsReturnView]);
 
+  const handleMultiTapInput = useCallback(
+    (key) => {
+      if (!searchActiveRef.current) return false;
+      const cycle = NOKIA_MULTI_TAP_CYCLES[key];
+      if (cycle) return multiTapComposerRef.current.press(key);
+      if (key === "*") {
+        commitPending();
+        setCommittedText((text) => text + "*");
+        return true;
+      }
+      if (key === "0") {
+        commitPending();
+        setCommittedText((text) => text + " ");
+        return true;
+      }
+      return false;
+    },
+    [commitPending]
+  );
+
+  const handleMultiTapDelete = useCallback(() => {
+    if (!searchActiveRef.current) return false;
+    if (!multiTapComposerRef.current.cancelPending()) {
+      setCommittedText((text) => text.slice(0, -1));
+    }
+    return true;
+  }, []);
+
+  const featureRefsByView = useMemo(() => ({
+    camera: cameraFeatureRef,
+    clock: clockFeatureRef,
+    browser: browserFeatureRef,
+    snake: snakeFeatureRef,
+    sound: soundFeatureRef,
+  }), []);
+
+  const returnHome = useCallback(() => {
+    if (toneSetupVisible) {
+      skipToneSetup();
+      return;
+    }
+    restoreHome();
+  }, [restoreHome, skipToneSetup, toneSetupVisible]);
+
+  const handleUniversalDelete = useCallback(() => {
+    if (dialActive || dialActiveRef.current || dialNumber) {
+      setIsCalling(false);
+      setDialNumber((prev) => (prev ? prev.slice(0, -1) : ""));
+      return;
+    }
+    if (handleMultiTapDelete()) return;
+    featureRefsByView[currentView]?.current?.handleKey(KEY_INTENTS.DELETE);
+  }, [currentView, dialActive, dialNumber, featureRefsByView, handleMultiTapDelete]);
+
+  const handleUniversalBack = useCallback(() => {
+    if (toneSetupVisible) {
+      skipToneSetup();
+      return;
+    }
+    if (dialActive || dialActiveRef.current) {
+      handleUniversalDelete();
+      return;
+    }
+    const featureRef = featureRefsByView[currentView];
+    if (featureRef) {
+      featureRef.current?.handleKey(KEY_INTENTS.BACK);
+      return;
+    }
+    handleBack();
+  }, [currentView, dialActive, featureRefsByView, handleBack, handleUniversalDelete, skipToneSetup, toneSetupVisible]);
+
+  const handleUniversalRecentApps = useCallback(() => {
+    triggerHaptic([0, 30, 20, 30]);
+    openRecentApps().catch((err) => console.error("Error opening recent apps:", err));
+  }, []);
+
+  const handleUniversalSelect = useCallback(() => {
+    if (toneSetupVisible) {
+      acceptToneSetup();
+      return;
+    }
+    const featureRef = featureRefsByView[currentView];
+    if (featureRef) {
+      featureRef.current?.handleKey("SELECT");
+      return;
+    }
+    if (dialActive || dialActiveRef.current) {
+      if (dialNumber) {
+        setIsCalling(true);
+        makePhoneCall(dialNumber).catch((err) => {
+          console.error("Error making direct phone call:", err);
+          setIsCalling(false);
+        });
+      }
+      return;
+    }
+    handleSelect();
+  }, [acceptToneSetup, currentView, dialActive, dialNumber, featureRefsByView, handleSelect, toneSetupVisible]);
+
+  const handleUniversalDirection = useCallback((key) => {
+    const featureRef = featureRefsByView[currentView];
+    if (featureRef) {
+      featureRef.current?.handleKey(key);
+      return;
+    }
+    if (dialActive || dialActiveRef.current) {
+      return;
+    }
+    if (currentView === "home") {
+      const homeDirection = {
+        UP: () => setCurrentView("menu"),
+        LEFT: () => handleHomeCursor("left"),
+        RIGHT: () => handleHomeCursor("right"),
+        DOWN: () => handleHomeCursor("right"),
+      }[key];
+      homeDirection?.();
+      return;
+    }
+    handleNavigation(key.toLowerCase());
+  }, [currentView, dialActive, featureRefsByView, handleHomeCursor, handleNavigation]);
+
+  const handleUniversalTab = useCallback(() => {
+    if (currentView === "browser") {
+      browserFeatureRef.current?.handleKey("TAB");
+      return;
+    }
+    handleUniversalRecentApps();
+  }, [currentView, handleUniversalRecentApps]);
+
+  const handleUniversalSend = useCallback(() => {
+    const featureRef = featureRefsByView[currentView];
+    if (featureRef) {
+      featureRef.current?.handleKey("SEND");
+      return;
+    }
+    if (dialActive || dialActiveRef.current) {
+      if (dialNumber) {
+        setIsCalling(true);
+        makePhoneCall(dialNumber).catch((err) => {
+          console.error("Error making direct phone call:", err);
+          setIsCalling(false);
+        });
+      }
+      return;
+    }
+    const sendAction = {
+      home: () => setCurrentView("menu"),
+      menu: () => visibleMenuItems[selectedIndex] && handleOpenApp(visibleMenuItems[selectedIndex]),
+    }[currentView];
+    sendAction?.();
+  }, [currentView, dialActive, dialNumber, featureRefsByView, handleOpenApp, selectedIndex, visibleMenuItems]);
+
+  const handleSettingClick = useCallback((setting) => {
+    if (!setting) return;
+    const index = visibleMenuItems.findIndex((item) => item.id === setting.id);
+    if (index >= 0) setSelectedIndex(index);
+    activateSetting(setting);
+  }, [activateSetting, visibleMenuItems]);
+
   // Deactivate search → reset everything
   useEffect(() => {
     if (!searchActive) {
@@ -430,40 +611,6 @@ const NokiaLauncher = ({ apps }) => {
     }
   }, [searchActive, clearPending]);
 
-  // ── Multi-tap handler ──────────────────────────────────────────────────────
-  const handleMultiTapInput = useCallback(
-    (key) => {
-      // Only runs when search is active (checked via ref for sync accuracy)
-      if (!searchActiveRef.current) return false;
-
-      const cycle = MULTI_TAP_CYCLES[key];
-
-      // ── Letter/number keys (2–9) ──
-      if (cycle) {
-        return multiTapComposerRef.current.press(key);
-      }
-
-      // ── Backspace (*) ──
-      if (key === "*") {
-        if (!multiTapComposerRef.current.cancelPending()) {
-          // Delete last committed character
-          setCommittedText((t) => t.slice(0, -1));
-        }
-        return true;
-      }
-
-      // ── Space (0) ──
-      if (key === "0") {
-        commitPending();
-        setCommittedText((t) => t + " ");
-        return true;
-      }
-
-      return false;
-    },
-    [commitPending]
-  );
-
   // ─── Main keypad dispatcher ─────────────────────────────────────────────────
   const handleKeypadPress = useCallback(
     (key) => {
@@ -471,234 +618,144 @@ const NokiaLauncher = ({ apps }) => {
       const soundPrefs = loadSoundSettings();
       playKeypadTone(key, soundPrefs.keypadTone, soundPrefs.volume, soundPrefs.vibrate);
 
-      if (key === "HOME") {
-        if (toneSetupVisible) { skipToneSetup(); return; }
-        clearPending();
-        setCommittedText("");
-        searchActiveRef.current = false;
-        setSearchActive(false);
-        setDialNumber("");
-        setDialActive(false);
-        setCurrentView("home");
+      const isDialing = Boolean(dialActive || dialActiveRef.current || dialNumber);
+      const keyContext = isDialing
+        ? "dial"
+        : currentView === "home"
+          ? "home"
+          : currentView;
+      const semanticKey = resolveContextualIntent(key, keyContext);
+
+      const universalHandlers = {
+        [KEY_INTENTS.HOME]: returnHome,
+        [KEY_INTENTS.END]: returnHome,
+        [KEY_INTENTS.BACK]: handleUniversalBack,
+        [KEY_INTENTS.DELETE]: handleUniversalDelete,
+        [KEY_INTENTS.SELECT]: handleUniversalSelect,
+        [KEY_INTENTS.SEND]: handleUniversalSend,
+        [KEY_INTENTS.TAB]: handleUniversalTab,
+        [KEY_INTENTS.RECENT_APPS]: handleUniversalRecentApps,
+        [KEY_INTENTS.UP]: () => handleUniversalDirection(KEY_INTENTS.UP),
+        [KEY_INTENTS.DOWN]: () => handleUniversalDirection(KEY_INTENTS.DOWN),
+        [KEY_INTENTS.LEFT]: () => handleUniversalDirection(KEY_INTENTS.LEFT),
+        [KEY_INTENTS.RIGHT]: () => handleUniversalDirection(KEY_INTENTS.RIGHT),
+        [KEY_INTENTS.GOTO]: openBuiltInBrowser,
+        [KEY_INTENTS.SETTINGS]: () => openSettings(currentView),
+        [KEY_INTENTS.FLASHLIGHT]: () => toggleFlashlight().catch((error) => console.error("Unable to toggle flashlight:", error)),
+        [KEY_INTENTS.NOTIFICATION_MODE]: handleNotificationModeCycle,
+        [KEY_INTENTS.LOCK_SCREEN]: () => {
+          triggerHaptic([0, 50, 20, 50]);
+          lockScreen().catch((error) => console.error("Unable to lock screen:", error));
+        },
+      };
+      if (dispatchKey(semanticKey, universalHandlers)) {
         return;
-      }
-      if (key === "GOTO") {
-        openBuiltInBrowser();
-        return;
-      }
-      if (key === "SETTINGS") {
-        openSettings(currentView);
-        return;
-      }
-      if (key === "FLASHLIGHT") {
-        toggleFlashlight().catch((error) =>
-          console.error("Unable to toggle flashlight:", error)
-        );
-        return;
-      }
-      if (key === "BACK") {
-        if (["camera", "clock", "browser", "snake", "sound"].includes(currentView) || toneSetupVisible) {
-          key = "END";
-        } else if (dialActive) {
-          setDialNumber((value) => value.slice(0, -1));
-          if (dialNumber.length <= 1) setDialActive(false);
-          return;
-        } else {
-          handleBack();
-          return;
-        }
       }
 
       if (toneSetupVisible) {
-        if (key === "END") skipToneSetup();
-        if (key === "SEND" || key === "SELECT" || key === "5") acceptToneSetup();
         return;
       }
 
-      // The green key is a contextual Tab key: browser tabs in the built-in
-      // browser, and next focus target everywhere else.
-      if (key === "TAB") {
-        if (currentView === "browser") {
-          browserFeatureRef.current?.handleKey("#");
-          return;
-        }
-        if (currentView === "home" && !dialActive) {
-          handleNavigation("right");
-          return;
-        }
-        key = "RIGHT";
-      }
-
-      if (currentView === "camera") {
-        cameraFeatureRef.current?.handleKey(key);
-        return;
-      }
-      if (currentView === "clock") {
-        clockFeatureRef.current?.handleKey(key);
-        return;
-      }
-      if (currentView === "browser") {
-        browserFeatureRef.current?.handleKey(key);
-        return;
-      }
-      if (currentView === "snake") {
-        snakeFeatureRef.current?.handleKey(key);
-        return;
-      }
-      if (currentView === "sound") {
-        soundFeatureRef.current?.handleKey(key);
+      const featureRef = featureRefsByView[currentView];
+      if (dispatchKey(semanticKey, featureRef && {
+        [semanticKey]: () => featureRef.current?.handleKey(semanticKey),
+      })) {
         return;
       }
 
-      // ─── Handle Call / Hangup / Select keys globally first ───
-      if (key === "SEND") {
-        if (dialActive && dialNumber) {
-          makePhoneCall(dialNumber);
-        } else if (currentView === "home") {
-          setCurrentView("menu");
-        } else if (currentView === "menu" && visibleMenuItems[selectedIndex]) {
-          handleOpenApp(visibleMenuItems[selectedIndex]);
-        }
+      const dialHandlers = isDialing ? {
+        ...Object.fromEntries("0123456789".split("").map((digit) => [
+          digit,
+          () => setDialNumber((prev) => prev + digit),
+        ])),
+        "*": () => setDialNumber((prev) => prev + "*"),
+        [KEY_INTENTS.HASH]: () => setDialNumber((prev) => prev + "#"),
+      } : null;
+      if (dispatchKey(semanticKey, dialHandlers)) {
+        return;
+      }
+      if (isDialing) {
         return;
       }
 
-      if (key === "END") {
-        if (dialActive) {
-          setDialNumber("");
-          setDialActive(false);
-          return;
-        }
-        if (fullInput) {
-          setCommittedText("");
-          clearPending();
-          return;
-        }
-        if (searchActive) {
-          searchActiveRef.current = false;
-          setSearchActive(false);
-          return;
-        }
-        if (currentView === "home") {
-          openSettings("home");
-          return;
-        }
-        if (currentView === "menu") {
-          setCurrentView("home");
-          return;
-        }
-        if (currentView === "settings") {
-          setCurrentView(settingsReturnView);
-          return;
-        }
+      const homeDialHandlers = currentView === "home" ? {
+        ...Object.fromEntries("0123456789*".split("").map((dialKey) => [
+          dialKey,
+          () => {
+            dialActiveRef.current = true;
+            setDialActive(true);
+            setDialNumber((prev) => (prev ? prev + dialKey : dialKey));
+          },
+        ])),
+        [KEY_INTENTS.HASH]: () => {
+          dialActiveRef.current = true;
+          setDialActive(true);
+          setDialNumber((prev) => (prev ? prev + "#" : "#"));
+        },
+      } : null;
+      if (dispatchKey(semanticKey, homeDialHandlers)) {
         return;
       }
 
-      if (key === "SELECT") {
-        handleSelect();
+      const textHandlers = ["menu", "settings"].includes(currentView)
+        ? {
+          [KEY_INTENTS.CAPS_LOCK]: () => {
+            commitPending();
+            setCapsLock((enabled) => !enabled);
+          },
+          ...Object.fromEntries([...Object.keys(NOKIA_MULTI_TAP_CYCLES), "0", "*"].map((textKey) => [
+            textKey,
+            () => {
+              if (!searchActiveRef.current) activateSearch();
+              handleMultiTapInput(textKey);
+            },
+          ])),
+        }
+        : null;
+      if (dispatchKey(semanticKey, textHandlers)) {
         return;
       }
 
-      if (["UP", "DOWN", "LEFT", "RIGHT"].includes(key)) {
-        if (currentView === "home" && !dialActive) {
-          if (key === "UP") {
-            setCurrentView("menu");
-            return;
-          }
-          if (key === "LEFT" || key === "RIGHT" || key === "DOWN") {
-            // Go to is intentionally not selectable from the D-pad. The
-            // dedicated white soft key is the only entry to that surface.
-            if (HOME_FOCUS_TARGETS[selectedIndex] !== "search") handleSelect();
-            return;
-          }
-        }
-        handleNavigation(key.toLowerCase());
-        return;
-      }
-
-      // ─── Direct Dialer mode inputs ───
-      if (dialActive) {
-        if (key >= "0" && key <= "9") {
-          setDialNumber((prev) => prev + key);
-          return;
-        }
-        if (key === "*") {
-          setDialNumber((prev) => {
-            const next = prev.slice(0, -1);
-            if (!next) {
-              setDialActive(false);
-            }
-            return next;
-          });
-          return;
-        }
-        if (key === "#") {
-          setDialNumber((prev) => prev + "#");
-          return;
-        }
-      }
-
-      // ─── Home Screen Digit input starts Dialing ───
-      if (currentView === "home" && key >= "0" && key <= "9") {
-        setDialActive(true);
-        setDialNumber(key);
-        return;
-      }
-
-      // ─── Home Screen * starts a USSD/dial string ───
-      if (currentView === "home" && key === "*") {
-        setDialActive(true);
-        setDialNumber("*");
-        return;
-      }
-
-      // ─── Auto-activate search in menu when typing letters ───
-      if ((currentView === "menu" || currentView === "settings") && MULTI_TAP_CYCLES[key] && !searchActiveRef.current) {
-        activateSearch();
-      }
-
-      // Try multi-tap (fires when searchActive ref is true)
-      if (handleMultiTapInput(key)) return;
-
-      // Navigation / action keys (only when not in text-input mode)
-      if (key === "1") {
-        if (currentView === "menu") activateSearch();
-      } else if (key === "2") {
-        handleNavigation("up");
-      } else if (key === "4") {
-        handleNavigation("left");
-      } else if (key === "5") {
-        handleSelect();
-      } else if (key === "6") {
-        handleNavigation("right");
-      } else if (key === "8") {
-        handleNavigation("down");
-      } else if (key === "#") {
-        handleBack();
-      }
+      const navigationHandlers = {
+        "2": () => handleNavigation("up"),
+        "4": () => handleNavigation("left"),
+        "5": handleSelect,
+        "6": () => handleNavigation("right"),
+        "8": () => handleNavigation("down"),
+      };
+      dispatchKey(semanticKey, navigationHandlers);
     },
     [
       currentView,
       dialActive,
       dialNumber,
-      fullInput,
-      searchActive,
-      selectedIndex,
-      visibleMenuItems,
-      settingsReturnView,
       activateSearch,
       handleMultiTapInput,
+      commitPending,
       handleNavigation,
       handleSelect,
-      handleBack,
-      clearPending,
-      handleOpenApp,
       openSettings,
       toneSetupVisible,
-      acceptToneSetup,
-      skipToneSetup,
       openBuiltInBrowser,
+      featureRefsByView,
+      handleUniversalBack,
+      handleUniversalDelete,
+      handleUniversalDirection,
+      handleUniversalSelect,
+      handleUniversalSend,
+      handleUniversalTab,
+      handleUniversalRecentApps,
+      handleNotificationModeCycle,
+      returnHome,
     ]
   );
+
+  const handleKeypadPressRef = useRef(handleKeypadPress);
+  handleKeypadPressRef.current = handleKeypadPress;
+
+  const stableKeypadPress = useCallback((key) => {
+    handleKeypadPressRef.current?.(key);
+  }, []);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -722,6 +779,7 @@ const NokiaLauncher = ({ apps }) => {
           <BrowserFeature
             ref={browserFeatureRef}
             initialUrl={BROWSER_START_URL}
+            openTabs={openBrowserTabs}
             onExit={closeBuiltInBrowser}
           />
         ) : currentView === "clock" ? (
@@ -759,6 +817,9 @@ const NokiaLauncher = ({ apps }) => {
           onBack={() => { triggerHaptic(65); handleBack(); }}
           dialActive={dialActive}
           dialNumber={dialNumber}
+          isCalling={isCalling}
+          onCall={(num) => { handleUniversalSend(); triggerHaptic(65); }}
+          onDelete={() => { handleUniversalDelete(); triggerHaptic(65); }}
           deviceStatus={deviceStatus}
           onNotificationStatusClick={() => { triggerHaptic(65); openNotificationAccessSettings(); }}
           onSirenToggle={() => { triggerHaptic(65); handleSirenToggle(); }}
@@ -774,7 +835,7 @@ const NokiaLauncher = ({ apps }) => {
       </div>
       {/* Physical tray retains the shared logical keypad interface. */}
       <div className="nokia-launcher__keypad h-1/2 w-full flex items-center justify-center">
-        <Keypad variant="launcher" onKeypadPress={handleKeypadPress} />
+        <Keypad variant="launcher" onKeypadPress={stableKeypadPress} />
       </div>
     </div>
   );

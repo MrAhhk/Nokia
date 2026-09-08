@@ -41,6 +41,7 @@ const DRAWER_PRIORITY = [
 
 export const SETTINGS_ITEMS = Object.freeze([
   { id: "snake", label: "Snake", internalView: "snake" },
+  { id: "default-launcher", label: "Default Launcher", nativeSetting: "default-launcher" },
   { id: "display", label: "Display", nativeSetting: "display" },
   { id: "sound", label: "Sound", internalView: "sound" },
   { id: "keyboard", label: "Keyboard", nativeSetting: "keyboard" },

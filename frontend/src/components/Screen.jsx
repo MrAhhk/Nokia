@@ -1,5 +1,4 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import PixelText from "./PixelText";
 import {
   BatteryCharging,
   Bell,
@@ -50,6 +49,9 @@ const Screen = ({
   onBack,
   dialActive,
   dialNumber,
+  isCalling = false,
+  onCall,
+  onDelete,
   deviceStatus,
   onNotificationStatusClick,
   onNotificationModeCycle,
@@ -95,17 +97,36 @@ const Screen = ({
     });
   }, [currentTime]);
 
+  const formattedDate = useMemo(() => {
+    const weekday = currentTime.toLocaleDateString("en-US", { weekday: "short" });
+    const day = String(currentTime.getDate()).padStart(2, "0");
+    const month = currentTime.toLocaleDateString("en-US", { month: "short" });
+    return `${weekday}, ${day} ${month}`;
+  }, [currentTime]);
+
   // Render Direct Dialing Screen
   if (dialActive) {
     return (
       <div className="lcd-screen lcd-dial-screen" data-testid="screen-dial">
         <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
-        <div className="lcd-dial-label">Enter number</div>
+        <div className="lcd-dial-label">{isCalling ? "Calling..." : "Enter number"}</div>
         <div className="lcd-dial-number" aria-live="polite">{dialNumber}</div>
         <div className="lcd-dial-rule" aria-hidden="true" />
         <div className="lcd-dial-softkeys">
-          <span>Call</span>
-          <span>Clear</span>
+          <button
+            type="button"
+            onPointerDown={(e) => { e.preventDefault(); onCall?.(dialNumber); }}
+            onClick={(e) => { e.preventDefault(); }}
+          >
+            Call
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => { e.preventDefault(); onDelete?.(); }}
+            onClick={(e) => { e.preventDefault(); }}
+          >
+            Clear
+          </button>
         </div>
       </div>
     );
@@ -117,8 +138,12 @@ const Screen = ({
         <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
 
         <div className="lcd-identity">
-          <div className="lcd-carrier"><PixelText>{deviceStatus?.carrierName || "MobiFone"}</PixelText></div>
-          <div className="lcd-date"><PixelText>{`${currentTime.toLocaleDateString("en-US", { weekday: "short" })}, ${String(currentTime.getDate()).padStart(2, "0")} ${currentTime.toLocaleDateString("en-US", { month: "short" })}`}</PixelText></div>
+          <div className="lcd-carrier" aria-label={deviceStatus?.carrierName || "MobiFone"}>
+            {deviceStatus?.carrierName || "MobiFone"}
+          </div>
+          <div className="lcd-date" aria-label={formattedDate}>
+            {formattedDate}
+          </div>
         </div>
 
         <button
@@ -128,7 +153,7 @@ const Screen = ({
           aria-label={`Open Clock, current time ${formattedTime}`}
           onClick={onClockClick}
         >
-          <span><PixelText>{formattedTime}</PixelText></span>
+          <span>{formattedTime}</span>
         </button>
 
         <div className="lcd-shortcuts" data-testid="home-menu">
@@ -291,7 +316,6 @@ const HomeShortcut = memo(({ item, isSelected, onClick }) => {
       aria-label={`Open ${item.label}`}
     >
       <span className="lcd-shortcut__icon"><Icon aria-hidden="true" /></span>
-      <span>{item.label}</span>
     </button>
   );
 });
@@ -321,7 +345,11 @@ const areScreenPropsEqual = (previous, next) => {
     return false;
   }
 
-  if (previous.dialActive !== next.dialActive || previous.dialNumber !== next.dialNumber) {
+  if (
+    previous.dialActive !== next.dialActive ||
+    previous.dialNumber !== next.dialNumber ||
+    previous.isCalling !== next.isCalling
+  ) {
     return false;
   }
 

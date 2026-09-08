@@ -8,9 +8,13 @@ describe("browser keypad commands", () => {
     expect(getBrowserCommand("DOWN")).toBe("scroll-down");
     expect(getBrowserCommand("SELECT")).toBe("focus-address");
     expect(getBrowserCommand("SEND")).toBe("submit");
+    expect(getBrowserCommand("BACK")).toBe("back");
     expect(getBrowserCommand("*")).toBeNull();
     expect(getBrowserCommand("END")).toBe("exit");
-    expect(getBrowserCommand("#")).toBe("tabs");
+    expect(getBrowserCommand("TAB")).toBe("tabs");
+    expect(getBrowserCommand("TAB-NEXT")).toBe("tab-next");
+    expect(getBrowserCommand("TAB-PREVIOUS")).toBe("tab-previous");
+    expect(getBrowserCommand("#")).toBeNull();
     expect(getBrowserCommand("2")).toBeNull();
     expect(getBrowserCommand("4")).toBeNull();
   });

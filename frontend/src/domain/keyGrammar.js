@@ -1,0 +1,59 @@
+/**
+ * The launcher has one physical grammar. A key produces a semantic token;
+ * views only provide handlers for that token. The first registered handler
+ * wins, so adding a view never changes the meaning of an existing key.
+ */
+export const KEY_INTENTS = Object.freeze({
+  BACK: "BACK",
+  DELETE: "DELETE",
+  END: "END",
+  FLASHLIGHT: "FLASHLIGHT",
+  GOTO: "GOTO",
+  HOME: "HOME",
+  LEFT: "LEFT",
+  RIGHT: "RIGHT",
+  SELECT: "SELECT",
+  SETTINGS: "SETTINGS",
+  TAB: "TAB",
+  UP: "UP",
+  DOWN: "DOWN",
+  SEND: "SEND",
+  SOFT_LEFT: "SOFT_LEFT",
+  SOFT_RIGHT: "SOFT_RIGHT",
+  HASH: "HASH",
+  GREEN: "GREEN",
+  CAPS_LOCK: "CAPS_LOCK",
+  NOTIFICATION_MODE: "NOTIFICATION_MODE",
+  LOCK_SCREEN: "LOCK_SCREEN",
+  RECENT_APPS: "RECENT_APPS",
+});
+
+export const NOKIA_MULTI_TAP_CYCLES = Object.freeze({
+  "1": Object.freeze([".", ",", "?", "!", "'", "\"", ":", ";", "-", "(", ")", "@", "/", "1"]),
+  "2": Object.freeze(["a", "b", "c", "2"]),
+  "3": Object.freeze(["d", "e", "f", "3"]),
+  "4": Object.freeze(["g", "h", "i", "4"]),
+  "5": Object.freeze(["j", "k", "l", "5"]),
+  "6": Object.freeze(["m", "n", "o", "6"]),
+  "7": Object.freeze(["p", "q", "r", "s", "7"]),
+  "8": Object.freeze(["t", "u", "v", "8"]),
+  "9": Object.freeze(["w", "x", "y", "z", "9"]),
+});
+
+const CONTEXTUAL_INTENTS = Object.freeze({
+  [KEY_INTENTS.SOFT_LEFT]: Object.freeze({ home: KEY_INTENTS.GOTO, dial: KEY_INTENTS.SEND, default: KEY_INTENTS.DELETE }),
+  [KEY_INTENTS.SOFT_RIGHT]: Object.freeze({ home: KEY_INTENTS.SETTINGS, dial: KEY_INTENTS.DELETE, default: KEY_INTENTS.BACK }),
+  [KEY_INTENTS.HASH]: Object.freeze({ home: KEY_INTENTS.HASH, dial: KEY_INTENTS.HASH, default: KEY_INTENTS.CAPS_LOCK }),
+  [KEY_INTENTS.GREEN]: Object.freeze({ dial: KEY_INTENTS.SEND, browser: KEY_INTENTS.TAB, default: KEY_INTENTS.RECENT_APPS }),
+});
+
+export const resolveContextualIntent = (key, context) =>
+  CONTEXTUAL_INTENTS[key]?.[context] ?? CONTEXTUAL_INTENTS[key]?.default ?? key;
+
+export const dispatchKey = (key, ...registries) => {
+  const handler = registries
+    .map((registry) => registry?.[key])
+    .find((candidate) => typeof candidate === "function");
+  handler?.();
+  return Boolean(handler);
+};

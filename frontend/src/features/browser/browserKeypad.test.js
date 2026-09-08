@@ -10,26 +10,41 @@ describe("browser Nokia keypad", () => {
 
     keypad.handleKey("2");
     keypad.handleKey("2");
-    expect(send).toHaveBeenLastCalledWith("input-preview", { text: "B" });
+    expect(send).toHaveBeenLastCalledWith("input-preview", { text: "b" });
 
     jest.advanceTimersByTime(500);
-    expect(send).toHaveBeenLastCalledWith("input-commit", { text: "B" });
+    expect(send).toHaveBeenLastCalledWith("input-commit", { text: "b" });
     keypad.dispose();
   });
 
-  test("uses zero as space, star as backspace, hash for tabs, and End for exit", () => {
+  test("uses star as text, zero as space, Delete as backspace, caps lock, Back, Tab, and End semantically", () => {
     const send = jest.fn();
     const onExit = jest.fn();
-    const keypad = createBrowserKeypadController({ send, onExit, delay: 500 });
+    let capsLock = false;
+    const keypad = createBrowserKeypadController({
+      send,
+      onExit,
+      delay: 500,
+      getCapsLock: () => capsLock,
+      onCapsLockToggle: () => { capsLock = !capsLock; },
+    });
 
-    keypad.handleKey("0");
     keypad.handleKey("*");
-    keypad.handleKey("#");
+    keypad.handleKey("0");
+    keypad.handleKey("DELETE");
+    keypad.handleKey("CAPS_LOCK");
+    keypad.handleKey("2");
+    keypad.handleKey("BACK");
+    keypad.handleKey("TAB");
     keypad.handleKey("END");
 
     expect(send.mock.calls).toEqual([
+      ["input-text", { text: "*" }],
       ["input-text", { text: " " }],
       ["backspace", {}],
+      ["input-preview", { text: "A" }],
+      ["input-commit", { text: "A" }],
+      ["back", {}],
       ["tabs", {}],
     ]);
     expect(onExit).toHaveBeenCalledTimes(1);

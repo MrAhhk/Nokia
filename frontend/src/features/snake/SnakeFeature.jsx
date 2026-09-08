@@ -66,7 +66,7 @@ const SnakeFeature = forwardRef(({ currentTime, deviceStatus, onExit }, ref) => 
   }, [mode]);
 
   const handleKey = useCallback((key) => {
-    if (key === "END" || key === "#") {
+    if (key === "BACK" || key === "END" || key === "#") {
       onExit?.();
       return;
     }

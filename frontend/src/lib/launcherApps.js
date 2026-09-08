@@ -327,6 +327,18 @@ export const toggleFlashlight = async () => {
   return launcherApps.toggleFlashlight();
 };
 
+export const lockScreen = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.lockScreen) return { locked: false, supported: false };
+  return launcherApps.lockScreen();
+};
+
+export const openRecentApps = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.openRecentApps) return { opened: false, supported: false };
+  return launcherApps.openRecentApps();
+};
+
 export const showCameraMedia = (media) =>
   callCameraMethod("showCameraMedia", media, { shown: false });
 
@@ -399,4 +411,53 @@ export const applySystemTone = async (toneType, assetPath, title) => {
     return { success: false, supported: false };
   }
   return launcherApps.applySystemTone({ toneType, assetPath, title });
+};
+
+export const playNativeKeypadTone = async (key, duration = 200, haptic = true) => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.playKeypadTone) {
+    return false;
+  }
+  try {
+    await launcherApps.playKeypadTone({ key: String(key), duration, haptic });
+    return true;
+  } catch (_e) {
+    return false;
+  }
+};
+
+export const triggerKeyHaptic = async (duration = 60) => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (launcherApps?.triggerKeyHaptic) {
+    try {
+      await launcherApps.triggerKeyHaptic({ duration });
+      return true;
+    } catch (_e) {}
+  }
+  return triggerHaptic([0, duration]);
+};
+
+
+export const isDefaultLauncher = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.isDefaultLauncher) {
+    return { isDefault: false };
+  }
+  try {
+    return await launcherApps.isDefaultLauncher();
+  } catch (_e) {
+    return { isDefault: false };
+  }
+};
+
+export const requestDefaultLauncher = async () => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps?.requestDefaultLauncher) {
+    return { requested: false };
+  }
+  try {
+    return await launcherApps.requestDefaultLauncher();
+  } catch (_e) {
+    return { requested: false };
+  }
 };

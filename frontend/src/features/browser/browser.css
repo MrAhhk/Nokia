@@ -5,7 +5,7 @@
   overflow: hidden;
   border: 0;
   border-radius: 0;
-  background: #eff0df;
+  background: #080a09;
 }
 
 .browser-native-slot {
@@ -14,7 +14,7 @@
   overflow: hidden;
   background:
     repeating-linear-gradient(0deg, rgba(17, 24, 3, 0.035) 0 1px, transparent 1px 3px),
-    #eff0df;
+    #080a09;
 }
 
 .browser-native-slot__fallback {

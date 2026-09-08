@@ -45,10 +45,6 @@
   z-index: 1;
 }
 
-.nokia-launcher .hardware-button,
-.nokia-launcher .hardware-number,
-.nokia-launcher .hardware-dpad,
-.nokia-launcher .hardware-dpad .dpad-select,
 [data-testid="nokia-system-keyboard"] [data-testid="keypad"] button {
   border-color: rgba(0, 0, 0, 0.88);
   color: var(--aged-key-label, #d8d8d2);
@@ -63,19 +59,16 @@
 }
 
 /* Neighboring keys sample different areas of the one permanently baked image. */
-.nokia-launcher .hardware-number:nth-child(3n + 1),
 [data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(3n + 1) {
   --aged-texture-x: 24%;
   --aged-texture-y: 28%;
 }
 
-.nokia-launcher .hardware-number:nth-child(3n + 2),
 [data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(3n + 2) {
   --aged-texture-x: 73%;
   --aged-texture-y: 61%;
 }
 
-.nokia-launcher .hardware-number:nth-child(4n),
 [data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(4n) {
   --aged-texture-x: 39%;
   --aged-texture-y: 79%;
@@ -89,11 +82,6 @@
   color: #e33b38;
 }
 
-.nokia-launcher .hardware-button:active,
-.nokia-launcher .hardware-button.is-active,
-.nokia-launcher .hardware-number:active,
-.nokia-launcher .hardware-number.is-active,
-.nokia-launcher .hardware-dpad button:active,
 [data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:active {
   background-image: url("../assets/aged-phone-fabric.webp");
   box-shadow:

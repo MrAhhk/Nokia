@@ -1,15 +1,18 @@
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const fs = require('node:fs');
 (async () => {
+  const output = path.resolve('../../artifacts/physical-keyboard');
+  fs.mkdirSync(output, {recursive: true});
   const browser = await chromium.launch({ headless: true, channel: 'msedge' });
   const page = await browser.newPage();
   await page.addInitScript(() => localStorage.setItem('nokia-launcher-system-tone-setup.v1', 'skipped'));
   for (const [width, height] of [[390,844], [360,800], [412,915]]) {
     await page.setViewportSize({width, height});
     await page.goto('http://127.0.0.1:4173');
-    await page.waitForSelector('.hardware-number');
-    const keys = await page.locator('.hardware-number').evaluateAll(nodes => nodes.map(node => {
+    await page.waitForSelector('.physical-number');
+    const keys = await page.locator('.physical-number').evaluateAll(nodes => nodes.map(node => {
       const {x,y,width,height,bottom} = node.getBoundingClientRect(); return {x,y,width,height,bottom};
     }));
     assert.equal(keys.length, 12);
@@ -18,7 +21,15 @@ const path = require('node:path');
       assert.ok(Math.abs(key.height - keys[0].height) < 1);
       assert.ok(key.bottom < height);
     }
-    await page.screenshot({path: path.resolve(`../../Nokia UI/implemented-${width}x${height}.png`)});
+    await page.screenshot({path: path.join(output, `render-${width}x${height}.png`)});
+    await page.locator('.physical-keypad').screenshot({path: path.join(output, `keypad-${width}x${height}.png`)});
+    const direction = page.getByRole('button', {name:'Up',exact:true});
+    const hit = await direction.boundingBox();
+    await page.mouse.move(hit.x + hit.width/2, hit.y + hit.height/2);
+    await page.mouse.down();
+    await page.locator('.physical-dpad').screenshot({path:path.join(output,`dpad-up-${width}x${height}.png`)});
+    await page.mouse.up();
+    await page.getByRole('button', {name:'Home',exact:true}).click();
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
     await page.getByRole('button', {name: 'Home', exact: true}).click();
     await page.locator('[data-testid="screen-home"]').waitFor();

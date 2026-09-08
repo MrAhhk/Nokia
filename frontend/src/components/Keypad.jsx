@@ -7,7 +7,10 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Circle,
-  Delete 
+  Delete,
+  Globe2,
+  House,
+  Music2
 } from "lucide-react";
 
 const Keypad = ({ onKeypadPress, variant = "default" }) => {
@@ -167,47 +170,58 @@ const LAUNCHER_NUMBER_KEYS = [
   { number: "#", letters: "▧" },
 ];
 
+const HandsetLegend = ({ end = false }) => (
+  <svg viewBox="0 0 70 38" aria-hidden="true" className="physical-handset">
+    <path d="M6 22v-5C6 7 17 5 25 5h20c9 0 19 3 19 12v5" fill="none" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" />
+    {end && <><circle cx="35" cy="25" r="9" fill="none" stroke="currentColor" strokeWidth="3"/><path d="M35 20v10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></>}
+  </svg>
+);
+
 const LauncherKeypad = ({ onPress }) => (
-  <div className="hardware-keypad" data-testid="keypad">
-    <div className="hardware-controls">
-      <button type="button" className="hardware-soft hardware-soft-left hardware-button" onClick={() => onPress("TAB")} aria-label="Next item"><span /></button>
-      <button type="button" className="hardware-soft hardware-soft-right hardware-button" onClick={() => onPress("BACK")} aria-label="Back"><span /></button>
+  <div className="physical-keypad" data-testid="keypad">
+    <div className="physical-controls">
+      <button type="button" className="physical-key physical-soft-left" onClick={() => onPress("TAB")} aria-label="Next item"><span className="physical-key__face"><svg viewBox="0 0 70 38" aria-hidden="true"><path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg></span></button>
+      <button type="button" className="physical-key physical-soft-right" onClick={() => onPress("BACK")} aria-label="Back"><span className="physical-key__face"><svg viewBox="0 0 70 38" aria-hidden="true"><path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg></span></button>
       <button
         type="button"
-        className="hardware-call hardware-button"
+        className="physical-key physical-call"
         data-testid="keypad-btn-send"
         onClick={() => onPress("SEND")}
         aria-label="Call"
-      ><span /></button>
+      ><span className="physical-key__face"><HandsetLegend /></span></button>
 
-      <div className="hardware-dpad" aria-label="Directional pad">
-        <button type="button" className="dpad-up" onClick={() => onPress("UP")} aria-label="Up" />
-        <button type="button" className="dpad-left" onClick={() => onPress("LEFT")} aria-label="Left" />
-        <button type="button" className="dpad-select" data-testid="keypad-btn-select" onClick={() => onPress("SELECT")} aria-label="Select" />
-        <button type="button" className="dpad-right" onClick={() => onPress("RIGHT")} aria-label="Right" />
-        <button type="button" className="dpad-down" onClick={() => onPress("DOWN")} aria-label="Down" />
+      <div className="physical-dpad" role="group" aria-label="Directional pad">
+        <div className="physical-dpad__rocker" aria-hidden="true"><div className="physical-dpad__rim"><div className="physical-dpad__cap" /></div></div>
+        <button type="button" className="physical-dpad__hit physical-dpad__hit--up" onClick={() => onPress("UP")} aria-label="Up" />
+        <button type="button" className="physical-dpad__hit physical-dpad__hit--left" onClick={() => onPress("LEFT")} aria-label="Left" />
+        <button type="button" className="physical-dpad__hit physical-dpad__hit--select" data-testid="keypad-btn-select" onClick={() => onPress("SELECT")} aria-label="Select" />
+        <button type="button" className="physical-dpad__hit physical-dpad__hit--right" onClick={() => onPress("RIGHT")} aria-label="Right" />
+        <button type="button" className="physical-dpad__hit physical-dpad__hit--down" onClick={() => onPress("DOWN")} aria-label="Down" />
       </div>
 
       <button
         type="button"
-        className="hardware-end hardware-button"
+        className="physical-key physical-end"
         data-testid="keypad-btn-end"
         onClick={() => onPress("HOME")}
         aria-label="Home"
-      ><span /></button>
+      ><span className="physical-key__face"><HandsetLegend end /></span></button>
     </div>
 
-    <div className="hardware-numbers">
+    <div className="physical-numbers">
       {LAUNCHER_NUMBER_KEYS.map((key) => (
         <button
           type="button"
           key={key.number}
           data-testid={`keypad-btn-${key.number === "*" ? "star" : key.number === "#" ? "hash" : key.number}`}
-          className="hardware-number"
+          className="physical-key physical-number"
           onClick={() => onPress(key.number)}
+          aria-label={key.number}
         >
-          <strong>{key.number}</strong>
-          <small>{key.letters}</small>
+          <span className="physical-key__face">
+            <strong>{key.number === "*" ? <svg className="physical-star" viewBox="0 0 40 44" aria-hidden="true"><path d="M20 2v40M3 11l34 22M3 33L37 11" fill="none" stroke="currentColor" strokeWidth="4" /></svg> : key.number}</strong>
+            {key.number === "0" ? <span className="physical-accessory"><Globe2 /></span> : key.number === "#" ? <span className="physical-accessory"><House /><Music2 /></span> : <small>{key.letters.toLowerCase()}</small>}
+          </span>
         </button>
       ))}
     </div>

@@ -661,12 +661,8 @@ const NokiaLauncher = ({ apps }) => {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="nokia-launcher h-full w-full flex flex-col overflow-hidden select-none" data-testid="nokia-launcher">
-      <div className="nokia-wordmark" aria-label="Nokia">
-        <svg viewBox="0 0 300 52" aria-hidden="true">
-          <path fill="currentColor" fillRule="evenodd" d="M0 0H13L43 34V0H55V52H42L12 18V52H0ZM75 0H112Q123 0 123 11V41Q123 52 112 52H75Q64 52 64 41V11Q64 0 75 0ZM78 11Q76 11 76 14V38Q76 41 79 41H108Q111 41 111 38V14Q111 11 108 11ZM133 0H145V21L171 0H189L158 25L190 52H172L145 29V52H133ZM198 0H210V52H198ZM244 0H263L300 52H284L277 41H231L224 52H209ZM238 30H269L254 8Z" />
-        </svg>
-      </div>
-      {/* Top Screen - 50% */}
+      <div className="nokia-shell-rim" aria-hidden="true" />
+      {/* LCD and the brand band share a continuous dark surround. */}
       <div className="nokia-launcher__screen h-1/2 w-full relative flex flex-col">
         {toneSetupVisible ? (
           <ToneSetupPrompt
@@ -729,7 +725,12 @@ const NokiaLauncher = ({ apps }) => {
         />}
       </div>
 
-      {/* Bottom Keypad - 50% */}
+      <div className="nokia-wordmark" aria-label="Nokia">
+        <svg viewBox="0 0 300 52" aria-hidden="true">
+          <path fill="currentColor" fillRule="evenodd" d="M0 0H13L43 34V0H55V52H42L12 18V52H0ZM75 0H112Q123 0 123 11V41Q123 52 112 52H75Q64 52 64 41V11Q64 0 75 0ZM78 11Q76 11 76 14V38Q76 41 79 41H108Q111 41 111 38V14Q111 11 108 11ZM133 0H145V21L171 0H189L158 25L190 52H172L145 29V52H133ZM198 0H210V52H198ZM244 0H263L300 52H284L277 41H231L224 52H209ZM238 30H269L254 8Z" />
+        </svg>
+      </div>
+      {/* Physical tray retains the shared logical keypad interface. */}
       <div className="nokia-launcher__keypad h-1/2 w-full flex items-center justify-center">
         <Keypad variant="launcher" onKeypadPress={handleKeypadPress} />
       </div>

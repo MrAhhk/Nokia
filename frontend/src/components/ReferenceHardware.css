@@ -1,38 +1,59 @@
-/* Approved September reference. Static materials; no animated paint effects. */
+/* Reference hardware: dark material, contiguous physical keypad and cast shell.
+ * Geometry lives here. Texture is a static asset; key feedback moves only faces.
+ */
 .nokia-launcher {
   --lcd: #7c7e12;
   --lcd-light: #858712;
   --lcd-dark: #73750c;
   --ink: #030400;
   container-type: size;
-  border-radius: 4.5cqw;
-  box-shadow: inset 0 0 0 2px #030404, inset 0 1px 2px #515454, inset 0 -12px 24px rgba(0,0,0,.52);
-  background: #080a0a;
+  position: relative;
+  overflow: hidden;
+  border-radius: 10cqw;
+  background: linear-gradient(108deg, #080909, #222323 62%, #101111);
+}
+.nokia-shell-rim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  border: 1px solid #060807;
+  border-radius: 10cqw;
+  box-shadow: inset 1px 1px 0 1px #747773,
+    inset -1px -1px 0 2px #383c38,
+    inset 1px 1px 1px 3px #383c39,
+    inset 0 0 2px 5px #242825,
+    inset 0 0 2px 8px #171b18,
+    inset 0 0 1px 11px #080b09,
+    inset 0 0 0 12px #333732;
+  background: none;
 }
 .nokia-wordmark {
-  flex: 0 0 6.9%;
+  flex: 0 0 6%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font: 900 clamp(24px, 8vw, 68px)/1 Arial, sans-serif;
+  color: #8e9090;
+  background: linear-gradient(108deg, #080909, #222323 62%, #101111);
+  font: 900 clamp(16px, 6vw, 40px)/1 Arial, sans-serif;
   letter-spacing: -.055em;
-  text-shadow: 0 0 3px #fff, 0 0 7px #ffffff40;
+  text-shadow: 0 1px #000;
 }
-.nokia-wordmark svg { width: 34%; height: auto; max-height: 65%; transform: translateY(.7cqh); }
+.nokia-wordmark svg { width: 25%; height: auto; max-height: 40%; }
 .nokia-launcher .nokia-launcher__screen {
-  flex: 0 0 50.5%;
-  height: 50.5%;
+  flex: 0 0 53%;
+  height: 53%;
   min-height: 0;
-  padding: 0 5.4%;
-  padding-bottom: 1.6cqh;
-  background: #0a0c0c;
+  padding: 3.2cqh 4.7% 0;
+  border: 0;
+  box-shadow: none;
+  background: linear-gradient(108deg, #080909, #222323 62%, #101111);
 }
 .nokia-launcher .nokia-launcher__keypad {
   flex: 1 1 0;
   height: auto;
   min-height: 0;
-  padding: 1.1cqh 6.4% max(1.3cqh, env(safe-area-inset-bottom));
+  padding: 0 3.7% max(1.7cqh, env(safe-area-inset-bottom));
 }
 .lcd-home {
   display: block;
@@ -91,34 +112,164 @@
 .lcd-home .lcd-shortcut__icon { width: 9cqw; height: 9cqw; }
 .lcd-home .lcd-shortcut__icon svg { filter: none; }
 .lcd-home .lcd-softkeys { position: absolute; left: 3.5%; right: 3.5%; bottom: 1.8%; font-size: 3.5cqw; }
-.nokia-launcher .hardware-keypad { max-width: none; grid-template-rows: minmax(0, 1fr) minmax(0, 1.86fr); gap: .2cqh; }
-.hardware-controls { grid-template-columns: 1fr 1.46fr 1fr; grid-template-rows: .72fr 1fr; gap: 1.65cqh 4.2cqw; }
-.hardware-controls .hardware-button { width: 100%; height: 100%; min-height: 0; border-radius: 2.6cqw; }
-.hardware-soft-left { grid-area: 1 / 1; }
-.hardware-soft-right { grid-area: 1 / 3; }
-.hardware-call { grid-area: 2 / 1; }
-.hardware-end { grid-area: 2 / 3; }
-.hardware-soft span { width: 38%; height: 3px; background: #fff; box-shadow: 0 1px 1px #bcbcbc; }
-.hardware-call span, .hardware-end span { width: 36%; height: 1.2cqh; background: transparent; border: 3px solid #19ed06; border-bottom: 0; border-radius: 9px 9px 0 0; box-shadow: none; }
-.hardware-end span { border-color: #ff171b; }
-.hardware-end span::after { content: "⏻"; display: block; font: bold 2cqh/1 Arial, sans-serif; color: #ff171b; }
-.nokia-launcher .hardware-dpad {
-  grid-area: 1 / 2 / 3 / 3;
+.physical-keypad {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 2fr);
+  width: 100%;
+  height: 100%;
   min-height: 0;
-  border: 6px solid #070808;
-  border-radius: 6cqw;
-  background-color: #111415;
-  box-shadow: 0 3px 4px #000, inset 0 0 0 4px #fafafa, inset 0 0 0 7px #b9babb, inset 0 0 0 10px #0b0c0c, inset 0 -8px 10px rgba(0,0,0,.7);
+  overflow: hidden;
+  border-radius: 0 0 7cqw 7cqw;
+  background: #030404;
+  border-top: 1px solid #010202;
+  box-shadow: 0 -1px 0 #343737;
 }
-.nokia-launcher .hardware-dpad .dpad-select { background: transparent; border: 0; box-shadow: none; border-radius: 0; }
-.hardware-numbers { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: .8cqh 2.8cqw; }
-.nokia-launcher .hardware-number { min-width: 0; min-height: 0; border-radius: 2.7cqw; }
-.hardware-number strong { font-size: 6.2cqw; line-height: 1; font-weight: 300; }
-.hardware-number small { font-size: 2.6cqw; margin-top: .55cqh; }
-.hardware-button:focus-visible, .hardware-number:focus-visible, .hardware-dpad button:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+.physical-controls {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  min-height: 0;
+}
+.physical-soft-left { grid-area: 1 / 1; }
+.physical-soft-right { grid-area: 1 / 2; }
+.physical-call { grid-area: 2 / 1; }
+.physical-end { grid-area: 2 / 2; }
+.nokia-launcher .physical-key {
+  position: relative;
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0 .5px 1px;
+  border: 0;
+  border-radius: 0;
+  color: #deded9;
+  background: linear-gradient(145deg, #020303 0%, #0a0b0b 65%, #363939 100%);
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: none;
+}
+.physical-key__face {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2cqw;
+  border-radius: .6cqw;
+  border-top: 1px solid #464747;
+  border-left: 1px solid #2d2f2f;
+  border-right: 1px solid #090a0a;
+  border-bottom: 1px solid #010202;
+  background-color: #161818;
+  background-image: linear-gradient(110deg, #17191966, #11131355 70%, #07090988), url('../assets/aged-phone-fabric.webp');
+  background-size: cover, 430px 430px;
+  background-position: center, 40% 30%;
+  box-shadow: inset 0 1px 1px #ffffff0c, inset 0 -1px 1px #000b;
+  transform: translateY(0);
+}
+.physical-controls .physical-key__face svg {
+  width: 12cqw;
+  height: 6.2cqw;
+  flex-shrink: 0;
+}
+.physical-soft-left .physical-key__face,
+.physical-call .physical-key__face { padding-right: 16cqw; }
+.physical-soft-right .physical-key__face,
+.physical-end .physical-key__face { padding-left: 16cqw; }
+.nokia-launcher .physical-call { color: #35d22c; }
+.nokia-launcher .physical-end { color: #f4433f; }
+.physical-numbers {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 0;
+}
+.physical-number .physical-key__face { padding: 0 2cqw; }
+.physical-number strong {
+  font: 300 8cqw/1 Arial, sans-serif;
+  letter-spacing: -.04em;
+}
+.physical-number small {
+  font: 400 3.4cqw/1 Arial, sans-serif;
+  letter-spacing: -.025em;
+  text-transform: lowercase;
+}
+.physical-accessory { display: inline-flex; align-items: center; gap: .8cqw; }
+.physical-accessory svg { width: 3.7cqw; height: 3.7cqw; stroke-width: 1.8; }
+.physical-number:nth-child(11) .physical-accessory svg { width: 5cqw; height: 5cqw; }
+.physical-number:nth-child(3n) .physical-key__face { flex-direction: row-reverse; }
+.physical-number:nth-child(3n + 2) .physical-key__face { background-position: center, 73% 61%; }
+.physical-number:nth-child(4n) .physical-key__face { background-position: center, 39% 79%; }
+.physical-number:nth-child(10) .physical-key__face { border-bottom-left-radius: 6cqw; }
+.physical-number:nth-child(10) strong { display: flex; }
+.physical-star { width: 8cqw; height: 9cqw; }
+.physical-number:nth-child(12) .physical-key__face { border-bottom-right-radius: 6cqw; }
+.physical-dpad {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 5%;
+  width: 28.5%;
+  height: 91%;
+  transform: translateX(-50%);
+  padding: 2px;
+  border-radius: 32% / 29%;
+  background: #030404;
+  box-shadow: 0 1px 1px #747777, 0 -1px 1px #373a3a;
+}
+.physical-dpad__rocker {
+  width: 100%;
+  height: 100%;
+  padding: 1px;
+  border-radius: inherit;
+  background: #101111;
+}
+.physical-dpad__rim {
+  width: 100%;
+  height: 100%;
+  padding: 10%;
+  border-radius: 31% / 28%;
+  border: 1px solid #b0b1b0;
+  background: linear-gradient(128deg, #b8bcbb 0%, #e1e2de 12%, #858887 40%, #8b8d8d 64%, #c2c4c1 86%, #626565 100%);
+  box-shadow: inset 1px 1px 1px #eeeee9, inset -1px -1px 1px #383b3b;
+}
+.physical-dpad__cap {
+  height: 100%;
+  width: 100%;
+  border-radius: 29% / 26%;
+  border: 2px solid #030404;
+  background: linear-gradient(120deg, #171a1bd9, #101313c9), url('../assets/aged-phone-fabric.webp') center / 430px 430px;
+  box-shadow: inset 1px 2px 2px #000c, inset -1px -1px 1px #626565;
+}
+.nokia-launcher .physical-dpad__hit {
+  position: absolute;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.physical-dpad__hit--up { top: 0; left: 20%; width: 60%; height: 27%; }
+.physical-dpad__hit--down { bottom: 0; left: 20%; width: 60%; height: 27%; }
+.physical-dpad__hit--left { top: 24%; left: 0; height: 52%; width: 26%; }
+.physical-dpad__hit--right { top: 24%; right: 0; height: 52%; width: 26%; }
+.physical-dpad__hit--select { top: 27%; left: 26%; width: 48%; height: 46%; border-radius: 18%; }
+.physical-key:active .physical-key__face { transform: translateY(1px); }
+.physical-dpad:has(.physical-dpad__hit--up:active) .physical-dpad__rocker { transform: perspective(220px) rotateX(-5deg); }
+.physical-dpad:has(.physical-dpad__hit--down:active) .physical-dpad__rocker { transform: perspective(220px) rotateX(5deg); }
+.physical-dpad:has(.physical-dpad__hit--left:active) .physical-dpad__rocker { transform: perspective(220px) rotateY(5deg); }
+.physical-dpad:has(.physical-dpad__hit--right:active) .physical-dpad__rocker { transform: perspective(220px) rotateY(-5deg); }
+.physical-dpad:has(.physical-dpad__hit--select:active) .physical-dpad__cap { transform: translateY(1px); }
+.physical-key:focus-visible .physical-key__face,
+.nokia-launcher .physical-dpad__hit:focus-visible { outline: 2px solid #efefdd; outline-offset: -4px; }
 @media (orientation: landscape) {
   .nokia-launcher .nokia-launcher__screen { flex-basis: 50%; height: 50%; }
-  .nokia-wordmark { font-size: 5cqh; }
-  .hardware-number strong { font-size: 3.4cqh; }
-  .hardware-number small { font-size: 2cqh; }
+  .physical-number strong { font-size: 4.5cqh; }
+  .physical-number small { font-size: 2.4cqh; }
 }

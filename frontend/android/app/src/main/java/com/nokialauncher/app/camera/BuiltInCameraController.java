@@ -11,10 +11,12 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.graphics.SurfaceTexture;
 import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
@@ -168,6 +170,10 @@ public final class BuiltInCameraController {
     public void setMode(PluginCall call) {
         cameraMode = "video".equals(call.getString("mode", "photo")) ? "video" : "photo";
         if (cameraChromeView != null) cameraChromeView.setMode(cameraMode);
+        if (cameraProvider != null && previewView != null && previewContainer != null && previewContainer.getParent() != null) {
+            activity.runOnUiThread(() -> bindUseCases(call));
+            return;
+        }
         JSObject result = new JSObject();
         result.put("mode", cameraMode);
         call.resolve(result);
@@ -387,7 +393,10 @@ public final class BuiltInCameraController {
         activity.runOnUiThread(() -> {
             if (activeRecording != null) activeRecording.stop();
             if (cameraProvider != null) cameraProvider.unbindAll();
-            removePreview();
+            camera = null;
+            imageCapture = null;
+            videoCapture = null;
+            detachPreview();
             removeMediaView();
             JSObject result = new JSObject();
             result.put("stopped", true);
@@ -399,7 +408,10 @@ public final class BuiltInCameraController {
         activity.runOnUiThread(() -> {
             if (activeRecording != null) activeRecording.stop();
             if (cameraProvider != null) cameraProvider.unbindAll();
-            removePreview();
+            camera = null;
+            imageCapture = null;
+            videoCapture = null;
+            detachPreview();
             removeMediaView();
         });
     }
@@ -437,18 +449,22 @@ public final class BuiltInCameraController {
         }
         if (cameraChromeView == null) {
             cameraChromeView = new CameraChromeView(activity);
-            cameraChromeView.setMode(cameraMode);
-            cameraChromeView.setGridEnabled(gridEnabled);
-            cameraChromeView.setLens(lensFacing == CameraSelector.LENS_FACING_FRONT ? "front" : "back");
-            cameraChromeView.setFlash(flashName());
             previewContainer.addView(cameraChromeView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             ));
             loadLatestThumbnail();
         }
+        cameraChromeView.setMode(cameraMode);
+        cameraChromeView.setGridEnabled(gridEnabled);
+        cameraChromeView.setLens(lensFacing == CameraSelector.LENS_FACING_FRONT ? "front" : "back");
+        cameraChromeView.setFlash(flashName());
         previewContainer.setOnTouchListener((view, event) -> handlePreviewTouch(event));
         attachToRoot(previewContainer);
+        if (cameraProvider != null) {
+            bindUseCases(call);
+            return;
+        }
         ListenableFuture<ProcessCameraProvider> future = ProcessCameraProvider.getInstance(activity);
         future.addListener(() -> {
             try {
@@ -473,26 +489,36 @@ public final class BuiltInCameraController {
                 : Surface.ROTATION_0;
             Preview preview = new Preview.Builder().setTargetRotation(rotation).build();
             preview.setSurfaceProvider(previewView.getSurfaceProvider());
-            imageCapture = new ImageCapture.Builder()
-                .setTargetRotation(rotation)
-                .setFlashMode(flashMode)
-                .build();
-            Recorder recorder = new Recorder.Builder()
-                .setQualitySelector(QualitySelector.fromOrderedList(
-                    Arrays.asList(Quality.FHD, Quality.HD, Quality.SD),
-                    FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
-                ))
-                .build();
-            videoCapture = VideoCapture.withOutput(recorder);
-            videoCapture.setTargetRotation(rotation);
             cameraProvider.unbindAll();
-            camera = cameraProvider.bindToLifecycle(
-                (LifecycleOwner) activity,
-                selector,
-                preview,
-                imageCapture,
-                videoCapture
-            );
+            if ("video".equals(cameraMode)) {
+                imageCapture = null;
+                Recorder recorder = new Recorder.Builder()
+                    .setQualitySelector(QualitySelector.fromOrderedList(
+                        Arrays.asList(Quality.FHD, Quality.HD, Quality.SD),
+                        FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
+                    ))
+                    .build();
+                videoCapture = VideoCapture.withOutput(recorder);
+                videoCapture.setTargetRotation(rotation);
+                camera = cameraProvider.bindToLifecycle(
+                    (LifecycleOwner) activity,
+                    selector,
+                    preview,
+                    videoCapture
+                );
+            } else {
+                videoCapture = null;
+                imageCapture = new ImageCapture.Builder()
+                    .setTargetRotation(rotation)
+                    .setFlashMode(flashMode)
+                    .build();
+                camera = cameraProvider.bindToLifecycle(
+                    (LifecycleOwner) activity,
+                    selector,
+                    preview,
+                    imageCapture
+                );
+            }
             JSObject result = new JSObject();
             result.put("sessionId", UUID.randomUUID().toString());
             result.put("lens", lensFacing == CameraSelector.LENS_FACING_FRONT ? "front" : "back");
@@ -531,10 +557,9 @@ public final class BuiltInCameraController {
         float width = previewContainer.getWidth();
         float height = previewContainer.getHeight();
         float topChrome = previewContainer.getHeight() * 0.12f;
-        float bottomChrome = previewContainer.getHeight() * 0.24f;
+        float bottomChrome = previewContainer.getHeight() * 0.21f;
         if (event.getY() < topChrome) {
-            if (event.getX() < width * 0.32f) emitControl("flash");
-            else if (event.getX() > width * 0.68f) emitControl("flip");
+            if (event.getX() < width * 0.38f) emitControl("flash");
             return true;
         }
         if (event.getY() > height - bottomChrome) {
@@ -580,14 +605,18 @@ public final class BuiltInCameraController {
     }
 
     private void removePreview() {
-        if (previewContainer != null && previewContainer.getParent() instanceof ViewGroup) {
-            ((ViewGroup) previewContainer.getParent()).removeView(previewContainer);
-        }
+        detachPreview();
         if (previewContainer != null) previewContainer.removeAllViews();
         previewContainer = null;
         previewView = null;
         if (cameraChromeView != null) cameraChromeView.release();
         cameraChromeView = null;
+    }
+
+    private void detachPreview() {
+        if (previewContainer != null && previewContainer.getParent() instanceof ViewGroup) {
+            ((ViewGroup) previewContainer.getParent()).removeView(previewContainer);
+        }
     }
 
     private void removeMediaView() {
@@ -675,10 +704,11 @@ public final class BuiltInCameraController {
             super.onDraw(canvas);
             float width = getWidth();
             float height = getHeight();
-            float top = height * 0.12f;
-            float bottom = height * 0.24f;
+            float top = height * 0.10f;
+            float bottom = height * 0.21f;
             float previewBottom = height - bottom;
 
+            drawScrims(canvas, width, height, top, bottom);
             if (gridEnabled) drawGrid(canvas, width, top, previewBottom);
             drawFocus(canvas, width, top, previewBottom);
             drawTopBar(canvas, width, top);
@@ -690,7 +720,7 @@ public final class BuiltInCameraController {
         private void drawGrid(Canvas canvas, float width, float top, float bottom) {
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(dp(0.7f));
-            paint.setColor(0x58ffffff);
+            paint.setColor(0x34ffffff);
             for (int index = 1; index < 3; index++) {
                 float x = width * index / 3f;
                 float y = top + (bottom - top) * index / 3f;
@@ -701,13 +731,14 @@ public final class BuiltInCameraController {
 
         private void drawFocus(Canvas canvas, float width, float top, float bottom) {
             boolean tapped = SystemClock.elapsedRealtime() < focusUntil;
-            float x = tapped ? focusX : width / 2f;
-            float y = tapped ? focusY : top + (bottom - top) / 2f;
-            float radius = dp(tapped ? 24f : 18f);
+            if (!tapped) return;
+            float x = focusX;
+            float y = focusY;
+            float radius = dp(22f);
             float corner = radius * 0.48f;
             paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(dp(tapped ? 1.8f : 1.2f));
-            paint.setColor(tapped ? 0xffffffff : 0xb8ffffff);
+            paint.setStrokeWidth(dp(1.6f));
+            paint.setColor(0xffffffff);
             canvas.drawLine(x - radius, y - radius, x - radius + corner, y - radius, paint);
             canvas.drawLine(x - radius, y - radius, x - radius, y - radius + corner, paint);
             canvas.drawLine(x + radius, y - radius, x + radius - corner, y - radius, paint);
@@ -722,7 +753,7 @@ public final class BuiltInCameraController {
 
         private void drawTopBar(Canvas canvas, float width, float top) {
             float centerY = top / 2f;
-            drawControlBackdrop(canvas, dp(24), centerY, dp(18));
+            drawPill(canvas, dp(8), centerY - dp(14), dp(74), centerY + dp(14));
             drawBolt(canvas, dp(22), centerY);
             if (hasFlash) drawText(canvas, flash.toUpperCase(), dp(36), centerY + dp(4), dp(9), Paint.Align.LEFT, 0xffffffff);
 
@@ -734,8 +765,6 @@ public final class BuiltInCameraController {
             } else {
                 drawText(canvas, "video".equals(mode) ? "FHD" : "4:3", width / 2f, centerY + dp(4), dp(10), Paint.Align.CENTER, 0xffffffff);
             }
-            drawControlBackdrop(canvas, width - dp(24), centerY, dp(18));
-            drawFlipIcon(canvas, width - dp(24), centerY, dp(12));
         }
 
         private void drawBottomBar(Canvas canvas, float width, float height, float bottom) {
@@ -748,7 +777,7 @@ public final class BuiltInCameraController {
 
             float controlY = height - bottom * 0.38f;
             float shutterRadius = Math.min(dp(24), bottom * 0.21f);
-            drawControlBackdrop(canvas, width / 2f, controlY, shutterRadius + dp(10));
+            drawControlBackdrop(canvas, width / 2f, controlY, shutterRadius + dp(7));
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(dp(2.2f));
             paint.setColor(0xffffffff);
@@ -760,7 +789,7 @@ public final class BuiltInCameraController {
             float iconSize = dp(28);
             float galleryLeft = dp(22);
             RectF galleryBox = new RectF(galleryLeft, controlY - iconSize / 2f, galleryLeft + iconSize, controlY + iconSize / 2f);
-            drawControlBackdrop(canvas, galleryBox.centerX(), galleryBox.centerY(), dp(22));
+            drawPill(canvas, galleryBox.left - dp(5), galleryBox.top - dp(5), galleryBox.right + dp(5), galleryBox.bottom + dp(5));
             if (galleryThumbnail != null && !galleryThumbnail.isRecycled()) {
                 drawCenterCrop(canvas, galleryThumbnail, galleryBox);
             }
@@ -768,8 +797,8 @@ public final class BuiltInCameraController {
             paint.setStrokeWidth(dp(1.5f));
             paint.setColor(0xffffffff);
             canvas.drawRoundRect(galleryBox, dp(2), dp(2), paint);
-            drawControlBackdrop(canvas, width - dp(37), controlY, dp(22));
-            drawFlipIcon(canvas, width - dp(37), controlY, dp(15));
+            drawControlBackdrop(canvas, width - dp(37), controlY, dp(18));
+            drawFlipIcon(canvas, width - dp(37), controlY, dp(12));
 
             if (recording) {
                 long elapsed = Math.max(0L, SystemClock.elapsedRealtime() - recordingStartedAt) / 1000L;
@@ -818,8 +847,25 @@ public final class BuiltInCameraController {
 
         private void drawControlBackdrop(Canvas canvas, float x, float y, float radius) {
             paint.setStyle(Paint.Style.FILL);
-            paint.setColor(0x52000000);
+            paint.setColor(0x66000000);
             canvas.drawCircle(x, y, radius, paint);
+        }
+
+        private void drawPill(Canvas canvas, float left, float top, float right, float bottom) {
+            paint.setShader(null);
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(0x66000000);
+            RectF bounds = new RectF(left, top, right, bottom);
+            canvas.drawRoundRect(bounds, bounds.height() / 2f, bounds.height() / 2f, paint);
+        }
+
+        private void drawScrims(Canvas canvas, float width, float height, float top, float bottom) {
+            paint.setStyle(Paint.Style.FILL);
+            paint.setShader(new LinearGradient(0, 0, 0, top * 1.65f, 0x8a000000, 0x00000000, Shader.TileMode.CLAMP));
+            canvas.drawRect(0, 0, width, top * 1.65f, paint);
+            paint.setShader(new LinearGradient(0, height - bottom * 1.45f, 0, height, 0x00000000, 0x92000000, Shader.TileMode.CLAMP));
+            canvas.drawRect(0, height - bottom * 1.45f, width, height, paint);
+            paint.setShader(null);
         }
 
         private void drawCenterCrop(Canvas canvas, Bitmap bitmap, RectF destination) {

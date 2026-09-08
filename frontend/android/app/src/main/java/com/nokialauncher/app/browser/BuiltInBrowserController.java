@@ -42,10 +42,10 @@ public final class BuiltInBrowserController {
     private static final String START_URL = "https://www.google.com";
     private static final int MAX_TABS = 4;
     private static final int OLIVE = Color.rgb(157, 168, 77);
-    private static final int OLIVE_LIGHT = Color.rgb(168, 179, 88);
-    private static final int OLIVE_DARK = Color.rgb(133, 143, 63);
     private static final int INK = Color.rgb(17, 24, 3);
     private static final int PAGE = Color.rgb(248, 248, 242);
+    private static final int CHROME = Color.rgb(240, 241, 235);
+    private static final int CHROME_LINE = Color.rgb(192, 196, 184);
     private static final String DISABLE_SYSTEM_IME_SCRIPT =
         "(function(){"
             + "const mark=()=>document.querySelectorAll('input,textarea,[contenteditable=\"true\"]')"
@@ -112,9 +112,12 @@ public final class BuiltInBrowserController {
             active = true;
             ensureBrowserView();
             attachToRoot();
-            if (webView == null) createTab(requestedUrl, true);
-            webView.onResume();
-            if (!requestedUrl.equals(webView.getUrl())) webView.loadUrl(requestedUrl);
+            boolean createdTab = webView == null;
+            if (createdTab) createTab(requestedUrl, true);
+            for (WebView tab : tabs) tab.onResume();
+            if (!createdTab && (webView.getUrl() == null || "about:blank".equals(webView.getUrl()))) {
+                webView.loadUrl(requestedUrl);
+            }
             JSObject result = new JSObject();
             result.put("started", true);
             result.put("native", true);
@@ -192,6 +195,12 @@ public final class BuiltInBrowserController {
                 case "tabs":
                     showTabsMenu(tabCountButton);
                     break;
+                case "tab-next":
+                    handled = switchRelativeTab(1);
+                    break;
+                case "tab-previous":
+                    handled = switchRelativeTab(-1);
+                    break;
                 case "open-external":
                     openExternally();
                     break;
@@ -243,7 +252,12 @@ public final class BuiltInBrowserController {
     public void stop() {
         active = false;
         hideKeyboard();
+        for (WebView tab : tabs) tab.onPause();
         detachFromRoot();
+    }
+
+    private void releaseBrowserViews() {
+        stop();
         for (WebView tab : tabs) destroyWebView(tab);
         tabs.clear();
         activeTabIndex = -1;
@@ -256,14 +270,14 @@ public final class BuiltInBrowserController {
     }
 
     public void destroy() {
-        activity.runOnUiThread(this::stop);
+        activity.runOnUiThread(this::releaseBrowserViews);
     }
 
     private void ensureBrowserView() {
         if (browserContainer != null) return;
 
         browserContainer = new FrameLayout(activity);
-        GradientDrawable shell = roundedDrawable(OLIVE_DARK, dp(9), 0, Color.TRANSPARENT);
+        GradientDrawable shell = roundedDrawable(CHROME, dp(9), dpInt(1), CHROME_LINE);
         browserContainer.setBackground(shell);
         browserContainer.setClipToOutline(true);
 
@@ -276,13 +290,13 @@ public final class BuiltInBrowserController {
 
         column.addView(createTopBar(), new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
-            dpInt(46)
+            dpInt(43)
         ));
 
         progressBar = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(100);
-        progressBar.setProgressTintList(android.content.res.ColorStateList.valueOf(OLIVE_DARK));
-        progressBar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(OLIVE));
+        progressBar.setProgressTintList(android.content.res.ColorStateList.valueOf(OLIVE));
+        progressBar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(CHROME));
         column.addView(progressBar, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             dpInt(2)
@@ -295,37 +309,33 @@ public final class BuiltInBrowserController {
             0,
             1f
         ));
-
-        column.addView(createBottomBar(), new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            dpInt(40)
-        ));
     }
 
     private View createTopBar() {
         LinearLayout bar = new LinearLayout(activity);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dpInt(6), dpInt(5), dpInt(6), dpInt(5));
-        bar.setBackgroundColor(OLIVE);
+        bar.setPadding(dpInt(5), dpInt(4), dpInt(5), dpInt(4));
+        bar.setBackgroundColor(CHROME);
 
         TextView back = controlButton("‹", "Back");
+        back.setTextSize(24);
         back.setOnClickListener(view -> {
             if (webView != null && webView.canGoBack()) webView.goBack();
         });
-        bar.addView(back, new LinearLayout.LayoutParams(dpInt(38), ViewGroup.LayoutParams.MATCH_PARENT));
+        bar.addView(back, new LinearLayout.LayoutParams(dpInt(32), ViewGroup.LayoutParams.MATCH_PARENT));
 
         addressField = new EditText(activity);
         addressField.setSingleLine(true);
-        addressField.setTextSize(14);
+        addressField.setTextSize(13);
         addressField.setTextColor(INK);
-        addressField.setHintTextColor(Color.rgb(92, 98, 73));
+        addressField.setHintTextColor(Color.rgb(104, 108, 99));
         addressField.setHint("Search or enter address");
         addressField.setPadding(dpInt(12), 0, dpInt(10), 0);
         addressField.setSelectAllOnFocus(true);
         addressField.setShowSoftInputOnFocus(false);
         addressField.setImeOptions(EditorInfo.IME_ACTION_GO);
         addressField.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
-        addressField.setBackground(roundedDrawable(Color.rgb(244, 245, 229), dp(17), dpInt(1), Color.rgb(113, 121, 83)));
+        addressField.setBackground(roundedDrawable(Color.WHITE, dp(16), dpInt(1), CHROME_LINE));
         addressField.setOnEditorActionListener((view, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_GO || (event != null && event.getKeyCode() == android.view.KeyEvent.KEYCODE_ENTER)) {
                 navigateFromAddress();
@@ -338,55 +348,25 @@ public final class BuiltInBrowserController {
         bar.addView(addressField, addressParams);
 
         tabCountButton = controlButton("1", "Tabs");
-        tabCountButton.setTextSize(15);
-        tabCountButton.setBackground(roundedDrawable(OLIVE_LIGHT, dp(4), dpInt(1), INK));
+        tabCountButton.setTextSize(14);
+        tabCountButton.setBackground(roundedDrawable(Color.TRANSPARENT, dp(5), dpInt(1), INK));
         tabCountButton.setOnClickListener(this::showTabsMenu);
-        LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(dpInt(34), dpInt(30));
+        LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(dpInt(31), dpInt(29));
         tabParams.setMargins(0, 0, dpInt(4), 0);
         bar.addView(tabCountButton, tabParams);
 
         TextView menu = controlButton("⋮", "Browser menu");
+        menu.setTextSize(22);
         menu.setOnClickListener(this::showBrowserMenu);
-        bar.addView(menu, new LinearLayout.LayoutParams(dpInt(38), ViewGroup.LayoutParams.MATCH_PARENT));
+        bar.addView(menu, new LinearLayout.LayoutParams(dpInt(31), ViewGroup.LayoutParams.MATCH_PARENT));
         return bar;
-    }
-
-    private View createBottomBar() {
-        LinearLayout bar = new LinearLayout(activity);
-        bar.setGravity(Gravity.CENTER);
-        bar.setBackgroundColor(OLIVE);
-
-        TextView forward = controlButton("›", "Forward");
-        forward.setOnClickListener(view -> {
-            if (webView != null && webView.canGoForward()) webView.goForward();
-        });
-        bar.addView(forward, weightedControlParams());
-
-        TextView reload = controlButton("↻", "Reload");
-        reload.setOnClickListener(view -> {
-            if (webView != null) webView.reload();
-        });
-        bar.addView(reload, weightedControlParams());
-
-        TextView address = controlButton("⌕", "Focus address");
-        address.setOnClickListener(view -> focusAddressField());
-        bar.addView(address, weightedControlParams());
-
-        TextView tabsButton = controlButton("▣", "Tabs");
-        tabsButton.setOnClickListener(this::showTabsMenu);
-        bar.addView(tabsButton, weightedControlParams());
-        return bar;
-    }
-
-    private LinearLayout.LayoutParams weightedControlParams() {
-        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
     }
 
     private TextView controlButton(String glyph, String description) {
         TextView button = new TextView(activity);
         button.setText(glyph);
         button.setTextColor(INK);
-        button.setTextSize(26);
+        button.setTextSize(22);
         button.setGravity(Gravity.CENTER);
         button.setContentDescription(description);
         button.setClickable(true);
@@ -422,6 +402,7 @@ public final class BuiltInBrowserController {
         settings.setDisplayZoomControls(false);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) settings.setSafeBrowsingEnabled(true);
 
         CookieManager.getInstance().setAcceptCookie(true);
@@ -472,7 +453,6 @@ public final class BuiltInBrowserController {
                     progressBar.setProgress(progress);
                     progressBar.setVisibility(progress >= 100 ? View.INVISIBLE : View.VISIBLE);
                 }
-                emitState(progress >= 100 ? "ready" : "loading");
             }
         });
     }
@@ -543,6 +523,14 @@ public final class BuiltInBrowserController {
 
     private void updateTabCount() {
         if (tabCountButton != null) tabCountButton.setText(String.valueOf(Math.max(1, tabs.size())));
+    }
+
+    private boolean switchRelativeTab(int delta) {
+        if (tabs.size() < 2 || activeTabIndex < 0) return false;
+        int next = (activeTabIndex + delta) % tabs.size();
+        if (next < 0) next += tabs.size();
+        switchToTab(next);
+        return true;
     }
 
     private void showTabsMenu(View anchor) {
@@ -720,12 +708,21 @@ public final class BuiltInBrowserController {
 
     private void showBrowserMenu(View anchor) {
         PopupMenu popup = new PopupMenu(activity, anchor);
+        popup.getMenu().add("Tabs");
+        popup.getMenu().add("Reload");
+        popup.getMenu().add("Forward");
         popup.getMenu().add("Open in browser");
         popup.getMenu().add("Clear session");
         popup.getMenu().add("Close");
         popup.setOnMenuItemClickListener(item -> {
             String title = String.valueOf(item.getTitle());
-            if ("Open in browser".equals(title)) {
+            if ("Tabs".equals(title)) {
+                showTabsMenu(anchor);
+            } else if ("Reload".equals(title)) {
+                if (webView != null) webView.reload();
+            } else if ("Forward".equals(title)) {
+                if (webView != null && webView.canGoForward()) webView.goForward();
+            } else if ("Open in browser".equals(title)) {
                 openExternally();
             } else if ("Clear session".equals(title)) {
                 CookieManager.getInstance().removeSessionCookies(null);

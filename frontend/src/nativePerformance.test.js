@@ -31,6 +31,22 @@ test("the IME publishes classified control-surface modes at lifecycle seams", ()
   );
 });
 
+test("the compact navigator uses one bounded accessibility overlay window", () => {
+  const source = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      "../android/app/src/main/java/com/nokialauncher/NokiaNavigatorOverlayController.java",
+    ),
+    "utf8",
+  );
+
+  expect(source).toContain("TYPE_ACCESSIBILITY_OVERLAY");
+  expect(source).toContain("FLAG_NOT_FOCUSABLE");
+  expect(source).not.toContain("TYPE_APPLICATION_OVERLAY");
+  expect(source).not.toContain("SYSTEM_ALERT_WINDOW");
+  expect(source).not.toContain("setInterval");
+});
+
 test("activity resume delegates WebView lifecycle without forcing redraws", () => {
   const source = fs.readFileSync(
     path.resolve(

@@ -1,6 +1,9 @@
 package com.nokialauncher;
 
 import android.accessibilityservice.AccessibilityService;
+import android.app.KeyguardManager;
+import android.content.Context;
+import android.content.res.Configuration;
 import android.os.Build;
 import android.view.accessibility.AccessibilityEvent;
 
@@ -12,16 +15,25 @@ import android.view.accessibility.AccessibilityEvent;
 public class NokiaAccessibilityService extends AccessibilityService {
 
     private static NokiaAccessibilityService activeInstance;
+    private NokiaNavigatorOverlayController navigatorOverlay;
+    private String activePackage;
 
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         activeInstance = this;
+        navigatorOverlay = new NokiaNavigatorOverlayController(this, intent -> {
+            // Cross-app actions are connected in the focus-navigation phase.
+        });
+        refreshNavigationMode();
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // No event inspection needed; used exclusively for performGlobalAction.
+        if (event != null && event.getPackageName() != null) {
+            activePackage = event.getPackageName().toString();
+        }
+        refreshNavigationMode();
     }
 
     @Override
@@ -31,10 +43,45 @@ public class NokiaAccessibilityService extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        if (navigatorOverlay != null) {
+            navigatorOverlay.destroy();
+            navigatorOverlay = null;
+        }
+        ControlSurfaceCoordinator.setMode(ControlSurfaceMode.HIDDEN);
         if (activeInstance == this) {
             activeInstance = null;
         }
         super.onDestroy();
+    }
+
+    private void refreshNavigationMode() {
+        if (isLandscape() || isKeyguardLocked()) {
+            ControlSurfaceCoordinator.setMode(ControlSurfaceMode.HIDDEN);
+            return;
+        }
+        if (getPackageName().equals(activePackage)) {
+            ControlSurfaceCoordinator.setMode(ControlSurfaceMode.HIDDEN);
+            return;
+        }
+
+        ControlSurfaceMode currentMode = ControlSurfaceCoordinator.getMode();
+        if (currentMode == ControlSurfaceMode.INPUT_TEXT
+                || currentMode == ControlSurfaceMode.INPUT_NUMBER
+                || currentMode == ControlSurfaceMode.SECURE) {
+            return;
+        }
+        ControlSurfaceCoordinator.setMode(ControlSurfaceMode.NAVIGATION);
+    }
+
+    private boolean isLandscape() {
+        return getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_LANDSCAPE;
+    }
+
+    private boolean isKeyguardLocked() {
+        KeyguardManager keyguardManager =
+                (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        return keyguardManager != null && keyguardManager.isKeyguardLocked();
     }
 
     public static boolean isAvailable() {

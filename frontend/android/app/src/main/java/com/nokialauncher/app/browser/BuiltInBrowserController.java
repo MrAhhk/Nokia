@@ -83,11 +83,13 @@ public final class BuiltInBrowserController {
     private final BrowserStateListener stateListener;
     private FrameLayout browserContainer;
     private FrameLayout webHost;
+    private LinearLayout chromeBar;
     private WebView webView;
     private final List<WebView> tabs = new ArrayList<>();
     private int activeTabIndex = -1;
     private EditText addressField;
     private TextView tabCountButton;
+    private TextView chromeDivider;
     private ProgressBar progressBar;
     private boolean addressPreviewActive;
     private boolean active;
@@ -260,6 +262,8 @@ public final class BuiltInBrowserController {
         webHost = null;
         addressField = null;
         tabCountButton = null;
+        chromeBar = null;
+        chromeDivider = null;
         progressBar = null;
         browserContainer = null;
     }
@@ -308,6 +312,7 @@ public final class BuiltInBrowserController {
 
     private View createTopBar() {
         LinearLayout bar = new LinearLayout(activity);
+        chromeBar = bar;
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(dpInt(5), dpInt(4), dpInt(5), dpInt(4));
         bar.setBackgroundColor(CHROME);
@@ -340,7 +345,7 @@ public final class BuiltInBrowserController {
         });
         LinearLayout addressAndTabs = new LinearLayout(activity);
         addressAndTabs.setGravity(Gravity.CENTER_VERTICAL);
-        addressAndTabs.setBackground(roundedDrawable(Color.WHITE, dp(16), dpInt(1), CHROME_LINE));
+        addressAndTabs.setBackgroundColor(Color.TRANSPARENT);
         LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
         addressAndTabs.addView(addressField, addressParams);
 
@@ -349,6 +354,7 @@ public final class BuiltInBrowserController {
         tabCountButton.setBackgroundColor(Color.TRANSPARENT);
         tabCountButton.setOnClickListener(this::showTabsMenu);
         TextView divider = new TextView(activity);
+        chromeDivider = divider;
         divider.setBackgroundColor(CHROME_LINE);
         addressAndTabs.addView(divider, new LinearLayout.LayoutParams(dpInt(1), dpInt(20)));
         addressAndTabs.addView(tabCountButton, new LinearLayout.LayoutParams(dpInt(38), ViewGroup.LayoutParams.MATCH_PARENT));
@@ -435,6 +441,7 @@ public final class BuiltInBrowserController {
             public void onPageFinished(WebView view, String url) {
                 if (view != webView) return;
                 installLauncherInputMode(view);
+                syncChromeToPage(view);
                 setDisplayedAddress(url);
                 emitState("ready");
             }
@@ -461,6 +468,56 @@ public final class BuiltInBrowserController {
 
     private void installLauncherInputMode(WebView target) {
         if (target != null) target.evaluateJavascript(DISABLE_SYSTEM_IME_SCRIPT, null);
+    }
+
+    private void syncChromeToPage(WebView target) {
+        target.evaluateJavascript(
+            "(function(){"
+                + "const clear=c=>!c||c==='transparent'||c==='rgba(0, 0, 0, 0)';"
+                + "let c=getComputedStyle(document.body).backgroundColor;"
+                + "if(clear(c))c=getComputedStyle(document.documentElement).backgroundColor;"
+                + "const m=(c||'').match(/\\d+/g);"
+                + "return m&&m.length>=3?((+m[0]<<16)|(+m[1]<<8)|+m[2]):null;"
+                + "})()",
+            value -> {
+                if (value == null || "null".equals(value)) return;
+                try {
+                    int pageColor = Color.rgb(
+                        (Integer.parseInt(value) >> 16) & 0xff,
+                        (Integer.parseInt(value) >> 8) & 0xff,
+                        Integer.parseInt(value) & 0xff
+                    );
+                    applyChromeColor(pageColor);
+                } catch (NumberFormatException ignored) {
+                    // Keep the neutral fallback until the page exposes a background.
+                }
+            }
+        );
+    }
+
+    private void applyChromeColor(int pageColor) {
+        int red = Color.red(pageColor);
+        int green = Color.green(pageColor);
+        int blue = Color.blue(pageColor);
+        boolean light = (red * 299 + green * 587 + blue * 114) >= 150000;
+        int foreground = light ? INK : Color.WHITE;
+        if (chromeBar != null) {
+            chromeBar.setBackgroundColor(pageColor);
+            applyTextColor(chromeBar, foreground);
+        }
+        if (browserContainer != null) {
+            browserContainer.setBackground(roundedDrawable(pageColor, dp(9), 0, Color.TRANSPARENT));
+        }
+        if (addressField != null) addressField.setHintTextColor(Color.argb(150, Color.red(foreground), Color.green(foreground), Color.blue(foreground)));
+        if (chromeDivider != null) chromeDivider.setBackgroundColor(Color.argb(80, Color.red(foreground), Color.green(foreground), Color.blue(foreground)));
+        if (progressBar != null) progressBar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(pageColor));
+    }
+
+    private void applyTextColor(View view, int color) {
+        if (view instanceof TextView) ((TextView) view).setTextColor(color);
+        if (!(view instanceof ViewGroup)) return;
+        ViewGroup group = (ViewGroup) view;
+        for (int index = 0; index < group.getChildCount(); index++) applyTextColor(group.getChildAt(index), color);
     }
 
     private void createTab(String url, boolean select) {

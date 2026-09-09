@@ -3,6 +3,9 @@ import {
   KEY_INTENTS,
   NOKIA_MULTI_TAP_CYCLES,
   resolveContextualIntent,
+  CASE_MODES,
+  resolveNextCaseMode,
+  formatCharForCase,
 } from "./keyGrammar";
 
 describe("unified Nokia key grammar", () => {
@@ -44,6 +47,9 @@ describe("unified Nokia key grammar", () => {
       browser: { SOFT_LEFT: "DELETE", GREEN: "TAB", SOFT_RIGHT: "BACK" },
       menu: { SOFT_LEFT: "DELETE", GREEN: "RECENT_APPS", SOFT_RIGHT: "BACK" },
       settings: { SOFT_LEFT: "DELETE", GREEN: "RECENT_APPS", SOFT_RIGHT: "BACK" },
+      messages: { SOFT_LEFT: "DELETE", GREEN: "RECENT_APPS", SOFT_RIGHT: "BACK", SELECT: "SELECT" },
+      "message-thread": { SOFT_LEFT: "SELECT", GREEN: "SEND", SOFT_RIGHT: "BACK", SELECT: "SEND" },
+      "message-compose": { SOFT_LEFT: "SEND", GREEN: "SEND", SOFT_RIGHT: "BACK", SELECT: "DELETE" },
     };
 
     Object.entries(expected).forEach(([context, mappings]) => {
@@ -57,5 +63,49 @@ describe("unified Nokia key grammar", () => {
   it("shares one lower-case T9 alphabet and a complete punctuation cycle", () => {
     expect(NOKIA_MULTI_TAP_CYCLES[2]).toEqual(["a", "b", "c", "2"]);
     expect(NOKIA_MULTI_TAP_CYCLES[1]).toEqual(expect.arrayContaining([".", ",", "?", "!", "@", "1"]));
+  });
+
+  describe("casing transitions (# key)", () => {
+    it("transitions from lower to title on 1 press, and to upper (caps lock) on double press", () => {
+      // 1 press from lower -> Title (Abc: uppercase one word)
+      const t1 = 1000;
+      const mode1 = resolveNextCaseMode(CASE_MODES.LOWER, 0, t1);
+      expect(mode1).toBe(CASE_MODES.TITLE);
+
+      // Double press within 600ms -> Upper (ABC: caps lock)
+      const t2 = 1300;
+      const mode2 = resolveNextCaseMode(mode1, t1, t2, 600);
+      expect(mode2).toBe(CASE_MODES.UPPER);
+
+      // Press from upper -> Lower (abc)
+      const t3 = 1800;
+      const mode3 = resolveNextCaseMode(mode2, t2, t3, 600);
+      expect(mode3).toBe(CASE_MODES.LOWER);
+    });
+
+    it("cancels title mode back to lower if # pressed again after double-press window", () => {
+      const t1 = 1000;
+      const mode1 = resolveNextCaseMode(CASE_MODES.LOWER, 0, t1);
+      expect(mode1).toBe(CASE_MODES.TITLE);
+
+      // Press again after 800ms (> 600ms) -> cancels back to lower
+      const t2 = 1850;
+      const mode2 = resolveNextCaseMode(mode1, t1, t2, 600);
+      expect(mode2).toBe(CASE_MODES.LOWER);
+    });
+
+    it("formats characters correctly per case mode", () => {
+      // LOWER
+      expect(formatCharForCase("a", CASE_MODES.LOWER, true)).toBe("a");
+      expect(formatCharForCase("b", CASE_MODES.LOWER, false)).toBe("b");
+
+      // UPPER (Caps Lock)
+      expect(formatCharForCase("a", CASE_MODES.UPPER, true)).toBe("A");
+      expect(formatCharForCase("b", CASE_MODES.UPPER, false)).toBe("B");
+
+      // TITLE (Abc: uppercase one word)
+      expect(formatCharForCase("a", CASE_MODES.TITLE, true)).toBe("A");
+      expect(formatCharForCase("b", CASE_MODES.TITLE, false)).toBe("b");
+    });
   });
 });

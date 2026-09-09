@@ -31,8 +31,13 @@ import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.telecom.TelecomManager;
+import android.telephony.SmsManager;
 import android.view.inputmethod.InputMethodManager;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -56,7 +61,9 @@ import org.json.JSONArray;
     permissions = {
         @Permission(alias = "camera", strings = { Manifest.permission.CAMERA }),
         @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO }),
-        @Permission(alias = "phone", strings = { Manifest.permission.CALL_PHONE })
+        @Permission(alias = "phone", strings = { Manifest.permission.CALL_PHONE }),
+        @Permission(alias = "contacts", strings = { Manifest.permission.READ_CONTACTS }),
+        @Permission(alias = "sms", strings = { Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS })
     }
 )
 public class LauncherAppsPlugin extends Plugin {
@@ -282,6 +289,449 @@ public class LauncherAppsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void getContacts(PluginCall call) {
+        if (getPermissionState("contacts") != PermissionState.GRANTED) {
+            requestPermissionForAlias("contacts", call, "contactsPermissionCallback");
+            return;
+        }
+        fetchContacts(call);
+    }
+
+    @PermissionCallback
+    private void contactsPermissionCallback(PluginCall call) {
+        if (getPermissionState("contacts") != PermissionState.GRANTED) {
+            call.reject("contacts_permission_denied");
+            return;
+        }
+        fetchContacts(call);
+    }
+
+    private void fetchContacts(PluginCall call) {
+        new Thread(() -> {
+            try {
+                Context context = getContext();
+                if (context == null) {
+                    call.reject("Context is null");
+                    return;
+                }
+
+                ContentResolver resolver = context.getContentResolver();
+                Uri uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
+                String[] projection = new String[] {
+                    ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
+                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY,
+                    ContactsContract.CommonDataKinds.Phone.NUMBER
+                };
+                String sortOrder = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY + " COLLATE LOCALIZED ASC";
+
+                Cursor cursor = resolver.query(uri, projection, null, null, sortOrder);
+                JSONArray contactsArray = new JSONArray();
+
+                if (cursor != null) {
+                    try {
+                        int idIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID);
+                        int nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY);
+                        int numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
+
+                        java.util.HashSet<String> seen = new java.util.HashSet<>();
+
+                        while (cursor.moveToNext()) {
+                            String id = idIndex != -1 ? cursor.getString(idIndex) : "";
+                            String name = nameIndex != -1 ? cursor.getString(nameIndex) : "";
+                            String number = numberIndex != -1 ? cursor.getString(numberIndex) : "";
+
+                            if (name == null || name.trim().isEmpty()) {
+                                name = number;
+                            }
+                            if (number == null || number.trim().isEmpty()) {
+                                continue;
+                            }
+
+                            String cleanNumber = number.replaceAll("[^0-9+]", "");
+                            String dedupKey = name.trim() + "|" + cleanNumber;
+                            if (seen.contains(dedupKey)) {
+                                continue;
+                            }
+                            seen.add(dedupKey);
+
+                            JSObject contactObj = new JSObject();
+                            contactObj.put("id", id + "_" + cleanNumber);
+                            contactObj.put("name", name.trim());
+                            contactObj.put("number", number.trim());
+                            contactsArray.put(contactObj);
+                        }
+                    } finally {
+                        cursor.close();
+                    }
+                }
+
+                JSObject ret = new JSObject();
+                ret.put("contacts", contactsArray);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Failed to read contacts: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private java.util.Map<String, String> cachedContactNames = null;
+    private long lastContactFetchTime = 0;
+
+    private synchronized java.util.Map<String, String> getPhoneNumberToNameMap(Context context) {
+        if (cachedContactNames != null && (System.currentTimeMillis() - lastContactFetchTime < 30000)) {
+            return cachedContactNames;
+        }
+        java.util.Map<String, String> map = new java.util.HashMap<>();
+        try {
+            ContentResolver resolver = context.getContentResolver();
+            Uri uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
+            String[] projection = new String[] {
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY,
+                ContactsContract.CommonDataKinds.Phone.NUMBER
+            };
+            Cursor cursor = resolver.query(uri, projection, null, null, null);
+            if (cursor != null) {
+                try {
+                    int nameIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY);
+                    int numIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
+                    while (cursor.moveToNext()) {
+                        String name = nameIdx != -1 ? cursor.getString(nameIdx) : "";
+                        String number = numIdx != -1 ? cursor.getString(numIdx) : "";
+                        if (number != null && !number.trim().isEmpty() && name != null && !name.trim().isEmpty()) {
+                            String clean = number.replaceAll("[^0-9+]", "");
+                            map.put(clean, name.trim());
+                            if (clean.length() >= 9) {
+                                map.put(clean.substring(clean.length() - 9), name.trim());
+                            }
+                        }
+                    }
+                } finally {
+                    cursor.close();
+                }
+            }
+        } catch (Exception ignored) {}
+        cachedContactNames = map;
+        lastContactFetchTime = System.currentTimeMillis();
+        return map;
+    }
+
+    @PluginMethod
+    public void getConversations(PluginCall call) {
+        if (getPermissionState("sms") != PermissionState.GRANTED) {
+            requestPermissionForAlias("sms", call, "conversationsPermissionCallback");
+            return;
+        }
+        fetchConversations(call);
+    }
+
+    @PermissionCallback
+    private void conversationsPermissionCallback(PluginCall call) {
+        if (getPermissionState("sms") != PermissionState.GRANTED) {
+            call.reject("sms_permission_denied");
+            return;
+        }
+        fetchConversations(call);
+    }
+
+    private void fetchConversations(PluginCall call) {
+        new Thread(() -> {
+            try {
+                Context context = getContext();
+                if (context == null) {
+                    call.reject("Context is null");
+                    return;
+                }
+
+                java.util.Map<String, String> contactNames = getPhoneNumberToNameMap(context);
+
+                ContentResolver resolver = context.getContentResolver();
+                Uri uri = Uri.parse("content://sms");
+                String[] projection = new String[] {
+                    "_id", "thread_id", "address", "body", "date", "type", "read"
+                };
+                String sortOrder = "date DESC LIMIT 300";
+
+                Cursor cursor = resolver.query(uri, projection, null, null, sortOrder);
+                JSONArray conversationsArray = new JSONArray();
+
+                if (cursor != null) {
+                    try {
+                        int idIdx = cursor.getColumnIndex("_id");
+                        int threadIdx = cursor.getColumnIndex("thread_id");
+                        int addrIdx = cursor.getColumnIndex("address");
+                        int bodyIdx = cursor.getColumnIndex("body");
+                        int dateIdx = cursor.getColumnIndex("date");
+                        int typeIdx = cursor.getColumnIndex("type");
+                        int readIdx = cursor.getColumnIndex("read");
+
+                        java.util.LinkedHashMap<String, JSObject> threadMap = new java.util.LinkedHashMap<>();
+
+                        while (cursor.moveToNext()) {
+                            String threadId = threadIdx != -1 ? cursor.getString(threadIdx) : "";
+                            String address = addrIdx != -1 ? cursor.getString(addrIdx) : "";
+                            if (address == null) address = "";
+                            String cleanAddr = address.replaceAll("[^0-9+]", "");
+                            String groupKey = (threadId != null && !threadId.isEmpty() && !threadId.equals("0"))
+                                ? threadId
+                                : cleanAddr;
+
+                            if (groupKey.isEmpty() || threadMap.containsKey(groupKey)) {
+                                continue;
+                            }
+
+                            String id = idIdx != -1 ? cursor.getString(idIdx) : "";
+                            String body = bodyIdx != -1 ? cursor.getString(bodyIdx) : "";
+                            long date = dateIdx != -1 ? cursor.getLong(dateIdx) : 0L;
+                            int type = typeIdx != -1 ? cursor.getInt(typeIdx) : 1;
+                            int read = readIdx != -1 ? cursor.getInt(readIdx) : 1;
+
+                            String contactName = address;
+                            if (contactNames.containsKey(cleanAddr)) {
+                                contactName = contactNames.get(cleanAddr);
+                            } else if (cleanAddr.length() >= 9 && contactNames.containsKey(cleanAddr.substring(cleanAddr.length() - 9))) {
+                                contactName = contactNames.get(cleanAddr.substring(cleanAddr.length() - 9));
+                            }
+
+                            JSObject conv = new JSObject();
+                            conv.put("id", id);
+                            conv.put("threadId", threadId);
+                            conv.put("address", address);
+                            conv.put("contactName", contactName);
+                            conv.put("snippet", body != null ? body : "");
+                            conv.put("date", date);
+                            conv.put("type", type);
+                            conv.put("unread", read == 0);
+
+                            threadMap.put(groupKey, conv);
+                            if (threadMap.size() >= 50) {
+                                break;
+                            }
+                        }
+
+                        for (JSObject obj : threadMap.values()) {
+                            conversationsArray.put(obj);
+                        }
+                    } finally {
+                        cursor.close();
+                    }
+                }
+
+                JSObject ret = new JSObject();
+                ret.put("conversations", conversationsArray);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Failed to read conversations: " + e.getMessage(), e);
+            }
+        }).start();
+    }
+
+    @PluginMethod
+    public void getThreadMessages(PluginCall call) {
+        if (getPermissionState("sms") != PermissionState.GRANTED) {
+            requestPermissionForAlias("sms", call, "threadPermissionCallback");
+            return;
+        }
+        fetchThreadMessages(call);
+    }
+
+    @PermissionCallback
+    private void threadPermissionCallback(PluginCall call) {
+        if (getPermissionState("sms") != PermissionState.GRANTED) {
+            call.reject("sms_permission_denied");
+            return;
+        }
+        fetchThreadMessages(call);
+    }
+
+    private void fetchThreadMessages(PluginCall call) {
+        new Thread(() -> {
+            try {
+                Context context = getContext();
+                if (context == null) {
+                    call.reject("Context is null");
+                    return;
+                }
+
+                String threadId = call.getString("threadId", "");
+                String address = call.getString("address", "");
+
+                ContentResolver resolver = context.getContentResolver();
+                Uri uri = Uri.parse("content://sms");
+                String[] projection = new String[] {
+                    "_id", "thread_id", "address", "body", "date", "type", "read"
+                };
+
+                String selection = null;
+                String[] selectionArgs = null;
+
+                if (threadId != null && !threadId.trim().isEmpty() && !threadId.equals("0")) {
+                    try {
+                        Long.parseLong(threadId);
+                        selection = "thread_id = ?";
+                        selectionArgs = new String[] { threadId };
+                    } catch (NumberFormatException nfe) {
+                        if (address == null || address.trim().isEmpty()) {
+                            address = threadId;
+                        }
+                    }
+                }
+
+                if (selection == null && address != null && !address.trim().isEmpty()) {
+                    String cleanAddr = address.replaceAll("[^0-9+]", "");
+                    if (!cleanAddr.isEmpty()) {
+                        selection = "address LIKE ?";
+                        selectionArgs = new String[] { "%" + (cleanAddr.length() >= 7 ? cleanAddr.substring(cleanAddr.length() - 7) : cleanAddr) + "%" };
+                    } else {
+                        selection = "address = ? OR address LIKE ?";
+                        selectionArgs = new String[] { address, "%" + address + "%" };
+                    }
+                }
+
+                String sortOrder = "date DESC LIMIT 50";
+                Cursor cursor = resolver.query(uri, projection, selection, selectionArgs, sortOrder);
+                JSONArray messagesArray = new JSONArray();
+
+                if (cursor != null) {
+                    try {
+                        int idIdx = cursor.getColumnIndex("_id");
+                        int addrIdx = cursor.getColumnIndex("address");
+                        int bodyIdx = cursor.getColumnIndex("body");
+                        int dateIdx = cursor.getColumnIndex("date");
+                        int typeIdx = cursor.getColumnIndex("type");
+                        int readIdx = cursor.getColumnIndex("read");
+
+                        java.util.ArrayList<JSObject> list = new java.util.ArrayList<>();
+                        while (cursor.moveToNext()) {
+                            String id = idIdx != -1 ? cursor.getString(idIdx) : "";
+                            String msgAddr = addrIdx != -1 ? cursor.getString(addrIdx) : address;
+                            String body = bodyIdx != -1 ? cursor.getString(bodyIdx) : "";
+                            long date = dateIdx != -1 ? cursor.getLong(dateIdx) : 0L;
+                            int type = typeIdx != -1 ? cursor.getInt(typeIdx) : 1;
+                            int read = readIdx != -1 ? cursor.getInt(readIdx) : 1;
+
+                            JSObject msgObj = new JSObject();
+                            msgObj.put("id", id);
+                            msgObj.put("address", msgAddr);
+                            msgObj.put("body", body != null ? body : "");
+                            msgObj.put("date", date);
+                            msgObj.put("type", type);
+                            msgObj.put("unread", read == 0);
+                            list.add(msgObj);
+                        }
+                        java.util.Collections.reverse(list);
+                        for (JSObject obj : list) {
+                            messagesArray.put(obj);
+                        }
+                    } finally {
+                        cursor.close();
+                    }
+                }
+
+                JSObject ret = new JSObject();
+                ret.put("messages", messagesArray);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Failed to read thread messages: " + e.getMessage(), e);
+            }
+        }).start();
+    }
+
+    @PluginMethod
+    public void sendSms(PluginCall call) {
+        String address = call.getString("address", "");
+        String body = call.getString("body", "");
+        if (address == null || address.trim().isEmpty()) {
+            call.reject("Recipient address is required");
+            return;
+        }
+        if (body == null || body.trim().isEmpty()) {
+            call.reject("Message body is required");
+            return;
+        }
+
+        if (getPermissionState("sms") != PermissionState.GRANTED) {
+            requestPermissionForAlias("sms", call, "sendSmsPermissionCallback");
+            return;
+        }
+        executeSendSms(call, address, body);
+    }
+
+    @PermissionCallback
+    private void sendSmsPermissionCallback(PluginCall call) {
+        String address = call.getString("address", "");
+        String body = call.getString("body", "");
+        if (getPermissionState("sms") != PermissionState.GRANTED) {
+            launchSmsIntentFallback(address, body);
+            JSObject ret = new JSObject();
+            ret.put("sent", false);
+            ret.put("fallback", true);
+            call.resolve(ret);
+            return;
+        }
+        executeSendSms(call, address, body);
+    }
+
+    private void executeSendSms(PluginCall call, String address, String body) {
+        new Thread(() -> {
+            try {
+                Context context = getContext();
+                if (context == null) {
+                    call.reject("Context is null");
+                    return;
+                }
+
+                SmsManager smsManager;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    smsManager = context.getSystemService(SmsManager.class);
+                } else {
+                    smsManager = SmsManager.getDefault();
+                }
+
+                ArrayList<String> parts = smsManager.divideMessage(body);
+                if (parts.size() > 1) {
+                    smsManager.sendMultipartTextMessage(address, null, parts, null, null);
+                } else {
+                    smsManager.sendTextMessage(address, null, body, null, null);
+                }
+
+                try {
+                    ContentValues values = new ContentValues();
+                    values.put("address", address);
+                    values.put("body", body);
+                    values.put("date", System.currentTimeMillis());
+                    values.put("type", 2); // 2 = sent
+                    values.put("read", 1);
+                    context.getContentResolver().insert(Uri.parse("content://sms/sent"), values);
+                } catch (Exception ignored) {}
+
+                JSObject ret = new JSObject();
+                ret.put("sent", true);
+                ret.put("fallback", false);
+                call.resolve(ret);
+            } catch (Exception e) {
+                launchSmsIntentFallback(address, body);
+                JSObject ret = new JSObject();
+                ret.put("sent", false);
+                ret.put("fallback", true);
+                ret.put("error", e.getMessage());
+                call.resolve(ret);
+            }
+        }).start();
+    }
+
+    private void launchSmsIntentFallback(String address, String body) {
+        try {
+            Context context = getContext();
+            if (context != null) {
+                Intent intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + Uri.encode(address)));
+                intent.putExtra("sms_body", body);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    @PluginMethod
     public void openDefaultPhone(PluginCall call) {
         try {
             Intent intent = new Intent(Intent.ACTION_DIAL);
@@ -309,6 +759,43 @@ public class LauncherAppsPlugin extends Plugin {
             } catch (Exception fallbackError) {
                 call.reject("Failed to open maps app: " + fallbackError.getMessage(), fallbackError);
             }
+        }
+    }
+
+    @PluginMethod
+    public void selectDefaultApp(PluginCall call) {
+        String type = call.getString("type", "");
+        Context context = getContext();
+        if (context == null) {
+            call.reject("Context is null");
+            return;
+        }
+
+        try {
+            Intent intent;
+            if ("maps".equalsIgnoreCase(type) || "map".equalsIgnoreCase(type)) {
+                intent = new Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q="));
+            } else {
+                intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:"));
+            }
+
+            intent.setClassName("android", "com.android.internal.app.ResolverActivity");
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            try {
+                context.startActivity(intent);
+                call.resolve();
+                return;
+            } catch (Exception resolverError) {
+                // Fallback: strip component if ResolverActivity direct invocation is blocked
+                Intent fallback = new Intent(intent);
+                fallback.setComponent(null);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(fallback);
+                call.resolve();
+            }
+        } catch (Exception e) {
+            call.reject("Failed to open with: " + e.getMessage(), e);
         }
     }
 

@@ -2,23 +2,30 @@ import {
   HOME_FOCUS_TARGETS,
   SETTINGS_ITEMS,
   createHomeShortcuts,
+  filterAppsByCategory,
   findMatchingApp,
+  getDefaultApp,
   moveHomeFocus,
   moveListSelection,
   orderDrawerApps,
-  resolveHomeShortcut,
   rankSearchResults,
+  resolveHomeShortcut,
   resolveSettingAction,
+  setDefaultApp,
 } from "./launcherMenus";
 
 const apps = [
   { id: "calculator", name: "Calculator" },
   { id: "camera", name: "Camera" },
   { id: "music", name: "Music" },
-  { id: "maps", name: "Maps" },
-  { id: "messages", name: "Messages" },
+  { id: "maps", name: "Maps", packageName: "com.google.android.apps.maps" },
+  { id: "grab", name: "Grab", packageName: "com.grabtaxi.passenger" },
+  { id: "messages", name: "Messages", packageName: "com.android.mms" },
+  { id: "zalo", name: "Zalo", packageName: "com.zing.zalo" },
+  { id: "whatsapp", name: "WhatsApp", packageName: "com.whatsapp" },
   { id: "phone", name: "Phone" },
   { id: "calendar", name: "Calendar" },
+  { id: "gemini", name: "Gemini", packageName: "com.google.android.apps.bard" },
 ];
 
 describe("launcher menu models", () => {
@@ -43,6 +50,7 @@ describe("launcher menu models", () => {
     expect(shortcuts.map((shortcut) => shortcut.label)).toEqual([
       "Phone",
       "Messages",
+      "ChatGPT",
       "Maps",
       "Camera",
     ]);
@@ -121,6 +129,7 @@ describe("launcher menu models", () => {
       "search",
       "phone",
       "messages",
+      "ai",
       "maps",
       "camera",
     ]);
@@ -128,8 +137,8 @@ describe("launcher menu models", () => {
     expect(moveHomeFocus(2, "down")).toBe(3);
     expect(moveHomeFocus(2, "left")).toBe(1);
     expect(moveHomeFocus(2, "up")).toBe(1);
-    expect(moveHomeFocus(0, "left")).toBe(5);
-    expect(moveHomeFocus(5, "right")).toBe(0);
+    expect(moveHomeFocus(0, "left")).toBe(6);
+    expect(moveHomeFocus(6, "right")).toBe(0);
   });
 
   test("recovers list navigation immediately from stale out-of-range selections", () => {
@@ -154,5 +163,44 @@ describe("launcher menu models", () => {
       "My Phone Tools",
       "Contacts",
     ]);
+  });
+
+  test("filters installed apps by category for messages, ai, and maps", () => {
+    const messageApps = filterAppsByCategory(apps, "messages");
+    expect(messageApps.map((a) => a.id)).toEqual(["messages", "zalo", "whatsapp"]);
+
+    const aiApps = filterAppsByCategory(apps, "ai");
+    expect(aiApps.map((a) => a.id)).toEqual(["gemini"]);
+
+    const mapApps = filterAppsByCategory(apps, "maps");
+    expect(mapApps.map((a) => a.id)).toEqual(["maps", "grab"]);
+  });
+
+  test("persists and retrieves user-chosen default apps", () => {
+    const mockStorage = {
+      data: {},
+      getItem(k) { return this.data[k] || null; },
+      setItem(k, v) { this.data[k] = String(v); },
+    };
+
+    // Before any user choice, falls back to first match
+    expect(getDefaultApp("messages", apps, mockStorage)?.id).toBe("messages");
+    expect(getDefaultApp("ai", apps, mockStorage)?.id).toBe("gemini");
+    expect(getDefaultApp("maps", apps, mockStorage)?.id).toBe("maps");
+
+    // User chooses Zalo for messages, Gemini for AI, and Grab for maps
+    setDefaultApp("messages", { id: "zalo", packageName: "com.zing.zalo" }, mockStorage);
+    setDefaultApp("ai", { id: "gemini", packageName: "com.google.android.apps.bard" }, mockStorage);
+    setDefaultApp("maps", { id: "grab", packageName: "com.grabtaxi.passenger" }, mockStorage);
+
+    expect(getDefaultApp("messages", apps, mockStorage)?.id).toBe("zalo");
+    expect(getDefaultApp("ai", apps, mockStorage)?.id).toBe("gemini");
+    expect(getDefaultApp("maps", apps, mockStorage)?.id).toBe("grab");
+
+    // Home shortcuts reflect the user-chosen default apps
+    const shortcuts = createHomeShortcuts(apps, mockStorage);
+    expect(shortcuts.find((s) => s.id === "messages")?.app?.id).toBe("zalo");
+    expect(shortcuts.find((s) => s.id === "ai")?.app?.id).toBe("gemini");
+    expect(shortcuts.find((s) => s.id === "maps")?.app?.id).toBe("grab");
   });
 });

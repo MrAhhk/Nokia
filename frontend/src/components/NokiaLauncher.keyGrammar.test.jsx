@@ -68,18 +68,41 @@ describe("contextual physical-key grammar", () => {
     act(() => root.unmount());
   });
 
-  test("hash is literal in Home dialing and caps lock in text input", async () => {
+  test("hash single press uppercases one word (Abc) and double press activates caps lock (ABC)", async () => {
     const { container, root } = await mountLauncher();
 
     click(container, '[data-testid="keypad-btn-hash"]');
     expect(container.querySelector('[data-testid="screen-dial"]')?.textContent).toContain("#");
     click(container, '[data-testid="keypad-btn-end"]');
 
+    // Open settings search
     click(container, '[aria-label="Settings or Back"]');
-    click(container, '[data-testid="keypad-btn-2"]');
+
+    // Single press # -> Abc mode (uppercase one word)
     click(container, '[data-testid="keypad-btn-hash"]');
+    // Press 2 -> preview "A", then press 3 -> commits "A", preview "d"
     click(container, '[data-testid="keypad-btn-2"]');
-    expect(container.querySelector(".lcd-list-search")?.textContent).toContain("aA");
+    click(container, '[data-testid="keypad-btn-3"]');
+    // textContent should contain "Ad"
+    expect(container.querySelector(".lcd-list-search")?.textContent).toContain("Ad");
+
+    // Type space (key 0) -> ends word, reverts mode to lower "abc"
+    click(container, '[data-testid="keypad-btn-0"]');
+    // Next word starts lowercase: press 2 -> preview "a"
+    click(container, '[data-testid="keypad-btn-2"]');
+    expect(container.querySelector(".lcd-list-search")?.textContent).toContain("Ad a");
+
+    // Clear search
+    click(container, '[data-testid="keypad-btn-end"]');
+    click(container, '[aria-label="Settings or Back"]');
+
+    // Double press # within 600ms -> activates CAPS LOCK (ABC)
+    click(container, '[data-testid="keypad-btn-hash"]');
+    click(container, '[data-testid="keypad-btn-hash"]');
+    // Press 2 then 3 -> both uppercase: "A", "D"
+    click(container, '[data-testid="keypad-btn-2"]');
+    click(container, '[data-testid="keypad-btn-3"]');
+    expect(container.querySelector(".lcd-list-search")?.textContent).toContain("AD");
 
     act(() => root.unmount());
   });
@@ -125,6 +148,23 @@ describe("contextual physical-key grammar", () => {
     // Red END key returns to home screen
     click(container, '[data-testid="keypad-btn-end"]');
     expect(container.querySelector('[data-testid="screen-home"]')).not.toBeNull();
+
+    act(() => root.unmount());
+  });
+
+  test("pressing LEFT on home screen navigates shortcuts and does not open messages", async () => {
+    const { container, root } = await mountLauncher();
+
+    expect(container.querySelector('[data-testid="screen-home"]')).not.toBeNull();
+
+    // Press LEFT arrow key on home
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
+    });
+
+    // Verify it stays on home screen, does NOT navigate to messages
+    expect(container.querySelector('[data-testid="screen-home"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="screen-messages"]')).toBeNull();
 
     act(() => root.unmount());
   });

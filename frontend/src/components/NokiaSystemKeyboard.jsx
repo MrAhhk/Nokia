@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Keypad from "./Keypad";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
+import { CASE_MODES, resolveNextCaseMode, formatCharForCase } from "@/domain/keyGrammar";
 import { pauseAudioEngine, playKeypadTone } from "@/features/sound/nokiaAudioEngine";
 import { loadSoundSettings } from "@/features/sound/soundStorage";
 import "./AgedHardwareTheme.css";
@@ -27,9 +28,11 @@ const getIMEBridge = () => {
 };
 
 const NokiaSystemKeyboard = () => {
-  const [inputMode, setInputMode] = useState("abc"); // "abc" | "Abc" | "ABC" | "123" | "NAV"
-  const inputModeRef = useRef("abc");
+  const [inputMode, setInputMode] = useState(CASE_MODES.LOWER); // "abc" | "Abc" | "ABC" | "123" | "NAV"
+  const inputModeRef = useRef(CASE_MODES.LOWER);
   inputModeRef.current = inputMode;
+  const lastHashPressRef = useRef(0);
+  const wordCapitalizedRef = useRef(false);
 
   const multiTapComposerRef = useRef(null);
   if (multiTapComposerRef.current === null) {
@@ -40,8 +43,9 @@ const NokiaSystemKeyboard = () => {
         const bridge = getIMEBridge();
         let char = character;
         const mode = inputModeRef.current;
-        if (char && (mode === "ABC" || mode === "Abc")) {
-          char = char.toUpperCase();
+        if (char) {
+          const isFirstChar = !wordCapitalizedRef.current;
+          char = formatCharForCase(char, mode, isFirstChar);
         }
         if (bridge) {
           bridge.setComposingText(char);
@@ -51,8 +55,12 @@ const NokiaSystemKeyboard = () => {
         const bridge = getIMEBridge();
         let char = character;
         const mode = inputModeRef.current;
-        if (char && (mode === "ABC" || mode === "Abc")) {
-          char = char.toUpperCase();
+        if (char) {
+          const isFirstChar = !wordCapitalizedRef.current;
+          char = formatCharForCase(char, mode, isFirstChar);
+          if (mode === CASE_MODES.TITLE) {
+            wordCapitalizedRef.current = true;
+          }
         }
         if (bridge) {
           bridge.commitText(char);
@@ -99,13 +107,17 @@ const NokiaSystemKeyboard = () => {
     // ─── Mode Cycle via '#' Key ───
     if (key === "#") {
       commitPending();
-      setInputMode((prev) => {
-        if (prev === "abc") return "Abc";
-        if (prev === "Abc") return "ABC";
-        if (prev === "ABC") return "123";
-        if (prev === "123") return "NAV";
-        return "abc";
-      });
+      const now = Date.now();
+      const nextMode = resolveNextCaseMode(
+        inputModeRef.current,
+        lastHashPressRef.current,
+        now,
+        600
+      );
+      lastHashPressRef.current = now;
+      setInputMode(nextMode);
+      inputModeRef.current = nextMode;
+      wordCapitalizedRef.current = false;
       return;
     }
 
@@ -180,6 +192,11 @@ const NokiaSystemKeyboard = () => {
       commitPending();
       if (bridge) {
         bridge.commitText(" ");
+      }
+      if (inputModeRef.current === CASE_MODES.TITLE) {
+        setInputMode(CASE_MODES.LOWER);
+        inputModeRef.current = CASE_MODES.LOWER;
+        wordCapitalizedRef.current = false;
       }
       return;
     }

@@ -1,7 +1,6 @@
 const getLauncherAppsPlugin = () => {
   return window.Capacitor?.Plugins?.LauncherApps ?? null;
 };
-
 export { requestPlayIntegrityCheck } from "./playIntegrity";
 
 const STATIC_FALLBACK_APPS = [
@@ -279,6 +278,18 @@ export const openDefaultMaps = async () => {
   await launcherApps.openDefaultMaps();
 };
 
+export const selectDefaultApp = async (type) => {
+  const launcherApps = getLauncherAppsPlugin();
+  if (!launcherApps) {
+    console.log(`Mock selecting default app for: ${type}`);
+    if (typeof window !== "undefined") {
+      window.alert(`Select default ${type} app`);
+    }
+    return;
+  }
+  await launcherApps.selectDefaultApp({ type });
+};
+
 export const getDeviceStatus = async () => {
   const launcherApps = getLauncherAppsPlugin();
   if (!launcherApps?.getDeviceStatus) {
@@ -459,5 +470,197 @@ export const requestDefaultLauncher = async () => {
     return await launcherApps.requestDefaultLauncher();
   } catch (_e) {
     return { requested: false };
+  }
+};
+
+export const STATIC_FALLBACK_CONTACTS = [
+  { id: "1", name: "An Na", number: "0915231765" },
+  { id: "2", name: "Anh Bình. pbqlto..", number: "0796359718" },
+  { id: "3", name: "Anh Châu. cơm", number: "0918404949" },
+  { id: "4", name: "Anh Khôi", number: "0913893896" },
+  { id: "5", name: "Anh Sinh", number: "0908123456" },
+];
+
+let deviceContactsCache = null;
+let deviceContactsRequest = null;
+
+export const getDeviceContacts = async (forceRefresh = false) => {
+  if (!forceRefresh && deviceContactsCache && deviceContactsCache.length > 0) {
+    return deviceContactsCache;
+  }
+  if (!forceRefresh && deviceContactsRequest) {
+    return deviceContactsRequest;
+  }
+
+  deviceContactsRequest = (async () => {
+    const plugin = getLauncherAppsPlugin();
+    if (!plugin || typeof plugin.getContacts !== "function") {
+      deviceContactsCache = STATIC_FALLBACK_CONTACTS;
+      return STATIC_FALLBACK_CONTACTS;
+    }
+    try {
+      const result = await plugin.getContacts();
+      if (result && Array.isArray(result.contacts) && result.contacts.length > 0) {
+        deviceContactsCache = result.contacts;
+        return result.contacts;
+      }
+      deviceContactsCache = STATIC_FALLBACK_CONTACTS;
+      return STATIC_FALLBACK_CONTACTS;
+    } catch (error) {
+      console.warn("Could not fetch device contacts, using fallback:", error);
+      deviceContactsCache = STATIC_FALLBACK_CONTACTS;
+      return STATIC_FALLBACK_CONTACTS;
+    } finally {
+      deviceContactsRequest = null;
+    }
+  })();
+
+  return deviceContactsRequest;
+};
+
+export const STATIC_FALLBACK_CONVERSATIONS = [
+  {
+    id: "c1",
+    threadId: "1",
+    address: "0915231765",
+    contactName: "An Na",
+    snippet: "Alo bạn có nhà không?",
+    date: Date.now() - 1000 * 60 * 15,
+    type: 1,
+    unread: false,
+  },
+  {
+    id: "c2",
+    threadId: "2",
+    address: "0796359718",
+    contactName: "Anh Bình. pbqltopaz",
+    snippet: "Ok để mình gửi file qua nhé.",
+    date: Date.now() - 1000 * 60 * 60 * 2,
+    type: 1,
+    unread: false,
+  },
+  {
+    id: "c3",
+    threadId: "3",
+    address: "0918404949",
+    contactName: "Anh Châu. cơm",
+    snippet: "Nay quán có món mới nha em.",
+    date: Date.now() - 1000 * 60 * 60 * 24,
+    type: 1,
+    unread: false,
+  },
+];
+
+export const STATIC_FALLBACK_THREADS = {
+  "1": [
+    { id: "m1", address: "0915231765", body: "Chào bạn", date: Date.now() - 1000 * 60 * 30, type: 1, unread: false },
+    { id: "m2", address: "0915231765", body: "Alo bạn có nhà không?", date: Date.now() - 1000 * 60 * 15, type: 1, unread: false },
+  ],
+  "0915231765": [
+    { id: "m1", address: "0915231765", body: "Chào bạn", date: Date.now() - 1000 * 60 * 30, type: 1, unread: false },
+    { id: "m2", address: "0915231765", body: "Alo bạn có nhà không?", date: Date.now() - 1000 * 60 * 15, type: 1, unread: false },
+  ],
+};
+
+let deviceConversationsCache = null;
+let deviceConversationsRequest = null;
+const deviceThreadCache = {};
+
+export const getDeviceConversations = async (forceRefresh = false) => {
+  if (!forceRefresh && deviceConversationsCache && deviceConversationsCache.length > 0) {
+    return deviceConversationsCache;
+  }
+  if (!forceRefresh && deviceConversationsRequest) {
+    return deviceConversationsRequest;
+  }
+
+  deviceConversationsRequest = (async () => {
+    const plugin = getLauncherAppsPlugin();
+    if (!plugin || typeof plugin.getConversations !== "function") {
+      deviceConversationsCache = STATIC_FALLBACK_CONVERSATIONS;
+      return STATIC_FALLBACK_CONVERSATIONS;
+    }
+    try {
+      const result = await plugin.getConversations();
+      if (result && Array.isArray(result.conversations) && result.conversations.length > 0) {
+        deviceConversationsCache = result.conversations;
+        return result.conversations;
+      }
+      deviceConversationsCache = STATIC_FALLBACK_CONVERSATIONS;
+      return STATIC_FALLBACK_CONVERSATIONS;
+    } catch (error) {
+      console.warn("Could not fetch device conversations, using fallback:", error);
+      deviceConversationsCache = STATIC_FALLBACK_CONVERSATIONS;
+      return STATIC_FALLBACK_CONVERSATIONS;
+    } finally {
+      deviceConversationsRequest = null;
+    }
+  })();
+
+  return deviceConversationsRequest;
+};
+
+export const getDeviceThread = async (threadIdOrOptions, maybeAddress, forceRefresh = false) => {
+  let threadId = "";
+  let address = "";
+  if (typeof threadIdOrOptions === "object" && threadIdOrOptions !== null) {
+    threadId = threadIdOrOptions.threadId || threadIdOrOptions.id || "";
+    address = threadIdOrOptions.address || "";
+  } else {
+    threadId = threadIdOrOptions || "";
+    address = maybeAddress || "";
+  }
+
+  const cacheKey = threadId || address;
+  if (!forceRefresh && cacheKey && deviceThreadCache[cacheKey]) {
+    return deviceThreadCache[cacheKey];
+  }
+
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin || typeof plugin.getThreadMessages !== "function") {
+    const fallback = (threadId && STATIC_FALLBACK_THREADS[threadId]) ||
+      (address && STATIC_FALLBACK_THREADS[address]) ||
+      STATIC_FALLBACK_THREADS["1"] || [];
+    if (cacheKey) deviceThreadCache[cacheKey] = fallback;
+    return fallback;
+  }
+
+  try {
+    const result = await plugin.getThreadMessages({ threadId, address });
+    if (result && Array.isArray(result.messages)) {
+      if (cacheKey) deviceThreadCache[cacheKey] = result.messages;
+      return result.messages;
+    }
+    const fallback = (threadId && STATIC_FALLBACK_THREADS[threadId]) ||
+      (address && STATIC_FALLBACK_THREADS[address]) ||
+      STATIC_FALLBACK_THREADS["1"] || [];
+    if (cacheKey) deviceThreadCache[cacheKey] = fallback;
+    return fallback;
+  } catch (error) {
+    console.warn("Could not fetch thread messages, using fallback:", error);
+    const fallback = (threadId && STATIC_FALLBACK_THREADS[threadId]) ||
+      (address && STATIC_FALLBACK_THREADS[address]) ||
+      STATIC_FALLBACK_THREADS["1"] || [];
+    if (cacheKey) deviceThreadCache[cacheKey] = fallback;
+    return fallback;
+  }
+};
+
+export const sendDeviceSms = async (address, body) => {
+  const plugin = getLauncherAppsPlugin();
+  // Clear caches so updated message list shows
+  deviceConversationsCache = null;
+  Object.keys(deviceThreadCache).forEach((k) => delete deviceThreadCache[k]);
+
+  if (!plugin || typeof plugin.sendSms !== "function") {
+    console.warn("sendSms not supported on this platform");
+    return { sent: false, fallback: true };
+  }
+
+  try {
+    return await plugin.sendSms({ address, body });
+  } catch (error) {
+    console.warn("Failed to send device SMS:", error);
+    return { sent: false, fallback: true, error: error?.message };
   }
 };

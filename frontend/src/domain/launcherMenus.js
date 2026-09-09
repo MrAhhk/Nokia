@@ -7,6 +7,7 @@ const getSearchText = (item) =>
 const HOME_SHORTCUT_DEFINITIONS = [
   { id: "phone", label: "Phone", matches: ["phone", "dialer"], action: "default-phone" },
   { id: "messages", label: "Messages", matches: ["messages", "messaging", "sms"] },
+  { id: "ai", label: "ChatGPT", matches: ["chatgpt", "openai", "copilot", "gemini", "claude", "ai"] },
   { id: "maps", label: "Maps", matches: ["maps", "map"], action: "default-maps" },
   { id: "camera", label: "Camera", matches: ["camera"], action: "built-in-camera" },
 ];
@@ -68,17 +69,103 @@ export const resolveSettingAction = (setting) => {
   return null;
 };
 
+export const DEFAULT_MESSAGES_APP_KEY = "nokia-launcher.default-app.messages";
+export const DEFAULT_AI_APP_KEY = "nokia-launcher.default-app.ai";
+export const DEFAULT_MAPS_APP_KEY = "nokia-launcher.default-app.maps";
+
+export const MESSAGE_APP_KEYWORDS = [
+  "message", "messaging", "sms", "mms",
+  "chat", "messenger", "zalo", "telegram",
+  "whatsapp", "viber", "discord", "signal",
+  "wechat", "line", "skype", "tin nhắn"
+];
+
+export const AI_APP_KEYWORDS = [
+  "chatgpt", "openai", "claude", "copilot", "gemini",
+  "poe", "perplexity", "monica", "deepseek", "qwen",
+  "grok", "character.ai", "ai"
+];
+
+export const MAPS_APP_KEYWORDS = [
+  "map", "maps", "navigation", "bản đồ",
+  "gps", "waze", "grab", "here wego", "transit"
+];
+
+export const filterAppsByCategory = (apps, category) => {
+  if (!Array.isArray(apps)) return [];
+  const keywords = category === "maps"
+    ? MAPS_APP_KEYWORDS
+    : category === "ai"
+      ? AI_APP_KEYWORDS
+      : MESSAGE_APP_KEYWORDS;
+  const filtered = apps.filter((app) => {
+    const text = `${app.name || ""} ${app.displayName || ""} ${app.packageName || ""}`.toLowerCase();
+    return keywords.some((k) => text.includes(k));
+  });
+  return filtered.length > 0 ? filtered : apps;
+};
+
+export const getDefaultApp = (category, apps, storage = typeof window !== "undefined" ? window.localStorage : null) => {
+  if (!Array.isArray(apps) || apps.length === 0) return null;
+  const key = category === "maps"
+    ? DEFAULT_MAPS_APP_KEY
+    : category === "ai"
+      ? DEFAULT_AI_APP_KEY
+      : DEFAULT_MESSAGES_APP_KEY;
+  const savedId = storage ? storage.getItem(key) : null;
+  if (savedId) {
+    const matched = apps.find((app) => app.id === savedId || app.packageName === savedId);
+    if (matched) return matched;
+  }
+  const matches = category === "maps"
+    ? ["maps", "map"]
+    : category === "ai"
+      ? ["chatgpt", "openai", "copilot", "gemini", "claude", "ai"]
+      : ["messages", "messaging", "sms"];
+  return findMatchingApp(apps, matches) || null;
+};
+
+export const setDefaultApp = (category, app, storage = typeof window !== "undefined" ? window.localStorage : null) => {
+  if (!storage || !app) return;
+  const key = category === "maps"
+    ? DEFAULT_MAPS_APP_KEY
+    : category === "ai"
+      ? DEFAULT_AI_APP_KEY
+      : DEFAULT_MESSAGES_APP_KEY;
+  storage.setItem(key, app.id || app.packageName);
+};
+
 export const findMatchingApp = (apps, matches) =>
   apps.find((app) => {
     const searchable = getSearchText(app);
     return matches.some((match) => searchable.includes(match));
   });
 
-export const createHomeShortcuts = (apps) =>
-  HOME_SHORTCUT_DEFINITIONS.map((shortcut) => ({
-    ...shortcut,
-    app: findMatchingApp(apps, shortcut.matches),
-  }));
+export const createHomeShortcuts = (apps, storage = typeof window !== "undefined" ? window.localStorage : null) =>
+  HOME_SHORTCUT_DEFINITIONS.map((shortcut) => {
+    if (shortcut.id === "messages") {
+      return {
+        ...shortcut,
+        app: getDefaultApp("messages", apps, storage),
+      };
+    }
+    if (shortcut.id === "ai") {
+      return {
+        ...shortcut,
+        app: getDefaultApp("ai", apps, storage),
+      };
+    }
+    if (shortcut.id === "maps") {
+      return {
+        ...shortcut,
+        app: getDefaultApp("maps", apps, storage),
+      };
+    }
+    return {
+      ...shortcut,
+      app: findMatchingApp(apps, shortcut.matches),
+    };
+  });
 
 export const resolveHomeShortcut = (shortcuts, targetId) => {
   const shortcut = shortcuts.find((item) => item.id === targetId);

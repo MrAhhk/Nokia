@@ -41,10 +41,35 @@ export const NOKIA_MULTI_TAP_CYCLES = Object.freeze({
 });
 
 const CONTEXTUAL_INTENTS = Object.freeze({
-  [KEY_INTENTS.SOFT_LEFT]: Object.freeze({ home: KEY_INTENTS.GOTO, dial: KEY_INTENTS.SEND, default: KEY_INTENTS.DELETE }),
-  [KEY_INTENTS.SOFT_RIGHT]: Object.freeze({ home: KEY_INTENTS.SETTINGS, dial: KEY_INTENTS.DELETE, default: KEY_INTENTS.BACK }),
-  [KEY_INTENTS.HASH]: Object.freeze({ home: KEY_INTENTS.HASH, dial: KEY_INTENTS.HASH, default: KEY_INTENTS.CAPS_LOCK }),
-  [KEY_INTENTS.GREEN]: Object.freeze({ dial: KEY_INTENTS.SEND, browser: KEY_INTENTS.TAB, default: KEY_INTENTS.RECENT_APPS }),
+  [KEY_INTENTS.SOFT_LEFT]: Object.freeze({
+    home: KEY_INTENTS.GOTO,
+    dial: KEY_INTENTS.SEND,
+    "message-thread": KEY_INTENTS.SELECT,
+    "message-compose": KEY_INTENTS.SEND,
+    default: KEY_INTENTS.DELETE,
+  }),
+  [KEY_INTENTS.SOFT_RIGHT]: Object.freeze({
+    home: KEY_INTENTS.SETTINGS,
+    dial: KEY_INTENTS.DELETE,
+    default: KEY_INTENTS.BACK,
+  }),
+  [KEY_INTENTS.HASH]: Object.freeze({
+    home: KEY_INTENTS.HASH,
+    dial: KEY_INTENTS.HASH,
+    default: KEY_INTENTS.CAPS_LOCK,
+  }),
+  [KEY_INTENTS.GREEN]: Object.freeze({
+    dial: KEY_INTENTS.SEND,
+    "message-thread": KEY_INTENTS.SEND,
+    "message-compose": KEY_INTENTS.SEND,
+    browser: KEY_INTENTS.TAB,
+    default: KEY_INTENTS.RECENT_APPS,
+  }),
+  [KEY_INTENTS.SELECT]: Object.freeze({
+    "message-thread": KEY_INTENTS.SEND,
+    "message-compose": KEY_INTENTS.DELETE,
+    default: KEY_INTENTS.SELECT,
+  }),
 });
 
 export const resolveContextualIntent = (key, context) =>
@@ -56,4 +81,43 @@ export const dispatchKey = (key, ...registries) => {
     .find((candidate) => typeof candidate === "function");
   handler?.();
   return Boolean(handler);
+};
+export const CASE_MODES = Object.freeze({
+  LOWER: "abc",
+  TITLE: "Abc",
+  UPPER: "ABC",
+});
+
+/**
+ * Transitions casing mode on '#' key:
+ * - 1 press from lower: transitions to TITLE ("Abc" - uppercase one word)
+ * - double press '#' within doublePressWindow: transitions to UPPER ("ABC" - caps lock)
+ * - press from UPPER: transitions back to LOWER ("abc")
+ * - press from TITLE after delay: transitions back to LOWER ("abc")
+ */
+export const resolveNextCaseMode = (
+  currentMode = CASE_MODES.LOWER,
+  lastPressTime = 0,
+  now = Date.now(),
+  doublePressWindow = 600
+) => {
+  const isDouble = lastPressTime > 0 && (now - lastPressTime) <= doublePressWindow;
+  if (currentMode === CASE_MODES.UPPER) {
+    return CASE_MODES.LOWER;
+  }
+  if (currentMode === CASE_MODES.TITLE) {
+    return isDouble ? CASE_MODES.UPPER : CASE_MODES.LOWER;
+  }
+  return CASE_MODES.TITLE;
+};
+
+export const formatCharForCase = (character, caseMode, isFirstCharOfWord = false) => {
+  if (!character) return "";
+  if (caseMode === CASE_MODES.UPPER) {
+    return character.toUpperCase();
+  }
+  if (caseMode === CASE_MODES.TITLE) {
+    return isFirstCharOfWord ? character.toUpperCase() : character.toLowerCase();
+  }
+  return character.toLowerCase();
 };

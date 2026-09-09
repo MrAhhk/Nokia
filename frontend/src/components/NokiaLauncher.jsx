@@ -19,6 +19,10 @@ import { BROWSER_START_URL } from "@/features/browser/browserAddress";
 import {
   cycleNotificationMode,
   applySystemTone,
+  getDeviceContacts,
+  getDeviceConversations,
+  getDeviceThread,
+  sendDeviceSms,
   getDeviceStatus,
   getSystemToneAccess,
   launchInstalledApp,
@@ -33,12 +37,16 @@ import {
   toggleFlashlight,
   lockScreen,
   openRecentApps,
+  selectDefaultApp,
   triggerHaptic,
 } from "@/lib/launcherApps";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
 import {
   KEY_INTENTS,
   NOKIA_MULTI_TAP_CYCLES,
+  CASE_MODES,
+  resolveNextCaseMode,
+  formatCharForCase,
   dispatchKey,
   resolveContextualIntent,
 } from "@/domain/keyGrammar";
@@ -46,6 +54,9 @@ import {
   HOME_FOCUS_TARGETS,
   SETTINGS_ITEMS,
   createHomeShortcuts,
+  filterAppsByCategory,
+  getDefaultApp,
+  setDefaultApp,
   moveHomeFocus,
   moveListSelection,
   orderDrawerApps,
@@ -69,11 +80,55 @@ const NokiaLauncher = ({ apps }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [settingsReturnView, setSettingsReturnView] = useState("home");
   const [cameraReturnView, setCameraReturnView] = useState("home");
+  const [defaultAppsVersion, setDefaultAppsVersion] = useState(0);
   const cameraFeatureRef = useRef(null);
   const browserFeatureRef = useRef(null);
   const clockFeatureRef = useRef(null);
   const snakeFeatureRef = useRef(null);
   const soundFeatureRef = useRef(null);
+  const [deviceContacts, setDeviceContacts] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    getDeviceContacts().then((loaded) => {
+      if (!active) return;
+      if (Array.isArray(loaded) && loaded.length > 0) {
+        setDeviceContacts(loaded);
+      }
+    }).catch((err) => console.warn("Failed to load device contacts:", err));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const [conversations, setConversations] = useState([]);
+  const [activeThread, setActiveThread] = useState(null);
+  const [threadMessages, setThreadMessages] = useState([]);
+  const [composeRecipient, setComposeRecipient] = useState("");
+
+  const refreshConversations = useCallback(async () => {
+    try {
+      const loaded = await getDeviceConversations();
+      if (Array.isArray(loaded)) {
+        setConversations(loaded);
+      }
+    } catch (err) {
+      console.warn("Failed to load device conversations:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    getDeviceConversations().then((loaded) => {
+      if (!active) return;
+      if (Array.isArray(loaded)) {
+        setConversations(loaded);
+      }
+    }).catch((err) => console.warn("Failed to load device conversations:", err));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // searchActive as both state (for UI re-render) and ref (for sync reads inside callbacks)
   const [searchActive, setSearchActive] = useState(false);
@@ -82,9 +137,11 @@ const NokiaLauncher = ({ apps }) => {
   // committedText: fully confirmed characters | pendingChar: character being cycled right now
   const [committedText, setCommittedText] = useState("");
   const [pendingChar, setPendingChar] = useState("");
-  const [capsLock, setCapsLock] = useState(false);
-  const capsLockRef = useRef(capsLock);
-  capsLockRef.current = capsLock;
+  const [caseMode, setCaseMode] = useState(CASE_MODES.LOWER); // "abc" | "Abc" | "ABC"
+  const caseModeRef = useRef(caseMode);
+  caseModeRef.current = caseMode;
+  const lastHashPressRef = useRef(0);
+  const wordCapitalizedRef = useRef(false);
 
   // Dialer state for home screen numbers
   const [dialActive, setDialActive] = useState(false);
@@ -111,8 +168,18 @@ const NokiaLauncher = ({ apps }) => {
     multiTapComposerRef.current = createMultiTapComposer({
       cycles: NOKIA_MULTI_TAP_CYCLES,
       delay: MULTI_TAP_DELAY,
-      onPreview: (character) => setPendingChar(capsLockRef.current ? character.toUpperCase() : character),
-      onCommit: (character) => setCommittedText((text) => text + (capsLockRef.current ? character.toUpperCase() : character)),
+      onPreview: (character) => {
+        const isFirstChar = !wordCapitalizedRef.current;
+        setPendingChar(formatCharForCase(character, caseModeRef.current, isFirstChar));
+      },
+      onCommit: (character) => {
+        const isFirstChar = !wordCapitalizedRef.current;
+        const formatted = formatCharForCase(character, caseModeRef.current, isFirstChar);
+        setCommittedText((text) => text + formatted);
+        if (caseModeRef.current === CASE_MODES.TITLE) {
+          wordCapitalizedRef.current = true;
+        }
+      },
     });
   }
 
@@ -239,17 +306,63 @@ const NokiaLauncher = ({ apps }) => {
   }, []);
 
   const homeShortcuts = useMemo(
-    () => createHomeShortcuts(apps),
-    [apps]
+    () => {
+      void defaultAppsVersion;
+      return createHomeShortcuts(apps);
+    },
+    [apps, defaultAppsVersion]
   );
 
   const drawerApps = useMemo(() => orderDrawerApps(apps), [apps]);
 
-  const menuItems = currentView === "home"
-    ? homeShortcuts
-    : currentView === "settings"
-      ? SETTINGS_ITEMS
-      : drawerApps;
+  const categoryFilteredApps = useMemo(() => {
+    void defaultAppsVersion;
+    if (currentView === "ai") {
+      const currentDefault = getDefaultApp("ai", apps);
+      const list = filterAppsByCategory(apps, "ai");
+      if (!currentDefault) return list;
+      const defaultItem = list.find((app) => app.id === currentDefault.id || app.packageName === currentDefault.packageName);
+      const otherItems = list.filter((app) => app.id !== currentDefault.id && app.packageName !== currentDefault.packageName);
+      const sorted = defaultItem ? [defaultItem, ...otherItems] : list;
+      return sorted.map((app) =>
+        app.id === currentDefault.id || app.packageName === currentDefault.packageName
+          ? { ...app, name: `${app.name} [Default]` }
+          : app
+      );
+    }
+    if (currentView === "maps") {
+      const currentDefault = getDefaultApp("maps", apps);
+      const list = filterAppsByCategory(apps, "maps");
+      if (!currentDefault) return list;
+      const defaultItem = list.find((app) => app.id === currentDefault.id || app.packageName === currentDefault.packageName);
+      const otherItems = list.filter((app) => app.id !== currentDefault.id && app.packageName !== currentDefault.packageName);
+      const sorted = defaultItem ? [defaultItem, ...otherItems] : list;
+      return sorted.map((app) =>
+        app.id === currentDefault.id || app.packageName === currentDefault.packageName
+          ? { ...app, name: `${app.name} [Default]` }
+          : app
+      );
+    }
+    return null;
+  }, [currentView, apps, defaultAppsVersion]);
+
+  const messageMenuItems = useMemo(() => {
+    return [{ id: "new_message", isNewMessage: true }, ...(conversations || [])];
+  }, [conversations]);
+
+  const menuItems = useMemo(() => {
+    return currentView === "home"
+      ? homeShortcuts
+      : currentView === "settings"
+        ? SETTINGS_ITEMS
+        : currentView === "contacts"
+          ? deviceContacts
+          : currentView === "messages"
+            ? messageMenuItems
+            : currentView === "ai" || currentView === "maps"
+              ? (categoryFilteredApps || [])
+              : drawerApps;
+  }, [currentView, homeShortcuts, deviceContacts, messageMenuItems, categoryFilteredApps, drawerApps]);
 
   // Reset selection whenever the active screen changes.
   useEffect(() => {
@@ -276,7 +389,6 @@ const NokiaLauncher = ({ apps }) => {
   const activateSearch = useCallback(() => {
     searchActiveRef.current = true;
     setSearchActive(true);
-    setCapsLock(false);
     setCommittedText("");
     clearPending();
     setSelectedIndex(0);
@@ -307,7 +419,9 @@ const NokiaLauncher = ({ apps }) => {
     setDialNumber("");
     setIsCalling(false);
     setOpenBrowserTabs(false);
-    setCapsLock(false);
+    setCaseMode(CASE_MODES.LOWER);
+    caseModeRef.current = CASE_MODES.LOWER;
+    wordCapitalizedRef.current = false;
     setCurrentView("home");
     setSelectedIndex(HOME_FOCUS_TARGETS.indexOf("phone"));
   }, [clearPending]);
@@ -330,13 +444,43 @@ const NokiaLauncher = ({ apps }) => {
   const fullInput = committedText + pendingChar; // what the user has typed so far
 
   const visibleMenuItems = useMemo(() => {
-    if (!(["menu", "settings"].includes(currentView)) || !fullInput) return menuItems;
+    if (!["menu", "settings", "contacts", "messages", "ai", "maps"].includes(currentView) || !fullInput) return menuItems;
+    if (currentView === "messages") {
+      const q = fullInput.trim().toLowerCase();
+      return menuItems.filter((c) => {
+        if (c.id === "new_message") return true;
+        const text = `${c.contactName || ""} ${c.address || ""} ${c.snippet || ""}`.toLowerCase();
+        return text.includes(q);
+      });
+    }
+    if (currentView === "contacts") {
+      const q = fullInput.trim().toLowerCase();
+      const normalize = (str) =>
+        (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const normQ = normalize(q);
+
+      return menuItems
+        .map((c, index) => {
+          const name = (c.name || "").toLowerCase();
+          const normName = normalize(c.name);
+          const num = (c.number || "").replace(/[^0-9+]/g, "");
+          let rank = Number.POSITIVE_INFINITY;
+          if (name.startsWith(q) || normName.startsWith(normQ)) rank = 0;
+          else if (name.split(/\s+/).some((w) => w.startsWith(q)) || normName.split(/\s+/).some((w) => w.startsWith(normQ))) rank = 1;
+          else if (name.includes(q) || normName.includes(normQ)) rank = 2;
+          else if (num.includes(q)) rank = 3;
+          return { item: c, index, rank };
+        })
+        .filter(({ rank }) => Number.isFinite(rank))
+        .sort((a, b) => a.rank - b.rank || a.index - b.index)
+        .map(({ item }) => item);
+    }
     return rankSearchResults(menuItems, fullInput);
   }, [currentView, menuItems, fullInput]);
 
   // Reset selection whenever the filtered list changes
   useEffect(() => {
-    if (currentView === "menu" || currentView === "settings") {
+    if (currentView === "menu" || currentView === "settings" || currentView === "contacts" || currentView === "messages" || currentView === "ai" || currentView === "maps") {
       setSelectedIndex(0);
     }
   }, [currentView, fullInput]);
@@ -368,13 +512,62 @@ const NokiaLauncher = ({ apps }) => {
 
   const handleOpenApp = useCallback((app) => {
     if (!app) return;
+    if (currentView === "ai") {
+      setDefaultApp("ai", app);
+      setDefaultAppsVersion((v) => v + 1);
+      setCurrentView("home");
+      launchInstalledApp(app).catch((err) => console.error("Error launching AI app:", err));
+      return;
+    }
+    if (currentView === "maps") {
+      setDefaultApp("maps", app);
+      setDefaultAppsVersion((v) => v + 1);
+      setCurrentView("home");
+      launchInstalledApp(app).catch((err) => console.error("Error launching maps app:", err));
+      return;
+    }
+    if (app.id === "messages" || app.action === "built-in-messages") {
+      setSearchActive(false);
+      setCommittedText("");
+      clearPending();
+      setSelectedIndex(0);
+      setCurrentView("messages");
+      refreshConversations();
+      return;
+    }
+    if (app.id === "ai") {
+      const defaultAiApp = getDefaultApp("ai", apps);
+      if (defaultAiApp) {
+        launchInstalledApp(defaultAiApp).catch((err) => console.error("Error opening AI:", err));
+      } else {
+        setSearchActive(false);
+        setCommittedText("");
+        clearPending();
+        setSelectedIndex(0);
+        setCurrentView("ai");
+      }
+      return;
+    }
+    if (app.id === "contacts" || app.name?.toLowerCase() === "contacts" || app.name?.toLowerCase() === "danh bạ") {
+      setCurrentView("contacts");
+      return;
+    }
     if (app.action === "default-phone") {
       dialActiveRef.current = true;
       setDialActive(true);
       return;
     }
-    if (app.action === "default-maps") {
-      openDefaultMaps().catch((err) => console.error("Error opening maps:", err));
+    if (app.action === "default-maps" || app.id === "maps") {
+      const defaultMapsApp = getDefaultApp("maps", apps);
+      if (defaultMapsApp) {
+        launchInstalledApp(defaultMapsApp).catch((err) => console.error("Error opening maps:", err));
+      } else {
+        setSearchActive(false);
+        setCommittedText("");
+        clearPending();
+        setSelectedIndex(0);
+        setCurrentView("maps");
+      }
       return;
     }
     if (app.action === "built-in-camera") {
@@ -383,7 +576,92 @@ const NokiaLauncher = ({ apps }) => {
       return;
     }
     launchInstalledApp(app).catch((err) => console.error("Error launching app:", err));
-  }, [currentView]);
+  }, [currentView, apps, clearPending, refreshConversations]);
+
+  const handleAppLongPress = useCallback((item) => {
+    if (!item) return;
+    triggerHaptic(65);
+    if (item.id === "messages") {
+      setSearchActive(false);
+      setCommittedText("");
+      clearPending();
+      setSelectedIndex(0);
+      setCurrentView("messages");
+      return;
+    }
+    if (item.id === "ai") {
+      setSearchActive(false);
+      setCommittedText("");
+      clearPending();
+      setSelectedIndex(0);
+      setCurrentView("ai");
+      return;
+    }
+    if (item.id === "maps") {
+      setSearchActive(false);
+      setCommittedText("");
+      clearPending();
+      setSelectedIndex(0);
+      setCurrentView("maps");
+      return;
+    }
+  }, [clearPending]);
+
+  const handleStartCompose = useCallback((recipient = "") => {
+    setComposeRecipient(recipient);
+    setCommittedText("");
+    clearPending();
+    setCurrentView("message-compose");
+  }, [clearPending]);
+
+  const handleOpenConversation = useCallback(async (conv) => {
+    if (!conv) return;
+    if (conv.id === "new_message") {
+      handleStartCompose();
+      return;
+    }
+    setActiveThread(conv);
+    setSelectedIndex(0);
+    setCurrentView("message-thread");
+    try {
+      const msgs = await getDeviceThread(conv.threadId, conv.address);
+      setThreadMessages(msgs || []);
+      if (msgs && msgs.length > 0) {
+        setSelectedIndex(msgs.length - 1);
+      }
+    } catch (err) {
+      console.error("Error loading thread messages:", err);
+      setThreadMessages([]);
+    }
+  }, [handleStartCompose]);
+
+  const handleReplyThread = useCallback(() => {
+    const recipient = activeThread?.contactName || activeThread?.address || "";
+    handleStartCompose(recipient);
+  }, [activeThread, handleStartCompose]);
+
+  const handleSendSms = useCallback(async () => {
+    const textToSend = (committedText + pendingChar).trim();
+    const recipient = composeRecipient || activeThread?.address || "";
+    if (!textToSend || !recipient) {
+      return;
+    }
+    try {
+      await sendDeviceSms(recipient, textToSend);
+      setCommittedText("");
+      clearPending();
+      refreshConversations();
+      if (activeThread && (activeThread.address === recipient || activeThread.contactName === recipient)) {
+        const msgs = await getDeviceThread(activeThread.threadId, activeThread.address);
+        setThreadMessages(msgs || []);
+        setCurrentView("message-thread");
+      } else {
+        setCurrentView("messages");
+      }
+    } catch (err) {
+      console.error("Error sending SMS:", err);
+    }
+  }, [committedText, pendingChar, composeRecipient, activeThread, clearPending, refreshConversations]);
 
   const activateSetting = useCallback((setting) => {
     const action = resolveSettingAction(setting);
@@ -410,17 +688,69 @@ const NokiaLauncher = ({ apps }) => {
         setCurrentView("clock");
       } else if (target === "search") {
         openBuiltInBrowser();
+      } else if (target === "messages") {
+        setSearchActive(false);
+        setCommittedText("");
+        clearPending();
+        setSelectedIndex(0);
+        setCurrentView("messages");
+        refreshConversations();
+      } else if (target === "ai") {
+        const defaultAiApp = getDefaultApp("ai", apps);
+        if (defaultAiApp) {
+          launchInstalledApp(defaultAiApp).catch((err) => console.error("Error opening AI:", err));
+        } else {
+          setSearchActive(false);
+          setCommittedText("");
+          clearPending();
+          setSelectedIndex(0);
+          setCurrentView("ai");
+        }
+      } else if (target === "maps") {
+        const defaultMapsApp = getDefaultApp("maps", apps);
+        if (defaultMapsApp) {
+          launchInstalledApp(defaultMapsApp).catch((err) => console.error("Error opening maps:", err));
+        } else {
+          setSearchActive(false);
+          setCommittedText("");
+          clearPending();
+          setSelectedIndex(0);
+          setCurrentView("maps");
+        }
       } else {
         handleOpenApp(resolveHomeShortcut(homeShortcuts, target));
       }
-    } else if (currentView === "menu" && visibleMenuItems[selectedIndex]) {
+    } else if (currentView === "messages" && visibleMenuItems[selectedIndex]) {
+      handleOpenConversation(visibleMenuItems[selectedIndex]);
+    } else if ((currentView === "menu" || currentView === "ai" || currentView === "maps") && visibleMenuItems[selectedIndex]) {
       handleOpenApp(visibleMenuItems[selectedIndex]);
     } else if (currentView === "settings" && visibleMenuItems[selectedIndex]) {
       activateSetting(visibleMenuItems[selectedIndex]);
+    } else if (currentView === "contacts" && visibleMenuItems[selectedIndex]) {
+      const contact = visibleMenuItems[selectedIndex];
+      if (contact?.number) {
+        setIsCalling(true);
+        makePhoneCall(contact.number).catch((err) => {
+          console.error("Error making direct phone call:", err);
+          setIsCalling(false);
+        });
+      }
     }
-  }, [currentView, selectedIndex, visibleMenuItems, handleOpenApp, homeShortcuts, openBuiltInBrowser, activateSetting]);
+  }, [currentView, selectedIndex, visibleMenuItems, handleOpenApp, handleOpenConversation, homeShortcuts, openBuiltInBrowser, activateSetting, apps, clearPending, refreshConversations]);
 
   const handleBack = useCallback(() => {
+    if (currentView === "message-compose") {
+      if (pendingChar) { clearPending(); return; }
+      if (committedText) { setCommittedText(""); return; }
+      setCurrentView(activeThread ? "message-thread" : "messages");
+      return;
+    }
+    if (currentView === "message-thread") {
+      setActiveThread(null);
+      setThreadMessages([]);
+      setCurrentView("messages");
+      return;
+    }
     if (currentView === "menu") {
       if (pendingChar) { clearPending(); return; }
       if (committedText) { setCommittedText(""); return; }
@@ -441,12 +771,24 @@ const NokiaLauncher = ({ apps }) => {
         return;
       }
       setCurrentView(settingsReturnView);
+      return;
     }
-  }, [currentView, searchActive, committedText, pendingChar, clearPending, settingsReturnView]);
+    if (currentView === "contacts" || currentView === "messages" || currentView === "ai" || currentView === "maps") {
+      if (pendingChar) { clearPending(); return; }
+      if (committedText) { setCommittedText(""); return; }
+      if (searchActive) {
+        searchActiveRef.current = false;
+        setSearchActive(false);
+        return;
+      }
+      setCurrentView("home");
+      return;
+    }
+  }, [currentView, searchActive, committedText, pendingChar, clearPending, settingsReturnView, activeThread]);
 
   const handleMultiTapInput = useCallback(
     (key) => {
-      if (!searchActiveRef.current) return false;
+      if (!searchActiveRef.current && currentView !== "message-compose") return false;
       const cycle = NOKIA_MULTI_TAP_CYCLES[key];
       if (cycle) return multiTapComposerRef.current.press(key);
       if (key === "*") {
@@ -457,20 +799,33 @@ const NokiaLauncher = ({ apps }) => {
       if (key === "0") {
         commitPending();
         setCommittedText((text) => text + " ");
+        if (caseModeRef.current === CASE_MODES.TITLE) {
+          setCaseMode(CASE_MODES.LOWER);
+          caseModeRef.current = CASE_MODES.LOWER;
+          wordCapitalizedRef.current = false;
+        }
         return true;
       }
       return false;
     },
-    [commitPending]
+    [commitPending, currentView]
   );
 
   const handleMultiTapDelete = useCallback(() => {
-    if (!searchActiveRef.current) return false;
+    if (!searchActiveRef.current && currentView !== "message-compose") return false;
     if (!multiTapComposerRef.current.cancelPending()) {
-      setCommittedText((text) => text.slice(0, -1));
+      setCommittedText((text) => {
+        const nextText = text.slice(0, -1);
+        if (caseModeRef.current === CASE_MODES.TITLE) {
+          if (!nextText || nextText.endsWith(" ")) {
+            wordCapitalizedRef.current = false;
+          }
+        }
+        return nextText;
+      });
     }
     return true;
-  }, []);
+  }, [currentView]);
 
   const featureRefsByView = useMemo(() => ({
     camera: cameraFeatureRef,
@@ -540,8 +895,12 @@ const NokiaLauncher = ({ apps }) => {
       }
       return;
     }
+    if (currentView === "message-thread") {
+      handleReplyThread();
+      return;
+    }
     handleSelect();
-  }, [acceptToneSetup, currentView, dialActive, dialNumber, featureRefsByView, handleSelect, toneSetupVisible]);
+  }, [acceptToneSetup, currentView, dialActive, dialNumber, featureRefsByView, handleSelect, toneSetupVisible, handleReplyThread]);
 
   const handleUniversalDirection = useCallback((key) => {
     const featureRef = featureRefsByView[currentView];
@@ -557,7 +916,7 @@ const NokiaLauncher = ({ apps }) => {
         UP: () => setCurrentView("menu"),
         LEFT: () => handleHomeCursor("left"),
         RIGHT: () => handleHomeCursor("right"),
-        DOWN: () => handleHomeCursor("right"),
+        DOWN: () => setCurrentView("contacts"),
       }[key];
       homeDirection?.();
       return;
@@ -592,9 +951,34 @@ const NokiaLauncher = ({ apps }) => {
     const sendAction = {
       home: () => setCurrentView("menu"),
       menu: () => visibleMenuItems[selectedIndex] && handleOpenApp(visibleMenuItems[selectedIndex]),
+      messages: () => visibleMenuItems[selectedIndex] && handleOpenApp(visibleMenuItems[selectedIndex]),
+      ai: () => visibleMenuItems[selectedIndex] && handleOpenApp(visibleMenuItems[selectedIndex]),
+      maps: () => visibleMenuItems[selectedIndex] && handleOpenApp(visibleMenuItems[selectedIndex]),
+      contacts: () => {
+        const contact = visibleMenuItems[selectedIndex];
+        if (contact?.number) {
+          setIsCalling(true);
+          makePhoneCall(contact.number).catch((err) => {
+            console.error("Error making direct phone call:", err);
+            setIsCalling(false);
+          });
+        }
+      },
+      "message-thread": () => {
+        if (activeThread?.address) {
+          setIsCalling(true);
+          makePhoneCall(activeThread.address).catch((err) => {
+            console.error("Error making direct phone call:", err);
+            setIsCalling(false);
+          });
+        }
+      },
+      "message-compose": () => {
+        handleSendSms();
+      },
     }[currentView];
     sendAction?.();
-  }, [currentView, dialActive, dialNumber, featureRefsByView, handleOpenApp, selectedIndex, visibleMenuItems]);
+  }, [currentView, dialActive, dialNumber, featureRefsByView, handleOpenApp, selectedIndex, visibleMenuItems, activeThread, handleSendSms]);
 
   const handleSettingClick = useCallback((setting) => {
     if (!setting) return;
@@ -608,10 +992,13 @@ const NokiaLauncher = ({ apps }) => {
     if (!searchActive) {
       setCommittedText("");
       clearPending();
+      setCaseMode(CASE_MODES.LOWER);
+      caseModeRef.current = CASE_MODES.LOWER;
+      wordCapitalizedRef.current = false;
     }
   }, [searchActive, clearPending]);
 
-  // ─── Main keypad dispatcher ─────────────────────────────────────────────────
+  // ── Main keypad dispatcher ─────────────────────────────────────────────────
   const handleKeypadPress = useCallback(
     (key) => {
       // Universal audio + haptic feedback for every keypress
@@ -697,16 +1084,26 @@ const NokiaLauncher = ({ apps }) => {
         return;
       }
 
-      const textHandlers = ["menu", "settings"].includes(currentView)
+      const textHandlers = ["menu", "settings", "contacts", "messages", "ai", "maps", "message-compose"].includes(currentView)
         ? {
           [KEY_INTENTS.CAPS_LOCK]: () => {
             commitPending();
-            setCapsLock((enabled) => !enabled);
+            const now = Date.now();
+            const nextMode = resolveNextCaseMode(
+              caseModeRef.current,
+              lastHashPressRef.current,
+              now,
+              600
+            );
+            lastHashPressRef.current = now;
+            setCaseMode(nextMode);
+            caseModeRef.current = nextMode;
+            wordCapitalizedRef.current = false;
           },
           ...Object.fromEntries([...Object.keys(NOKIA_MULTI_TAP_CYCLES), "0", "*"].map((textKey) => [
             textKey,
             () => {
-              if (!searchActiveRef.current) activateSearch();
+              if (currentView !== "message-compose" && !searchActiveRef.current) activateSearch();
               handleMultiTapInput(textKey);
             },
           ])),
@@ -810,6 +1207,24 @@ const NokiaLauncher = ({ apps }) => {
           onSearchFocus={() => { triggerHaptic(65); openBuiltInBrowser(); }}
           onClockClick={() => { triggerHaptic(65); setCurrentView("clock"); }}
           onAppClick={(app) => { triggerHaptic(65); handleOpenApp(app); }}
+          onAppLongPress={handleAppLongPress}
+          onContactClick={(contact) => {
+            triggerHaptic(65);
+            if (contact?.number) {
+              setIsCalling(true);
+              makePhoneCall(contact.number).catch((err) => {
+                console.error("Error making direct phone call:", err);
+                setIsCalling(false);
+              });
+            }
+          }}
+          onConversationClick={handleOpenConversation}
+          activeThread={activeThread}
+          threadMessages={threadMessages}
+          onReplyClick={handleReplyThread}
+          composeRecipient={composeRecipient}
+          composeText={fullInput}
+          onSendSms={handleSendSms}
           onOpenMenu={() => { triggerHaptic(65); setCurrentView("menu"); }}
           onOpenSettings={() => { triggerHaptic(65); openSettings(currentView); }}
           onSettingClick={(s) => { triggerHaptic(65); handleSettingClick(s); }}

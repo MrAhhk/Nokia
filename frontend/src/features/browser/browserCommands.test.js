@@ -6,7 +6,7 @@ describe("browser keypad commands", () => {
     expect(getBrowserCommand("RIGHT")).toBe("forward");
     expect(getBrowserCommand("UP")).toBe("scroll-up");
     expect(getBrowserCommand("DOWN")).toBe("scroll-down");
-    expect(getBrowserCommand("SELECT")).toBe("focus-address");
+    expect(getBrowserCommand("SELECT")).toBe("submit");
     expect(getBrowserCommand("SEND")).toBe("submit");
     expect(getBrowserCommand("BACK")).toBe("back");
     expect(getBrowserCommand("*")).toBeNull();

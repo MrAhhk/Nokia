@@ -175,23 +175,6 @@ public class NokiaIME extends InputMethodService {
     @Override
     public void onStartInputView(EditorInfo attribute, boolean restarting) {
         super.onStartInputView(attribute, restarting);
-        ControlSurfaceCoordinator.setMode(classifyMode(attribute));
-    }
-
-    @Override
-    public void onFinishInputView(boolean finishingInput) {
-        super.onFinishInputView(finishingInput);
-        ControlSurfaceCoordinator.setMode(ControlSurfaceMode.NAVIGATION);
-    }
-
-    private ControlSurfaceMode classifyMode(EditorInfo attribute) {
-        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            return ControlSurfaceMode.IMMERSIVE;
-        }
-        if (mIMEState == IMEState.LAUNCHER_SUPPRESSED) {
-            return ControlSurfaceMode.HIDDEN;
-        }
-        return EditorContextClassifier.classify(attribute == null ? 0 : attribute.inputType);
     }
 
     private void postToMainThread(Runnable runnable) {

@@ -13,24 +13,6 @@ test("the IME reuses one main-thread Handler across keystrokes", () => {
   expect(source).toContain("mMainHandler.post(runnable)");
 });
 
-test("the IME publishes classified control-surface modes at lifecycle seams", () => {
-  const source = fs.readFileSync(
-    path.resolve(
-      __dirname,
-      "../android/app/src/main/java/com/nokialauncher/app/NokiaIME.java",
-    ),
-    "utf8",
-  );
-
-  expect(source).toContain("EditorContextClassifier.classify");
-  expect(source).toMatch(
-    /onStartInputView\(EditorInfo attribute, boolean restarting\)[\s\S]*?ControlSurfaceCoordinator\.setMode\(classifyMode\(attribute\)\)/,
-  );
-  expect(source).toMatch(
-    /onFinishInputView\(boolean finishingInput\)[\s\S]*?ControlSurfaceCoordinator\.setMode\(ControlSurfaceMode\.NAVIGATION\)/,
-  );
-});
-
 test("activity resume delegates WebView lifecycle without forcing redraws", () => {
   const source = fs.readFileSync(
     path.resolve(

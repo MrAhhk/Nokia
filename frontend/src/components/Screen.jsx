@@ -209,7 +209,7 @@ const Screen = ({
               key={item.id}
               item={item}
               isSelected={selectedHomeTarget === item.id}
-              onClick={() => onAppClick(item.action ? item : (item.app || item))}
+              onClick={() => onAppClick(item.id === "messages" ? item : (item.action ? item : (item.app || item)))}
               onLongPress={() => onAppLongPress?.(item)}
             />
           ))}

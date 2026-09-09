@@ -87,6 +87,18 @@ describe("nokiaAudioEngine", () => {
     stopAllSounds();
     _resetAudioContext();
     global.fetch = originalFetch;
+    delete window.NokiaIMEBridge;
+    delete window.Capacitor;
+  });
+
+  test("routes IME DTMF through the same native keypad tone path as homescreen", () => {
+    window.NokiaIMEBridge = { playKeypadTone: jest.fn() };
+
+    const handle = playKeypadTone("5", KEYPAD_TONE_TYPES.DTMF, 4, true);
+
+    expect(window.NokiaIMEBridge.playKeypadTone).toHaveBeenCalledWith("5", 200, true);
+    expect(createdOscillators).toHaveLength(0);
+    expect(handle).toHaveProperty("stop");
   });
 
   test("loads only the pressed keypad sample on demand", async () => {

@@ -326,6 +326,13 @@ export const playKeypadTone = (key, toneType = KEYPAD_TONE_TYPES.DTMF, volume = 
     }
   }
 
+  // The IME WebView is not hosted by Capacitor. Route DTMF through its native
+  // bridge so it uses the same Android ToneGenerator path as the homescreen.
+  if (toneType === KEYPAD_TONE_TYPES.DTMF && typeof window !== "undefined" && window.NokiaIMEBridge?.playKeypadTone) {
+    window.NokiaIMEBridge.playKeypadTone(String(key), 200, vibrate);
+    return { stop: () => {} };
+  }
+
   if (vibrate) {
     triggerKeyHaptic(60).catch(() => {});
   }

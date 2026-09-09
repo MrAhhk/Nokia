@@ -2,12 +2,14 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import fs from "fs";
 import NokiaSystemKeyboard from "./NokiaSystemKeyboard";
+import { preloadKeypadAudio } from "@/features/sound/nokiaAudioEngine";
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
 jest.mock("@/features/sound/nokiaAudioEngine", () => ({
   pauseAudioEngine: jest.fn(),
   playKeypadTone: jest.fn(),
+  preloadKeypadAudio: jest.fn(),
 }));
 
 jest.mock("@/features/sound/soundStorage", () => ({
@@ -24,6 +26,7 @@ test("system IME reuses the physical Nokia keypad below the Nokia wordmark", () 
   const keyboard = container.querySelector('[data-testid="nokia-system-keyboard"]');
   expect(keyboard).not.toBeNull();
   expect(keyboard.classList.contains("nokia-launcher")).toBe(true);
+  expect(keyboard.querySelector(".nokia-shell-rim")).not.toBeNull();
   expect(keyboard.querySelector(".nokia-wordmark")).not.toBeNull();
   expect(keyboard.querySelector(".physical-keypad")).not.toBeNull();
   expect(keyboard.querySelectorAll(".physical-number")).toHaveLength(12);
@@ -33,16 +36,60 @@ test("system IME reuses the physical Nokia keypad below the Nokia wordmark", () 
   container.remove();
 });
 
-test("physical green key keeps the IME enter behavior", () => {
-  window.NokiaIMEBridge = { commitText: jest.fn() };
+test("system IME preloads the same keypad samples as homescreen", () => {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+
+  act(() => root.render(<NokiaSystemKeyboard />));
+
+  expect(preloadKeypadAudio).toHaveBeenCalledTimes(1);
+
+  act(() => root.unmount());
+  container.remove();
+});
+
+test("physical D-pad always dispatches native navigation without a dead NAV mode", () => {
+  window.NokiaIMEBridge = { sendDpadKey: jest.fn() };
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => root.render(<NokiaSystemKeyboard />));
 
-  act(() => container.querySelector('button[aria-label="Call or Tab"]').click());
+  for (const direction of ["Up", "Left", "Select", "Right", "Down"]) {
+    act(() => container.querySelector(`button[aria-label="${direction}"]`).click());
+  }
 
-  expect(window.NokiaIMEBridge.commitText).toHaveBeenCalledWith("\n");
+  expect(window.NokiaIMEBridge.sendDpadKey.mock.calls).toEqual([
+    ["UP"], ["LEFT"], ["SELECT"], ["RIGHT"], ["DOWN"],
+  ]);
+
+  act(() => root.unmount());
+  container.remove();
+  delete window.NokiaIMEBridge;
+});
+
+test("system IME applies the current shared default control grammar", () => {
+  window.NokiaIMEBridge = {
+    deleteSurroundingText: jest.fn(),
+    sendDpadKey: jest.fn(),
+    performSystemAction: jest.fn(),
+  };
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  act(() => root.render(<NokiaSystemKeyboard />));
+
+  act(() => container.querySelector('button[aria-label="Go to or Delete"]').click());
+  act(() => container.querySelector('button[aria-label="Settings or Back"]').click());
+  act(() => container.querySelector('button[aria-label="Call or Tab"]').click());
+  act(() => container.querySelector('button[aria-label="Home"]').click());
+
+  expect(window.NokiaIMEBridge.deleteSurroundingText).toHaveBeenCalledWith(1, 0);
+  expect(window.NokiaIMEBridge.sendDpadKey).toHaveBeenCalledWith("BACK");
+  expect(window.NokiaIMEBridge.performSystemAction.mock.calls).toEqual([
+    ["RECENT_APPS"], ["HOME"],
+  ]);
 
   act(() => root.unmount());
   container.remove();

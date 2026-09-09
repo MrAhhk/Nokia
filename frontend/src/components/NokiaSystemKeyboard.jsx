@@ -4,7 +4,10 @@ import { createMultiTapComposer } from "@/domain/multiTapComposer";
 import { CASE_MODES, resolveNextCaseMode, formatCharForCase } from "@/domain/keyGrammar";
 import { pauseAudioEngine, playKeypadTone } from "@/features/sound/nokiaAudioEngine";
 import { loadSoundSettings } from "@/features/sound/soundStorage";
+import "./NokiaLauncher.css";
 import "./AgedHardwareTheme.css";
+import "./ReferenceHardware.css";
+import "./NokiaSystemKeyboard.css";
 
 const BASE_CYCLES = {
   "1": [".", ",", "?", "!", "-", "_", "@", "1"],
@@ -103,6 +106,11 @@ const NokiaSystemKeyboard = () => {
     const bridge = getIMEBridge();
     const soundPrefs = loadSoundSettings();
     playKeypadTone(key, soundPrefs.keypadTone, soundPrefs.volume, soundPrefs.vibrate);
+
+    // The physical keypad speaks the launcher's logical key names. Keep the
+    // IME behavior isolated by translating only the two aliases it needs.
+    if (key === "GREEN") key = "SEND";
+    else if (key === "HASH") key = "#";
 
     // ─── Mode Cycle via '#' Key ───
     if (key === "#") {
@@ -218,28 +226,18 @@ const NokiaSystemKeyboard = () => {
   }, [commitPending, inputMode]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#050505] p-2 md:p-4 select-none" data-testid="nokia-system-keyboard">
-      {/* Mode Status Bar */}
-      <div className="flex justify-between items-center text-[10px] md:text-xs font-mono font-bold tracking-widest text-white/50 border-b border-white/10 pb-1.5 mb-2 px-1">
-        <span className={
-          inputMode === "NAV" ? "text-blue-400" :
-          inputMode === "123" ? "text-yellow-400" :
-          inputMode === "ABC" ? "text-purple-400" :
-          inputMode === "Abc" ? "text-cyan-400" :
-          "text-green-400"
-        }>
-          {inputMode === "NAV" ? "🧭 DPAD NAV" :
-           inputMode === "123" ? "🔢 123 NUMBERS" :
-           inputMode === "ABC" ? "🔠 ABC (CAPS)" :
-           inputMode === "Abc" ? "🔤 Abc (FIRST)" :
-           "🔤 abc (TEXT)"}
-        </span>
-        <span className="text-white/40">PRESS [#] MODE</span>
+    <div
+      className="nokia-launcher nokia-system-keyboard h-full w-full flex flex-col overflow-hidden select-none"
+      data-testid="nokia-system-keyboard"
+      data-input-mode={inputMode}
+    >
+      <div className="nokia-wordmark" aria-label="Nokia">
+        <svg viewBox="0 0 300 52" aria-hidden="true">
+          <path fill="currentColor" fillRule="evenodd" d="M0 0H13L43 34V0H55V52H42L12 18V52H0ZM75 0H112Q123 0 123 11V41Q123 52 112 52H75Q64 52 64 41V11Q64 0 75 0ZM78 11Q76 11 76 14V38Q76 41 79 41H108Q111 41 111 38V14Q111 11 108 11ZM133 0H145V21L171 0H189L158 25L190 52H172L145 29V52H133ZM198 0H210V52H198ZM244 0H263L300 52H284L277 41H231L224 52H209ZM238 30H269L254 8Z" />
+        </svg>
       </div>
-
-      {/* Keypad Container */}
-      <div className="flex-1 flex items-center justify-center">
-        <Keypad onKeypadPress={handleKeyPress} />
+      <div className="nokia-launcher__keypad w-full flex items-center justify-center">
+        <Keypad variant="launcher" onKeypadPress={handleKeyPress} />
       </div>
     </div>
   );

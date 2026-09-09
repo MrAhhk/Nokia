@@ -1,0 +1,46 @@
+/*
+ * The IME is the lower hardware module of the launcher: Nokia brand band plus
+ * the same shared physical Keypad. Keep IME-only sizing here so launcher
+ * geometry and behavior remain untouched.
+ */
+.nokia-system-keyboard {
+  --aged-shell: #090b0b;
+  --aged-key: #121516;
+  --aged-key-label: #d8d8d2;
+  border-radius: 0;
+  background: linear-gradient(108deg, #080909, #222323 62%, #101111);
+}
+
+.nokia-system-keyboard .nokia-wordmark {
+  flex: 0 0 12.5%;
+  min-height: 42px;
+  max-height: 54px;
+}
+
+.nokia-system-keyboard .nokia-wordmark svg {
+  width: 24%;
+  max-width: 112px;
+  max-height: 48%;
+}
+
+.nokia-system-keyboard .nokia-launcher__keypad {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+  padding: 0 3.7% max(1.7cqh, env(safe-area-inset-bottom));
+}
+
+.nokia-system-keyboard .physical-keypad {
+  border-radius: 0;
+}
+
+.nokia-system-keyboard [data-testid="keypad"] button.physical-call {
+  color: #35d22c;
+}
+
+.nokia-system-keyboard [data-testid="keypad"] button.physical-dpad__hit {
+  border: 0;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+}

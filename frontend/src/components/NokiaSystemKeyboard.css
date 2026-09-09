@@ -12,26 +12,8 @@
 }
 
 .nokia-system-keyboard .nokia-wordmark {
-  flex: 0 0 12.5%;
-  min-height: 42px;
-  max-height: 54px;
-}
-
-.nokia-system-keyboard .nokia-wordmark svg {
-  width: 24%;
-  max-width: 112px;
-  max-height: 48%;
-}
-
-.nokia-system-keyboard .nokia-launcher__keypad {
-  flex: 1 1 0;
-  height: auto;
-  min-height: 0;
-  padding: 0 3.7% max(1.7cqh, env(safe-area-inset-bottom));
-}
-
-.nokia-system-keyboard .physical-keypad {
-  border-radius: 0;
+  /* Homescreen uses 6% wordmark + 41% keypad. This IME is that exact 47% module. */
+  flex: 0 0 calc(6 / 47 * 100%);
 }
 
 .nokia-system-keyboard [data-testid="keypad"] button.physical-call {

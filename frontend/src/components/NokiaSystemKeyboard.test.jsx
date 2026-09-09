@@ -75,3 +75,15 @@ test("IME shell keeps shared D-pad hit zones visually transparent", () => {
   expect(css).toContain('[data-testid="keypad"] button.physical-dpad__hit');
   expect(css).toContain("background: transparent");
 });
+
+test("IME uses the homescreen lower-module ratio without approximate sizing", () => {
+  const css = fs.readFileSync(__filename.replace(".test.jsx", ".css"), "utf8");
+  expect(css).toContain("flex: 0 0 calc(6 / 47 * 100%)");
+});
+
+test("IME continues to use the same keypad audio engine as homescreen", () => {
+  const keyboardSource = fs.readFileSync(__filename.replace(".test.jsx", ".jsx"), "utf8");
+  const launcherSource = fs.readFileSync(__filename.replace("NokiaSystemKeyboard.test.jsx", "NokiaLauncher.jsx"), "utf8");
+  expect(keyboardSource).toContain("playKeypadTone(key, soundPrefs.keypadTone, soundPrefs.volume, soundPrefs.vibrate)");
+  expect(launcherSource).toContain("playKeypadTone(key, soundPrefs.keypadTone, soundPrefs.volume, soundPrefs.vibrate)");
+});

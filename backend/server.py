@@ -1,15 +1,18 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
-import uuid
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated, List, Optional
 import asyncio
-from datetime import datetime, timezone
+import hashlib
+import hmac
+import threading
+from contextlib import asynccontextmanager
 
 from play_integrity import (
     IntegrityConfigurationError,
@@ -28,11 +31,90 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    yield
+    client.close()
+
+
 # Create the main app without a prefix
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
+
+MAX_REQUEST_BODY_BYTES = 32 * 1024
+MAX_PREFERENCES = 100
+MAX_INTEGRITY_CONCURRENCY = 4
+_integrity_slots = threading.BoundedSemaphore(MAX_INTEGRITY_CONCURRENCY)
+
+
+class RequestBodyLimitMiddleware:
+    """Reject oversized API request bodies before validation or remote work."""
+
+    def __init__(self, app, max_bytes: int):
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = dict(scope.get("headers") or [])
+        content_length = headers.get(b"content-length")
+        if content_length:
+            try:
+                if int(content_length) > self.max_bytes:
+                    await JSONResponse(
+                        {"detail": "request body is too large"}, status_code=413
+                    )(scope, receive, send)
+                    return
+            except ValueError:
+                await JSONResponse(
+                    {"detail": "content-length is invalid"}, status_code=400
+                )(scope, receive, send)
+                return
+
+        received = 0
+
+        async def limited_receive():
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > self.max_bytes:
+                    raise HTTPException(413, "request body is too large")
+            return message
+
+        await self.app(scope, limited_receive, send)
+
+
+def _preference_admin_token() -> str:
+    return os.environ.get("PREFERENCES_ADMIN_TOKEN", "").strip()
+
+
+async def require_preferences_admin(
+    authorization: Annotated[str | None, Header()] = None,
+) -> None:
+    configured = _preference_admin_token()
+    if not configured:
+        raise HTTPException(
+            status_code=503,
+            detail="preference administration is disabled",
+        )
+
+    scheme, separator, supplied = (authorization or "").partition(" ")
+    valid_scheme = separator == " " and scheme.lower() == "bearer"
+    supplied_digest = hashlib.sha256(supplied.encode("utf-8")).digest()
+    configured_digest = hashlib.sha256(configured.encode("utf-8")).digest()
+    if not valid_scheme or not hmac.compare_digest(supplied_digest, configured_digest):
+        raise HTTPException(
+            status_code=401,
+            detail="invalid administrative credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 # Define Models
@@ -49,20 +131,29 @@ class AppList(BaseModel):
     apps: List[App]
 
 class AppPreference(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
     
-    app_id: str
+    app_id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9._:-]+$")
     is_hidden: bool = False
-    custom_order: Optional[int] = None
+    custom_order: Optional[int] = Field(default=None, ge=0, le=9999)
 
 
 class IntegrityChallengeRequest(BaseModel):
-    action: str = "device-check"
+    model_config = ConfigDict(extra="forbid")
+
+    action: str = Field(default="device-check", min_length=1, max_length=80)
 
 
 class IntegrityVerifyRequest(BaseModel):
-    integrityToken: str = Field(min_length=1)
-    challenge: str = Field(min_length=1)
+    model_config = ConfigDict(extra="forbid")
+
+    integrityToken: str = Field(min_length=1, max_length=16_384)
+    challenge: str = Field(min_length=1, max_length=2_048)
+
+
+PreferenceList = Annotated[
+    List[AppPreference], Field(min_length=1, max_length=MAX_PREFERENCES)
+]
 
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
@@ -100,8 +191,11 @@ async def get_apps():
     return {"apps": apps}
 
 @api_router.post("/apps/preferences")
-async def save_app_preferences(preferences: List[AppPreference]):
-    """Save user app preferences"""
+async def save_app_preferences(
+    preferences: PreferenceList,
+    _: None = Depends(require_preferences_admin),
+):
+    """Replace shared administrative app preferences."""
     for pref in preferences:
         pref_dict = pref.model_dump()
         await db.app_preferences.update_one(
@@ -112,9 +206,11 @@ async def save_app_preferences(preferences: List[AppPreference]):
     return {"message": "Preferences saved"}
 
 @api_router.get("/apps/preferences")
-async def get_app_preferences():
-    """Get user app preferences"""
-    preferences = await db.app_preferences.find({}, {"_id": 0}).to_list(1000)
+async def get_app_preferences(_: None = Depends(require_preferences_admin)):
+    """Read shared administrative app preferences."""
+    preferences = await db.app_preferences.find({}, {"_id": 0}).to_list(
+        MAX_PREFERENCES
+    )
     return {"preferences": preferences}
 
 
@@ -142,14 +238,28 @@ async def verify_integrity(request: IntegrityVerifyRequest):
     package_name = os.environ.get(
         "PLAY_INTEGRITY_PACKAGE_NAME", "com.nokialauncher"
     )
-    try:
-        return await asyncio.to_thread(
-            verify_integrity_token,
-            request.integrityToken,
-            request.challenge,
-            secret=secret,
-            package_name=package_name,
+    if not _integrity_slots.acquire(blocking=False):
+        raise HTTPException(
+            status_code=503,
+            detail="integrity verification capacity is busy",
+            headers={"Retry-After": "1"},
         )
+
+    def verify_with_owned_slot():
+        try:
+            return verify_integrity_token(
+                request.integrityToken,
+                request.challenge,
+                secret=secret,
+                package_name=package_name,
+            )
+        finally:
+            # The worker owns the slot, so cancellation cannot release it while
+            # the underlying Google request is still running.
+            _integrity_slots.release()
+
+    try:
+        return await asyncio.to_thread(verify_with_owned_slot)
     except IntegrityValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except IntegrityConfigurationError as exc:
@@ -160,12 +270,30 @@ async def verify_integrity(request: IntegrityVerifyRequest):
 # Include the router in the main app
 app.include_router(api_router)
 
+app.add_middleware(RequestBodyLimitMiddleware, max_bytes=MAX_REQUEST_BODY_BYTES)
+
+
+def _cors_origins() -> list[str]:
+    return [
+        origin.strip()
+        for origin in os.environ.get("CORS_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+
+
+cors_origins = _cors_origins()
+cors_allow_credentials = os.environ.get(
+    "CORS_ALLOW_CREDENTIALS", "false"
+).lower() in {"1", "true", "yes"}
+if cors_allow_credentials and "*" in cors_origins:
+    raise RuntimeError("CORS credentials cannot be enabled with a wildcard origin")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=cors_allow_credentials,
+    allow_origins=cors_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Configure logging
@@ -174,7 +302,3 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()

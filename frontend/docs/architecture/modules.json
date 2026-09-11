@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "modules": [
+    {
+      "id": "launcher", "aliases": ["home", "drawer", "menu", "navigation", "blank", "lag"],
+      "trace": "App -> LauncherApp -> NokiaLauncher -> keyGrammar/launcherMenus -> Screen -> launcherApps -> MainActivity/LauncherAppsPlugin",
+      "files": ["src/App.js", "src/LauncherApp.jsx", "src/components/NokiaLauncher.jsx", "src/components/Screen.jsx", "src/domain/launcherMenus.js", "android/app/src/main/java/com/nokialauncher/MainActivity.java", "android/app/src/main/java/com/nokialauncher/LauncherEntryActivity.java"],
+      "tests": ["src/App.performance.test.js", "src/components/NokiaLauncher.performance.test.jsx", "src/components/Screen.test.jsx", "src/domain/launcherMenus.test.js", "src/nativePerformance.test.js"]
+    },
+    {
+      "id": "keyboard", "aliases": ["ime", "typing", "keypad", "input", "caps", "delete", "goto", "dtmf"],
+      "trace": "Keypad -> keyGrammar/multiTapComposer -> NokiaSystemKeyboard -> NokiaIMEBridge -> InputConnection; input visibility -> InputSessionPolicy",
+      "files": ["src/components/Keypad.jsx", "src/components/NokiaSystemKeyboard.jsx", "src/domain/keyGrammar.js", "src/domain/multiTapComposer.js", "android/app/src/main/java/com/nokialauncher/NokiaIME.java", "android/app/src/main/java/com/nokialauncher/InputSessionPolicy.java", "android/app/src/main/java/com/nokialauncher/KeyboardResourcePolicy.java"],
+      "tests": ["src/components/Keypad.performance.test.jsx", "src/components/NokiaSystemKeyboard.test.jsx", "src/domain/keyGrammar.test.js", "src/domain/multiTapComposer.test.js", "android/app/src/test/java/com/nokialauncher/KeyboardResourcePolicyTest.java", "android/app/src/test/java/com/nokialauncher/InputSessionPolicyTest.java"]
+    },
+    {
+      "id": "browser", "aliases": ["webview", "url", "tabs", "renderer", "ssl"],
+      "trace": "BrowserFeature -> browserKeypad/commands/address -> launcherApps -> LauncherAppsPlugin -> BuiltInBrowserController -> browserState",
+      "files": ["src/features/browser/BrowserFeature.jsx", "src/features/browser/browserKeypad.js", "src/features/browser/browserCommands.js", "src/features/browser/browserAddress.js", "android/app/src/main/java/com/nokialauncher/browser/BuiltInBrowserController.java"],
+      "tests": ["src/features/browser/BrowserFeature.test.jsx", "src/features/browser/browserKeypad.test.js", "src/features/browser/browserAddress.test.js", "src/features/browser/browserCommands.test.js", "src/lib/launcherApps.browser.test.js", "src/auditRegression.test.js"]
+    },
+    {
+      "id": "camera", "aliases": ["photo", "video", "gallery", "thumbnail", "memory", "bitmap"],
+      "trace": "CameraFeature -> cameraCommands/cameraState -> launcherApps -> LauncherAppsPlugin -> BuiltInCameraController -> CameraX/MediaStore; image decode -> BitmapDecodePolicy",
+      "files": ["src/features/camera/CameraFeature.jsx", "src/features/camera/cameraState.js", "src/features/camera/cameraCommands.js", "android/app/src/main/java/com/nokialauncher/camera/BuiltInCameraController.java", "android/app/src/main/java/com/nokialauncher/camera/BitmapDecodePolicy.java"],
+      "tests": ["src/features/camera/cameraState.test.js", "src/lib/launcherApps.camera.test.js", "src/auditRegression.test.js", "android/app/src/test/java/com/nokialauncher/camera/BitmapDecodePolicyTest.java"]
+    },
+    {
+      "id": "messages", "aliases": ["sms", "contacts", "recipient", "notification", "reply", "inbox", "unread"],
+      "trace": "NokiaLauncher/Screen -> smsReadStatus -> launcherApps -> LauncherAppsPlugin -> SMS/contact providers or NokiaNotificationListener; incoming -> SmsBroadcastReceiver/notification event -> launcher",
+      "files": ["src/components/NokiaLauncher.jsx", "src/components/Screen.jsx", "src/lib/smsReadStatus.js", "android/app/src/main/java/com/nokialauncher/LauncherAppsPlugin.java", "android/app/src/main/java/com/nokialauncher/SmsBroadcastReceiver.java", "android/app/src/main/java/com/nokialauncher/NokiaNotificationListener.java", "android/app/src/main/java/com/nokialauncher/BoundedInputReader.java"],
+      "tests": ["src/lib/launcherApps.messages.test.js", "src/lib/smsReadStatus.test.js", "src/components/Screen.test.jsx", "android/app/src/test/java/com/nokialauncher/BoundedInputReaderTest.java"]
+    },
+    {
+      "id": "sound", "aliases": ["audio", "haptic", "vibration", "tone", "dtmf"],
+      "trace": "SoundFeature -> soundState/config/storage -> nokiaAudioEngine -> launcherApps/native ToneGenerator OR IME bridge OR WebAudio fallback",
+      "files": ["src/features/sound/SoundFeature.jsx", "src/features/sound/soundState.js", "src/features/sound/soundConfig.js", "src/features/sound/soundStorage.js", "src/features/sound/nokiaAudioEngine.js", "src/features/sound/ToneSetupPrompt.jsx", "src/features/sound/toneSetupState.js"],
+      "tests": ["src/features/sound/nokiaAudioEngine.test.js", "src/features/sound/soundPerformance.test.js", "src/features/sound/SoundFeature.safety.test.jsx", "src/lib/launcherApps.haptics.test.js", "src/lib/launcherApps.sound.test.js"]
+    },
+    {
+      "id": "clock", "aliases": ["timer", "stopwatch", "alarm"],
+      "trace": "ClockFeature -> clockState -> local runtime snapshot and sound engine",
+      "files": ["src/features/clock/ClockFeature.jsx", "src/features/clock/clockState.js"],
+      "tests": ["src/features/clock/ClockFeature.test.jsx", "src/features/clock/clockState.test.js"]
+    },
+    {
+      "id": "snake", "aliases": ["game", "canvas"],
+      "trace": "SnakeFeature -> snakeEngine/config/storage -> SnakeBoard canvas",
+      "files": ["src/features/snake/SnakeFeature.jsx", "src/features/snake/SnakeBoard.jsx", "src/features/snake/snakeEngine.js", "src/features/snake/snakeStorage.js", "src/features/snake/snakeConfig.js"],
+      "tests": ["src/features/snake/snakeEngine.test.js", "src/features/snake/SnakeBoard.test.jsx", "src/features/snake/SnakeFeature.test.jsx", "src/components/NokiaLauncher.snake.test.jsx"]
+    },
+    {
+      "id": "native-adapter", "aliases": ["bridge", "permission", "apps", "cache", "dial", "calls"],
+      "trace": "Feature -> launcherApps facade -> LauncherAppsPlugin permissions -> Android provider/controller -> bridge result",
+      "files": ["src/lib/launcherApps.js", "android/app/src/main/java/com/nokialauncher/LauncherAppsPlugin.java", "android/app/src/main/AndroidManifest.xml"],
+      "tests": ["src/lib/launcherApps.cache.test.js", "src/lib/launcherApps.recentCalls.test.js", "src/nativePerformance.test.js"]
+    },
+    {
+      "id": "integrity", "aliases": ["security", "attestation", "backend"],
+      "trace": "playIntegrity facade -> backend signed challenge -> PlayIntegrityPlugin -> Google verdict verified by optional backend",
+      "files": ["src/lib/playIntegrity.js", "android/app/src/main/java/com/nokialauncher/PlayIntegrityPlugin.java"],
+      "tests": ["src/lib/playIntegrity.test.js"]
+    }
+  ],
+  "pureRules": ["src/domain/keyGrammar.js", "src/domain/multiTapComposer.js", "src/features/browser/browserAddress.js", "src/features/browser/browserCommands.js", "src/features/camera/cameraState.js", "src/features/camera/cameraCommands.js", "src/features/clock/clockState.js", "src/features/snake/snakeEngine.js", "src/features/sound/soundState.js"],
+  "nativeAccessOwners": {
+    "src/lib/launcherApps.js": "Public launcher facade and existing haptic IME fallback",
+    "src/lib/playIntegrity.js": "Dedicated integrity facade",
+    "src/components/NokiaSystemKeyboard.jsx": "Existing plain-WebView IME adapter",
+    "src/features/sound/nokiaAudioEngine.js": "Existing native/IME/WebAudio transport selection",
+    "src/components/NokiaLauncher.jsx": "Existing capability detection only; do not add native operations here"
+  }
+}

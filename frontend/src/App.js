@@ -1,22 +1,21 @@
-import { lazy, Suspense } from "react";
+import LauncherApp from "@/LauncherApp";
 import "@/App.css";
-
-const LauncherApp = lazy(() => import("@/LauncherApp"));
-const NokiaSystemKeyboard = lazy(() => import("@/components/NokiaSystemKeyboard"));
-
-const LoadingShell = () => (
-  <div className="app-loading-shell" role="presentation" />
-);
+import NokiaSystemKeyboard from "@/components/NokiaSystemKeyboard";
 
 function App() {
   const isKeyboardView = typeof window !== "undefined" && 
     new URLSearchParams(window.location.search).get("view") === "keyboard";
 
-  return (
-    <Suspense fallback={<LoadingShell />}>
-      {isKeyboardView ? <NokiaSystemKeyboard /> : <LauncherApp />}
-    </Suspense>
-  );
+  // The IME must paint from the first local bundle. A lazy keyboard chunk can
+  // leave the InputMethodService showing only its empty fallback when WebView
+  // is detached, restored, or the file:// chunk is late to resolve.
+  if (isKeyboardView) {
+    return <NokiaSystemKeyboard />;
+  }
+
+  // Home is the launcher critical path. Loading it eagerly avoids a blank
+  // fallback during the first resume after Android has reclaimed WebView.
+  return <LauncherApp />;
 }
 
 export default App;

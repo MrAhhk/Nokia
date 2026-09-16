@@ -6,11 +6,13 @@ test("the bundled launcher shell does not wait for remote fonts", () => {
   expect(css).not.toContain("fonts.googleapis.com");
 });
 
-test("the keyboard entry does not statically load launcher and router features", () => {
+test("the keyboard entry stays eager while Home avoids a blank lazy fallback", () => {
   const source = fs.readFileSync(path.join(__dirname, "App.js"), "utf8");
-  expect(source).toContain("lazy(");
-  expect(source).not.toContain('import NokiaLauncher from');
-  expect(source).not.toContain('from "react-router-dom"');
+  expect(source).toContain('import LauncherApp from "@/LauncherApp"');
+  expect(source).toContain('import NokiaSystemKeyboard from "@/components/NokiaSystemKeyboard"');
+  expect(source).not.toContain("Suspense");
+  expect(source).not.toContain('lazy(() => import("@/LauncherApp"))');
+  expect(source.indexOf("if (isKeyboardView)")).toBeLessThan(source.indexOf("return <LauncherApp />"));
 });
 
 test("the app entry does not initialize an unused query client", () => {

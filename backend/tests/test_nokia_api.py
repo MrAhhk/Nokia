@@ -3,6 +3,7 @@
 import asyncio
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 import pytest
@@ -15,6 +16,47 @@ import server
 
 
 ADMIN_TOKEN = "test-admin-token-with-sufficient-random-length"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("queued", [True, False])
+async def test_cancelled_verification_keeps_slot_until_worker_finishes(monkeypatch, queued):
+    release = threading.Event()
+    started = threading.Event()
+    executor = ThreadPoolExecutor(max_workers=1)
+    if queued:
+        executor.submit(lambda: (started.set(), release.wait(3)))
+        assert started.wait(1)
+    loop = asyncio.get_running_loop()
+    original = loop.run_in_executor
+    monkeypatch.setattr(loop, "run_in_executor", lambda _pool, function: original(executor, function))
+    slots = threading.BoundedSemaphore(1)
+    monkeypatch.setattr(server, "_integrity_slots", slots)
+    monkeypatch.setattr(server, "verify_integrity_token", lambda *a, **k: (started.set(), release.wait(3), {"ok": True})[-1])
+    request = server.IntegrityVerifyRequest(integrityToken="token", challenge="challenge")
+    task = asyncio.create_task(server.verify_integrity(request))
+    try:
+        await asyncio.sleep(0)
+        for _ in range(100):
+            if started.is_set():
+                break
+            await asyncio.sleep(0.01)
+        assert started.is_set()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not slots.acquire(blocking=False)
+        release.set()
+        for _ in range(100):
+            await asyncio.sleep(0.01)
+            if slots.acquire(blocking=False):
+                slots.release()
+                break
+        else:
+            pytest.fail("cancelled queued request leaked its capacity slot")
+    finally:
+        release.set()
+        executor.shutdown(wait=True)
 
 
 class FakeCursor:
@@ -34,8 +76,9 @@ class FakePreferences:
         self.documents[query["app_id"]] = update["$set"]
 
     def find(self, query, projection):
-        assert query == {}
-        assert projection == {"_id": 0}
+        assert query["app_id"]["$regex"] == r"^[A-Za-z0-9._:-]{1,128}$"
+        assert query["is_hidden"] == {"$type": "bool"}
+        assert projection == {"_id": 0, "app_id": 1, "is_hidden": 1, "custom_order": 1}
         return FakeCursor(list(self.documents.values()))
 
 
@@ -213,3 +256,18 @@ async def test_integrity_overload_rejects_without_releasing_running_worker(
     completed = await first
     assert completed.status_code == 200
     assert server._integrity_slots.acquire(blocking=False) is True
+
+
+@pytest.mark.asyncio
+async def test_legacy_preferences_are_validated_before_response(api, monkeypatch):
+    from bson.decimal128 import Decimal128
+    monkeypatch.setenv("PREFERENCES_ADMIN_TOKEN", ADMIN_TOKEN)
+    rows = [{"app_id": "ok", "is_hidden": False, "custom_order": 3}]
+    rows += [{"app_id": "bad", "is_hidden": False, "custom_order": value}
+             for value in (1.5, Decimal128("1"), True, [2], -1, 10000)]
+    rows += [{"app_id": ["bad"], "is_hidden": False}, {"app_id": "bad", "is_hidden": [True]}]
+    # Return invalid legacy rows even if a provider overmatches the query.
+    monkeypatch.setattr(server.db.app_preferences, "find", lambda *args: FakeCursor(rows))
+    response = await api.get("/api/apps/preferences", headers=admin_headers())
+    assert response.status_code == 200
+    assert response.json()["preferences"] == rows[:1]

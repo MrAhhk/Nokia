@@ -208,10 +208,27 @@ async def save_app_preferences(
 @api_router.get("/apps/preferences")
 async def get_app_preferences(_: None = Depends(require_preferences_admin)):
     """Read shared administrative app preferences."""
-    preferences = await db.app_preferences.find({}, {"_id": 0}).to_list(
+    preferences = await db.app_preferences.find({
+        "app_id": {"$type": "string", "$regex": r"^[A-Za-z0-9._:-]{1,128}$"},
+        "is_hidden": {"$type": "bool"},
+        "$or": [{"custom_order": None}, {"custom_order": {"$type": ["int", "long"], "$gte": 0, "$lte": 9999}}],
+    }, {"_id": 0, "app_id": 1, "is_hidden": 1, "custom_order": 1}).to_list(
         MAX_PREFERENCES
     )
-    return {"preferences": preferences}
+    # Legacy records may predate validation; Mongo type predicates also match
+    # array elements, so validate projected scalar values before serialization.
+    safe = []
+    for item in preferences:
+        app_id, hidden, order = item.get("app_id"), item.get("is_hidden"), item.get("custom_order")
+        if not isinstance(app_id, str) or type(hidden) is not bool:
+            continue
+        if order is not None and (not isinstance(order, int) or isinstance(order, bool) or not 0 <= order <= 9999):
+            continue
+        try:
+            safe.append(AppPreference(**item).model_dump())
+        except ValueError:
+            continue
+    return {"preferences": safe}
 
 
 @api_router.post("/integrity/challenge")
@@ -246,20 +263,26 @@ async def verify_integrity(request: IntegrityVerifyRequest):
         )
 
     def verify_with_owned_slot():
-        try:
-            return verify_integrity_token(
+        return verify_integrity_token(
                 request.integrityToken,
                 request.challenge,
                 secret=secret,
                 package_name=package_name,
-            )
-        finally:
-            # The worker owns the slot, so cancellation cannot release it while
-            # the underlying Google request is still running.
-            _integrity_slots.release()
+        )
 
     try:
-        return await asyncio.to_thread(verify_with_owned_slot)
+        slot_owner = _integrity_slots
+        try:
+            worker = asyncio.get_running_loop().run_in_executor(None, verify_with_owned_slot)
+        except BaseException:
+            slot_owner.release()
+            raise
+        def finish_worker(future):
+            slot_owner.release()
+            if not future.cancelled():
+                future.exception()  # Consume errors even when the request has disconnected.
+        worker.add_done_callback(finish_worker)
+        return await asyncio.shield(worker)
     except IntegrityValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except IntegrityConfigurationError as exc:

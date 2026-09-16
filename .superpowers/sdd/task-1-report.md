@@ -2,7 +2,7 @@
 
 ## Status
 
-Completed. The optional FastAPI backend now fails closed for shared preference
+Completed; follow-up independent review passed September 16. The optional FastAPI backend now fails closed for shared preference
 administration, bounds request work, and uses explicit browser-origin defaults.
 The Play Integrity capability remains available and its Google decode path is
 covered with local mocked behavior.
@@ -20,9 +20,9 @@ covered with local mocked behavior.
   return at most 100 records.
 - Added a 32 KiB body ceiling for declared-length and chunked requests. Bounded
   integrity action, token, and challenge fields.
-- Added a four-slot nonblocking integrity worker limit. The worker thread owns
-  and releases its slot in finally, so cancellation cannot free capacity while
-  Google work continues. Saturation returns HTTP 503 and Retry-After: 1.
+- Added a four-slot nonblocking integrity worker limit. The shielded executor future owns
+  its slot until its completion callback releases it, including queued and running
+  request cancellation. Saturation returns HTTP 503 and Retry-After: 1.
 - Changed CORS defaults to no allowed browser origins, credentials off, and
   explicit methods and headers. Wildcard origins with credentials fail startup.
 - Replaced the legacy remote-host API test with in-process HTTP tests using
@@ -104,3 +104,9 @@ Implementation and pre-edit snapshot:
 
 This report is committed separately so it can cite the immutable implementation
 commit.
+
+## September 16 follow-up verification
+- Legacy read query restricts scalar identifier/boolean and bounded integer BSON values; defensive model validation also rejects arrays and non-integer values if the provider overmatches.
+- Executor completion owns semaphore release. Queued and running cancellation regressions pass.
+- Current environment: retained backend/.venv. `python -m pytest -q`: 29 passed in 0.69s.
+- Follow-up patch: task-1-fix-diff.patch. No external Google/Mongo requests were made by tests.

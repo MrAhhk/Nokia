@@ -49,8 +49,17 @@
   background: transparent !important;
 }
 .nokia-launcher[data-appearance="sidephone"] .physical-keypad {
+  position: relative;
   background: #131313; border: 1px solid #171717; box-shadow: 0 -1px 0 #595959, 0 1px 0 #e4e4e4;
   border-radius: 15cqw 15cqw 13cqw 13cqw; grid-template-rows: 1fr 2fr;
+}
+/* One continuous light across the tray: the outer edges roll away from the light. */
+.nokia-launcher[data-appearance="sidephone"] .physical-keypad::after {
+  content: ''; position: absolute; inset: 0; z-index: 5; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(90deg,
+    #00000080 0%, #00000038 1.5%, #ffffff24 4.5%, #ffffff12 8%, #ffffff00 17%,
+    #00000000 81%, #00000012 90%, #00000038 96%, #00000085 100%);
+  box-shadow: inset 1px 0 0 #ffffff32, inset -1px 0 0 #050505;
 }
 .nokia-launcher[data-appearance="sidephone"] .physical-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .nokia-launcher[data-appearance="sidephone"] .physical-call { grid-area: 1 / 1; }
@@ -121,8 +130,8 @@
 .nokia-launcher[data-appearance="sidephone"] .lcd-home .lcd-identity,
 .nokia-launcher[data-appearance="sidephone"] .lcd-carrier,
 .nokia-launcher[data-appearance="sidephone"] .lcd-date { font-family: Arial, sans-serif; letter-spacing: -.04em; text-shadow: none; }
-.nokia-launcher[data-appearance="sidephone"] .lcd-carrier { font-size: 8cqw; }
-.nokia-launcher[data-appearance="sidephone"] .lcd-date { font-size: 4.5cqw; }
+.nokia-launcher[data-appearance="sidephone"] .lcd-carrier { font-size: 10cqw; }
+.nokia-launcher[data-appearance="sidephone"] .lcd-date { font-size: 5.8cqw; }
 
 @media (orientation: landscape) {
   .nokia-launcher[data-appearance="sidephone"] .physical-number strong { font-size: 4.7cqh; }
@@ -132,8 +141,8 @@
   .nokia-launcher[data-appearance="sidephone"] .physical-number .sidephone-shift { font-size: 4cqh; }
   .nokia-launcher[data-appearance="sidephone"] .physical-controls .physical-key__face svg,
   .nokia-launcher[data-appearance="sidephone"] .physical-controls .physical-key__face .sidephone-handset { width: 4.5cqh; height: 4.5cqh; }
-  .nokia-launcher[data-appearance="sidephone"] .lcd-carrier { font-size: 6cqh; }
-  .nokia-launcher[data-appearance="sidephone"] .lcd-date { font-size: 3.5cqh; margin-top: .8cqh; }
+  .nokia-launcher[data-appearance="sidephone"] .lcd-carrier { font-size: 7.5cqh; }
+  .nokia-launcher[data-appearance="sidephone"] .lcd-date { font-size: 4.5cqh; margin-top: .8cqh; }
   .nokia-launcher[data-appearance="sidephone"] .lcd-home .lcd-time { font-size: 2.8cqh; }
   .nokia-launcher[data-appearance="sidephone"] .lcd-home .lcd-shortcut__icon { width: 5cqh; height: 5cqh; }
   .nokia-launcher[data-appearance="sidephone"] .lcd-home .lcd-softkeys { font-size: 3.2cqh; }

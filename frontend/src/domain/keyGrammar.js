@@ -26,6 +26,7 @@ export const KEY_INTENTS = Object.freeze({
   NOTIFICATION_MODE: "NOTIFICATION_MODE",
   LOCK_SCREEN: "LOCK_SCREEN",
   RECENT_APPS: "RECENT_APPS",
+  LONG_DELETE: "LONG_DELETE",
 });
 
 export const NOKIA_MULTI_TAP_CYCLES = Object.freeze({
@@ -44,7 +45,7 @@ const CONTEXTUAL_INTENTS = Object.freeze({
   [KEY_INTENTS.SOFT_LEFT]: Object.freeze({
     home: KEY_INTENTS.GOTO,
     dial: KEY_INTENTS.SEND,
-    "message-thread": KEY_INTENTS.SELECT,
+    "message-thread": KEY_INTENTS.DELETE,
     "message-compose": KEY_INTENTS.SEND,
     default: KEY_INTENTS.DELETE,
   }),
@@ -60,6 +61,7 @@ const CONTEXTUAL_INTENTS = Object.freeze({
   }),
   [KEY_INTENTS.GREEN]: Object.freeze({
     dial: KEY_INTENTS.SEND,
+    "recent-calls": KEY_INTENTS.SEND,
     "message-thread": KEY_INTENTS.SEND,
     "message-compose": KEY_INTENTS.SEND,
     browser: KEY_INTENTS.TAB,
@@ -90,10 +92,9 @@ export const CASE_MODES = Object.freeze({
 
 /**
  * Transitions casing mode on '#' key:
- * - 1 press from lower: transitions to TITLE ("Abc" - uppercase one word)
- * - double press '#' within doublePressWindow: transitions to UPPER ("ABC" - caps lock)
+ * - 1 press from lower: transitions to TITLE ("Abc" - uppercase one word/character)
+ * - 2nd press (double '#'): transitions to UPPER ("ABC" - caps lock)
  * - press from UPPER: transitions back to LOWER ("abc")
- * - press from TITLE after delay: transitions back to LOWER ("abc")
  */
 export const resolveNextCaseMode = (
   currentMode = CASE_MODES.LOWER,
@@ -101,12 +102,15 @@ export const resolveNextCaseMode = (
   now = Date.now(),
   doublePressWindow = 600
 ) => {
-  const isDouble = lastPressTime > 0 && (now - lastPressTime) <= doublePressWindow;
   if (currentMode === CASE_MODES.UPPER) {
     return CASE_MODES.LOWER;
   }
   if (currentMode === CASE_MODES.TITLE) {
-    return isDouble ? CASE_MODES.UPPER : CASE_MODES.LOWER;
+    return CASE_MODES.UPPER;
+  }
+  const isDouble = lastPressTime > 0 && (now - lastPressTime) <= doublePressWindow;
+  if (isDouble) {
+    return CASE_MODES.UPPER;
   }
   return CASE_MODES.TITLE;
 };

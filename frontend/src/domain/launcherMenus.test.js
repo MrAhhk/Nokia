@@ -29,12 +29,21 @@ const apps = [
 ];
 
 describe("launcher menu models", () => {
+  test("unavailable preference storage cannot crash Home or default-app selection", () => {
+    const unavailable = {
+      getItem: () => { throw new Error("storage unavailable"); },
+      setItem: () => { throw new Error("quota exceeded"); },
+    };
+    expect(() => createHomeShortcuts(apps, unavailable)).not.toThrow();
+    expect(() => setDefaultApp("phone", apps[0], unavailable)).not.toThrow();
+  });
   test("orders the reference essentials first without mutating installed apps", () => {
     const original = [...apps];
     const ordered = orderDrawerApps(apps);
 
-    expect(ordered.slice(0, 6).map((app) => app.displayName || app.name)).toEqual([
+    expect(ordered.slice(0, 7).map((app) => app.displayName || app.name)).toEqual([
       "Phone",
+      "Contacts",
       "Messages",
       "Maps",
       "Camera",
@@ -66,7 +75,7 @@ describe("launcher menu models", () => {
     expect(resolveHomeShortcut(shortcuts, "phone")).toMatchObject({ action: "default-phone" });
     expect(resolveHomeShortcut(shortcuts, "maps")).toMatchObject({ action: "default-maps" });
     expect(resolveHomeShortcut(shortcuts, "camera")).toMatchObject({ action: "built-in-camera" });
-    expect(resolveHomeShortcut(shortcuts, "messages")).toEqual(apps.find((app) => app.id === "messages"));
+    expect(resolveHomeShortcut(shortcuts, "messages")).toMatchObject({ action: "built-in-messages" });
   });
 
   test("marks the prioritized Camera drawer item as built-in without changing other apps", () => {
@@ -81,12 +90,17 @@ describe("launcher menu models", () => {
     expect(findMatchingApp([{ name: "System", packageName: "com.android.settings" }], ["settings"]))
       .toEqual({ name: "System", packageName: "com.android.settings" });
     expect(SETTINGS_ITEMS.map((item) => item.label)).toEqual([
+      "Customization",
       "Snake",
+      "Dumb Mode",
       "Default Launcher",
+      "Launcher Settings",
       "Display",
       "Sound",
       "Keyboard",
       "Digital Wellbeing",
+      "Review on Google Play",
+      "Share with a friend",
       "Privacy",
       "About",
     ]);
@@ -95,6 +109,7 @@ describe("launcher menu models", () => {
       .map((item) => item.nativeSetting);
     expect(nativeSettings).toEqual([
       "default-launcher",
+      "launcher-settings",
       "display",
       "keyboard",
       "digital-wellbeing",
@@ -165,14 +180,38 @@ describe("launcher menu models", () => {
     ]);
   });
 
-  test("filters installed apps by category for messages, ai, and maps", () => {
-    const messageApps = filterAppsByCategory(apps, "messages");
-    expect(messageApps.map((a) => a.id)).toEqual(["messages", "zalo", "whatsapp"]);
+  test("filters installed apps by category and excludes addictive apps", () => {
+    const appsWithAddictive = [
+      ...apps,
+      { id: "tiktok", name: "TikTok Lite", packageName: "com.zhiliaoapp.musically.go" },
+      { id: "snapchat", name: "Snapchat", packageName: "com.snapchat.android" },
+      { id: "instagram", name: "Instagram", packageName: "com.instagram.android" },
+    ];
 
-    const aiApps = filterAppsByCategory(apps, "ai");
+    const phoneApps = filterAppsByCategory(appsWithAddictive, "phone");
+    expect(phoneApps[0].id).toBe("default-phone");
+    expect(phoneApps[0].name).toBe("Built-in Phone");
+    expect(phoneApps.some((a) => a.id === "phone")).toBe(true);
+    expect(phoneApps.some((a) => a.id === "tiktok")).toBe(false);
+
+    const cameraApps = filterAppsByCategory(appsWithAddictive, "camera");
+    expect(cameraApps[0].id).toBe("built-in-camera");
+    expect(cameraApps[0].name).toBe("Built-in Camera");
+    expect(cameraApps.some((a) => a.id === "camera")).toBe(true);
+    expect(cameraApps.some((a) => a.id === "instagram")).toBe(false);
+
+    const messageApps = filterAppsByCategory(appsWithAddictive, "messages");
+    expect(messageApps[0].id).toBe("built-in-messages");
+    expect(messageApps[0].name).toBe("Built-in Messages");
+    expect(messageApps.some((a) => a.id === "zalo")).toBe(true);
+    expect(messageApps.some((a) => a.id === "gemini")).toBe(false);
+    expect(messageApps.some((a) => a.id === "snapchat")).toBe(false);
+    expect(messageApps.some((a) => a.id === "tiktok")).toBe(false);
+
+    const aiApps = filterAppsByCategory(appsWithAddictive, "ai");
     expect(aiApps.map((a) => a.id)).toEqual(["gemini"]);
 
-    const mapApps = filterAppsByCategory(apps, "maps");
+    const mapApps = filterAppsByCategory(appsWithAddictive, "maps");
     expect(mapApps.map((a) => a.id)).toEqual(["maps", "grab"]);
   });
 
@@ -183,24 +222,40 @@ describe("launcher menu models", () => {
       setItem(k, v) { this.data[k] = String(v); },
     };
 
-    // Before any user choice, falls back to first match
-    expect(getDefaultApp("messages", apps, mockStorage)?.id).toBe("messages");
+    // Before any user choice, falls back to built-in for phone, camera, messages, or first match for AI/maps
+    expect(getDefaultApp("phone", apps, mockStorage)?.id).toBe("default-phone");
+    expect(getDefaultApp("camera", apps, mockStorage)?.id).toBe("built-in-camera");
+    expect(getDefaultApp("messages", apps, mockStorage)?.id).toBe("built-in-messages");
     expect(getDefaultApp("ai", apps, mockStorage)?.id).toBe("gemini");
     expect(getDefaultApp("maps", apps, mockStorage)?.id).toBe("maps");
 
-    // User chooses Zalo for messages, Gemini for AI, and Grab for maps
+    // User chooses custom app for phone, camera, messages, AI, and maps
+    setDefaultApp("phone", { id: "phone", packageName: "com.android.dialer" }, mockStorage);
+    setDefaultApp("camera", { id: "camera", packageName: "com.android.camera2" }, mockStorage);
     setDefaultApp("messages", { id: "zalo", packageName: "com.zing.zalo" }, mockStorage);
     setDefaultApp("ai", { id: "gemini", packageName: "com.google.android.apps.bard" }, mockStorage);
     setDefaultApp("maps", { id: "grab", packageName: "com.grabtaxi.passenger" }, mockStorage);
 
+    expect(getDefaultApp("phone", apps, mockStorage)?.id).toBe("phone");
+    expect(getDefaultApp("camera", apps, mockStorage)?.id).toBe("camera");
     expect(getDefaultApp("messages", apps, mockStorage)?.id).toBe("zalo");
     expect(getDefaultApp("ai", apps, mockStorage)?.id).toBe("gemini");
     expect(getDefaultApp("maps", apps, mockStorage)?.id).toBe("grab");
 
     // Home shortcuts reflect the user-chosen default apps
     const shortcuts = createHomeShortcuts(apps, mockStorage);
+    expect(shortcuts.find((s) => s.id === "phone")?.app?.id).toBe("phone");
+    expect(shortcuts.find((s) => s.id === "camera")?.app?.id).toBe("camera");
     expect(shortcuts.find((s) => s.id === "messages")?.app?.id).toBe("zalo");
     expect(shortcuts.find((s) => s.id === "ai")?.app?.id).toBe("gemini");
     expect(shortcuts.find((s) => s.id === "maps")?.app?.id).toBe("grab");
+
+    // Switching back to built-in
+    setDefaultApp("phone", { id: "default-phone", action: "default-phone" }, mockStorage);
+    setDefaultApp("camera", { id: "built-in-camera", action: "built-in-camera" }, mockStorage);
+    setDefaultApp("messages", { id: "built-in-messages", action: "built-in-messages" }, mockStorage);
+    expect(getDefaultApp("phone", apps, mockStorage)?.id).toBe("default-phone");
+    expect(getDefaultApp("camera", apps, mockStorage)?.id).toBe("built-in-camera");
+    expect(getDefaultApp("messages", apps, mockStorage)?.id).toBe("built-in-messages");
   });
 });

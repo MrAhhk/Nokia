@@ -1,14 +1,27 @@
-.lcd-screen.tone-setup {
-  grid-template-rows: 38px auto 1fr auto 68px 24px;
-  gap: 5px;
-  padding: 10px 12px 7px;
+.nokia-launcher .lcd-screen.tone-setup {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) 44px auto;
+  gap: 12px;
+  padding: clamp(16px, 5vw, 24px);
 }
+
+.tone-setup__body {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tone-setup__body > * { flex-shrink: 0; }
+.tone-setup__body > .tone-setup__intro { flex-grow: 1; }
 
 .tone-setup__header {
   display: flex;
   align-items: start;
   justify-content: space-between;
-  border-bottom: 2px solid var(--ink, #111803);
+  border-bottom: 1px solid var(--ink, #111803);
+  padding-bottom: 12px;
 }
 
 .tone-setup__header strong {
@@ -18,7 +31,7 @@
 
 .tone-setup__header span {
   padding-top: 2px;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -29,19 +42,25 @@
   font-size: clamp(10px, 2.8vw, 13px);
 }
 
+.tone-setup__intro { display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+.tone-setup__symbol { font-size: 38px; line-height: 1; margin-bottom: 12px; }
+.tone-setup__intro h2 { margin: 0 0 12px; font: 700 clamp(22px, 6vw, 28px)/1.1 Consolas, monospace; letter-spacing: -.04em; }
+.tone-setup__intro p { margin: 0; font: 14px/1.5 "Inter", system-ui, sans-serif; }
+
 .tone-setup__tones {
-  display: grid;
+  display: flex;
+  justify-content: space-between;
   align-content: center;
   gap: 5px;
 }
 
 .tone-setup__tones span {
   display: grid;
-  grid-template-columns: 24px 1fr;
+  grid-template-columns: 16px 1fr;
   align-items: center;
   min-height: 26px;
   border-bottom: 1px solid rgba(17, 24, 3, 0.34);
-  font-size: clamp(13px, 3.6vw, 17px);
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -57,12 +76,8 @@
 
 .tone-setup__status {
   min-height: 15px;
-  overflow: hidden;
-  font-size: 9px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
+  font: 12px/1.45 "Inter", system-ui, sans-serif;
+  white-space: normal;
 }
 
 .tone-setup__choices {
@@ -95,8 +110,8 @@
   display: flex;
   align-items: end;
   justify-content: space-between;
-  border-top: 2px solid var(--ink, #111803);
-  font-size: clamp(14px, 4.4vw, 19px);
+  border-top: 1px solid var(--ink, #111803);
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }

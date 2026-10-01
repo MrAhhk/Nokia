@@ -153,6 +153,7 @@ def parse_integrity_payload(
     device = payload.get("deviceIntegrity") or {}
     labels = list(device.get("deviceRecognitionVerdict") or [])
     attributes = device.get("deviceAttributes") or {}
+    recent_activity = device.get("recentDeviceActivity") or {}
     environment = payload.get("environmentDetails") or {}
     access_risk = environment.get("appAccessRiskVerdict") or {}
     apps_detected_value = access_risk.get("appsDetected")
@@ -178,6 +179,7 @@ def parse_integrity_payload(
             "meetsStrongIntegrity": "MEETS_STRONG_INTEGRITY" in labels,
             "meetsVirtualIntegrity": "MEETS_VIRTUAL_INTEGRITY" in labels,
             "sdkVersion": attributes.get("sdkVersion"),
+            "recentDeviceActivityLevel": recent_activity.get("deviceActivityLevel"),
         },
         "environmentDetails": {
             "playProtectVerdict": environment.get(

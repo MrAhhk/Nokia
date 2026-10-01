@@ -5,7 +5,7 @@ test("the IME reuses one main-thread Handler across keystrokes", () => {
   const source = fs.readFileSync(
     path.resolve(
       __dirname,
-      "../android/app/src/main/java/com/nokialauncher/app/NokiaIME.java",
+      "../android/app/src/main/java/com/nokialauncher/NokiaIME.java",
     ),
     "utf8",
   );
@@ -17,7 +17,7 @@ test("activity resume delegates WebView lifecycle without forcing redraws", () =
   const source = fs.readFileSync(
     path.resolve(
       __dirname,
-      "../android/app/src/main/java/com/nokialauncher/app/MainActivity.java",
+      "../android/app/src/main/java/com/nokialauncher/MainActivity.java",
     ),
     "utf8",
   );
@@ -30,9 +30,45 @@ test("activity resume delegates WebView lifecycle without forcing redraws", () =
   expect(onResume).not.toContain("getWebView().onResume()");
 });
 
+test("renderer recovery removes the dead WebView before guarded Activity recreation", () => {
+  const mainActivitySource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      "../android/app/src/main/java/com/nokialauncher/MainActivity.java",
+    ),
+    "utf8",
+  );
+  const handler = mainActivitySource.slice(
+    mainActivitySource.indexOf("public boolean onRenderProcessGone"),
+    mainActivitySource.indexOf("private void sanitizeIntent")
+  );
+
+  expect(handler).toContain("if (rendererRecoveryStarted) return true;");
+  expect(handler).toContain("((ViewGroup) parent).removeView(view);");
+  expect(handler.indexOf("removeView(view);")).toBeLessThan(handler.indexOf("recreate();"));
+  expect(handler).not.toContain("runOnUiThread");
+});
+
+test("queued Home callbacks cannot touch a WebView after renderer recovery starts", () => {
+  const source = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      "../android/app/src/main/java/com/nokialauncher/MainActivity.java",
+    ),
+    "utf8",
+  );
+  const dispatchHome = source.slice(
+    source.indexOf("private void dispatchHomeRequest"),
+    source.indexOf("private void installRecoveringWebViewClient")
+  );
+
+  expect(dispatchHome).toContain("if (rendererRecoveryStarted || bridge == null || bridge.getWebView() == null) return;");
+  expect(dispatchHome).toContain("if (rendererRecoveryStarted || bridge == null || bridge.getWebView() != webView) return;");
+});
+
 test("launcher window draws edge-to-edge and hides both system bars", () => {
   const source = fs.readFileSync(
-    path.resolve(__dirname, "../android/app/src/main/java/com/nokialauncher/app/MainActivity.java"),
+    path.resolve(__dirname, "../android/app/src/main/java/com/nokialauncher/MainActivity.java"),
     "utf8",
   );
 
@@ -41,6 +77,7 @@ test("launcher window draws edge-to-edge and hides both system bars", () => {
   expect(source).toContain("WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars()");
   expect(source).toContain("SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION");
   expect(source).toContain("setNavigationBarColor(Color.TRANSPARENT)");
+  expect(source).toContain("webView.setBackgroundResource(R.drawable.launcher_window_background)");
   const cutoutStyle = fs.readFileSync(
     path.resolve(__dirname, "../android/app/src/main/res/values-v28/styles.xml"),
     "utf8",
@@ -49,6 +86,19 @@ test("launcher window draws edge-to-edge and hides both system bars", () => {
   expect(cutoutStyle).toContain("shortEdges");
   expect(cutoutStyle).toContain("Theme.AppCompat.DayNight.NoActionBar");
   expect(cutoutStyle).toContain("windowActionBar");
+});
+
+test("launcher window keeps a non-black surface while WebView restores", () => {
+  const style = fs.readFileSync(
+    path.resolve(__dirname, "../android/app/src/main/res/values/styles.xml"),
+    "utf8",
+  );
+  const background = fs.readFileSync(
+    path.resolve(__dirname, "../android/app/src/main/res/drawable/launcher_window_background.xml"),
+    "utf8",
+  );
+  expect(style).toContain("@drawable/launcher_window_background");
+  expect(background).toContain("android:centerColor");
 });
 
 test("the Play launcher entry cannot create a second WebView Home task", () => {
@@ -74,7 +124,7 @@ test("the built-in browser never summons the system keyboard over the launcher k
   const browserController = fs.readFileSync(
     path.resolve(
       __dirname,
-      "../android/app/src/main/java/com/nokialauncher/app/browser/BuiltInBrowserController.java",
+      "../android/app/src/main/java/com/nokialauncher/browser/BuiltInBrowserController.java",
     ),
     "utf8",
   );
@@ -99,7 +149,7 @@ test("system tone application uses one explicit special grant and no media permi
   const plugin = fs.readFileSync(
     path.resolve(
       __dirname,
-      "../android/app/src/main/java/com/nokialauncher/app/LauncherAppsPlugin.java",
+      "../android/app/src/main/java/com/nokialauncher/LauncherAppsPlugin.java",
     ),
     "utf8",
   );
@@ -120,11 +170,11 @@ test("system tone application uses one explicit special grant and no media permi
 
 test("native haptics are bounded and classified as interaction feedback", () => {
   const plugin = fs.readFileSync(
-    path.resolve(__dirname, "../android/app/src/main/java/com/nokialauncher/app/LauncherAppsPlugin.java"),
+    path.resolve(__dirname, "../android/app/src/main/java/com/nokialauncher/LauncherAppsPlugin.java"),
     "utf8",
   );
   const ime = fs.readFileSync(
-    path.resolve(__dirname, "../android/app/src/main/java/com/nokialauncher/app/NokiaIME.java"),
+    path.resolve(__dirname, "../android/app/src/main/java/com/nokialauncher/NokiaIME.java"),
     "utf8",
   );
 
@@ -137,7 +187,7 @@ test("native haptics are bounded and classified as interaction feedback", () => 
 
 test("flashlight action toggles the native camera torch", () => {
   const plugin = fs.readFileSync(
-    path.resolve(__dirname, "../android/app/src/main/java/com/nokialauncher/app/LauncherAppsPlugin.java"),
+    path.resolve(__dirname, "../android/app/src/main/java/com/nokialauncher/LauncherAppsPlugin.java"),
     "utf8",
   );
 

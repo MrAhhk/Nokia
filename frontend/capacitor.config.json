@@ -2,6 +2,7 @@
   "appId": "com.nokialauncher",
   "appName": "Nokia Launcher",
   "webDir": "build",
+  "loggingBehavior": "none",
   "android": {
     "buildOptions": {}
   }

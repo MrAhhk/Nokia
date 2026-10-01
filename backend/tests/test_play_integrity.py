@@ -57,6 +57,7 @@ def test_payload_exposes_requested_device_and_environment_verdicts():
                 "MEETS_STRONG_INTEGRITY",
             ],
             "deviceAttributes": {"sdkVersion": 36},
+            "recentDeviceActivity": {"deviceActivityLevel": "LEVEL_2"},
         },
         "environmentDetails": {
             "playProtectVerdict": "NO_ISSUES",
@@ -74,6 +75,7 @@ def test_payload_exposes_requested_device_and_environment_verdicts():
     assert result["deviceIntegrity"]["meetsDeviceIntegrity"] is True
     assert result["deviceIntegrity"]["meetsStrongIntegrity"] is True
     assert result["deviceIntegrity"]["sdkVersion"] == 36
+    assert result["deviceIntegrity"]["recentDeviceActivityLevel"] == "LEVEL_2"
     assert result["environmentDetails"]["playProtectVerdict"] == "NO_ISSUES"
     assert result["environmentDetails"]["appsDetected"] == ["KNOWN_INSTALLED"]
     assert result["environmentDetails"]["accessRiskDetected"] is False
@@ -117,6 +119,7 @@ def test_missing_optional_environment_verdicts_remain_unevaluated():
 
     assert result["deviceIntegrity"]["labels"] == []
     assert result["deviceIntegrity"]["sdkVersion"] is None
+    assert result["deviceIntegrity"]["recentDeviceActivityLevel"] is None
     assert result["environmentDetails"]["playProtectVerdict"] == "UNEVALUATED"
     assert result["environmentDetails"]["appsDetected"] == []
     assert result["environmentDetails"]["accessRiskDetected"] is None

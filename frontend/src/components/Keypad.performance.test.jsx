@@ -105,6 +105,28 @@ test("launcher hash and end keys expose deliberate long-press intents", () => {
   jest.useRealTimers();
 });
 
+test("leaving the WebView cancels pending long presses so accessibility actions cannot stick", () => {
+  jest.useFakeTimers();
+  const onKeypadPress = jest.fn();
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  act(() => root.render(<Keypad variant="launcher" onKeypadPress={onKeypadPress} />));
+
+  const end = container.querySelector('[data-testid="keypad-btn-end"]');
+  act(() => end.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+  act(() => document.dispatchEvent(new Event("visibilitychange")));
+  act(() => jest.advanceTimersByTime(600));
+
+  expect(onKeypadPress).not.toHaveBeenCalledWith("LOCK_SCREEN");
+
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+  act(() => root.unmount());
+  container.remove();
+  jest.useRealTimers();
+});
+
 test("supports simultaneous multi-touch pointerdown on multiple keys without losing inputs", () => {
   const onKeypadPress = jest.fn();
   const container = document.createElement("div");

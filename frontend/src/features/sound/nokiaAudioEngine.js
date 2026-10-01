@@ -119,6 +119,10 @@ export const preloadAllSounds = () => {
  */
 export const preloadKeypadAudio = () => {
   if (typeof window === "undefined") return;
+  // The system IME plays the same keypad grammar through its native bridge.
+  // Fetching local samples from a file:// WebView is both redundant and
+  // rejected by Chromium, creating a burst of failed work on every cold show.
+  if (window.NokiaIMEBridge?.playKeypadTone) return;
   const keypadKeys = [
     "nokia_button_click",
     "key_beep",

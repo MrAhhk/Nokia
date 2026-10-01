@@ -7,6 +7,7 @@ import {
   playBuffer,
   preloadSound,
   preloadAllSounds,
+  preloadKeypadAudio,
   stopAllSounds,
   pauseAudioEngine,
   _resetAudioContext,
@@ -99,6 +100,16 @@ describe("nokiaAudioEngine", () => {
     expect(window.NokiaIMEBridge.playKeypadTone).toHaveBeenCalledWith("5", 200, true);
     expect(createdOscillators).toHaveLength(0);
     expect(handle).toHaveProperty("stop");
+  });
+
+  test("does not preload file URL samples when the IME native tone bridge is active", () => {
+    global.fetch = jest.fn();
+    window.NokiaIMEBridge = { playKeypadTone: jest.fn() };
+
+    preloadKeypadAudio();
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(window.AudioContext).not.toHaveBeenCalled();
   });
 
   test("loads only the pressed keypad sample on demand", async () => {

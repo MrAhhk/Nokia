@@ -33,7 +33,7 @@ describe("first launch system-tone setup", () => {
     const plugin = createNativePlugin();
     const { container, root } = await mountLauncher(plugin);
 
-    expect(container.textContent).toContain("Set Nokia tones?");
+    expect(container.textContent).toContain("A familiar sound.");
     expect(container.textContent).toContain("Calls");
     expect(container.textContent).toContain("Messages");
     expect(container.textContent).toContain("Alarms");
@@ -58,7 +58,7 @@ describe("first launch system-tone setup", () => {
       "notification",
       "alarm",
     ]);
-    expect(container.textContent).not.toContain("Set Nokia tones?");
+    expect(container.textContent).not.toContain("A familiar sound.");
     act(() => root.unmount());
   });
 
@@ -69,7 +69,7 @@ describe("first launch system-tone setup", () => {
     act(() => first.root.unmount());
 
     const second = await mountLauncher(plugin);
-    expect(second.container.textContent).not.toContain("Set Nokia tones?");
+    expect(second.container.textContent).not.toContain("A familiar sound.");
     expect(plugin.requestSystemToneAccess).not.toHaveBeenCalled();
     act(() => second.root.unmount());
   });

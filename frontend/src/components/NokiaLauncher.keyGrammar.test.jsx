@@ -168,4 +168,45 @@ describe("contextual physical-key grammar", () => {
 
     act(() => root.unmount());
   });
+
+  test("key 5 in messages opens conversation without activating search and typing in thread stays in composer", async () => {
+    const mockConv = { id: "conv1", address: "123456", contactName: "Alice", snippet: "Hello there" };
+    jest.spyOn(launcherApps, "getDeviceConversations").mockResolvedValue([mockConv]);
+    jest.spyOn(launcherApps, "getDeviceThread").mockResolvedValue([
+      { id: "m1", body: "Hello there", date: 1000, type: 1 },
+      { id: "m2", body: "How are you?", date: 2000, type: 1 },
+    ]);
+
+    const { container, root } = await mountLauncher();
+
+    // From Home, click Messages shortcut
+    await act(async () => {
+      click(container, '[data-testid="home-menu-item-messages"]');
+    });
+
+    // Wait for messages to load
+    await act(async () => {});
+
+    expect(container.querySelector('[data-testid="screen-messages"]')).not.toBeNull();
+
+    // Press key 5 -> Should open selected conversation, NOT activate search!
+    await act(async () => {
+      click(container, '[data-testid="keypad-btn-5"]');
+    });
+
+    // Verify it opened message-thread
+    expect(container.querySelector('[data-testid="screen-message-thread"]')).not.toBeNull();
+    // Verify search is NOT active
+    expect(container.querySelector('[data-search-active="true"]')).toBeNull();
+
+    // Now type '4' in thread -> should type 'g' into the inline reply bar, NOT search
+    await act(async () => {
+      click(container, '[data-testid="keypad-btn-4"]');
+    });
+
+    expect(container.querySelector('.lcd-thread-composer-text')?.textContent).toContain("g");
+    expect(container.querySelector('[data-testid="screen-message-thread"]')).not.toBeNull();
+
+    act(() => root.unmount());
+  });
 });

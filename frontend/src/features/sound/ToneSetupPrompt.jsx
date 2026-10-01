@@ -3,11 +3,16 @@ import "./toneSetup.css";
 const ToneSetupPrompt = ({ busy, message, onAccept, onSkip }) => (
   <section className="lcd-screen tone-setup" data-testid="tone-setup">
     <header className="tone-setup__header">
-      <strong>Set Nokia tones?</strong>
-      <span>FIRST SETUP</span>
+      <span>YOUR PHONE, YOUR SOUND</span>
+      <span>OPTIONAL</span>
     </header>
 
-    <p className="tone-setup__intro">Use Nokia Launcher sounds for:</p>
+    <div className="tone-setup__body">
+      <div className="tone-setup__intro">
+        <span className="tone-setup__symbol" aria-hidden="true">♫</span>
+        <h2>A familiar sound.</h2>
+        <p>Bring Nokia tones to your calls, messages and alarms.</p>
+      </div>
 
     <div className="tone-setup__tones" aria-label="Phone sounds to set">
       <span><i aria-hidden="true" />Calls</span>
@@ -16,8 +21,9 @@ const ToneSetupPrompt = ({ busy, message, onAccept, onSkip }) => (
     </div>
 
     <p className="tone-setup__status" role="status">
-      {message || "Android will ask for one access setting."}
+      {message || "Android will ask for access to change system sounds. You can keep your current sounds instead."}
     </p>
+    </div>
 
     <div className="tone-setup__choices">
       <button

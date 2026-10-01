@@ -1,6 +1,58 @@
 const getLauncherAppsPlugin = () => {
   return window.Capacitor?.Plugins?.LauncherApps ?? null;
 };
+export const isNativeLauncher = () => Boolean(window.Capacitor?.isNativePlatform?.());
+
+// Dumb mode never simulates a successful lock when the native implementation is absent.
+const dumbModeCall = (method, input) => {
+  const plugin = getLauncherAppsPlugin();
+  if (typeof plugin?.[method] !== "function") return Promise.reject(new Error("dumb_mode_unavailable"));
+  return Promise.resolve().then(() => plugin[method](input));
+};
+export const getDumbModeState = () => dumbModeCall("getDumbModeState");
+export const getDumbModeApps = () => dumbModeCall("getDumbModeApps");
+export const prepareDumbMode = (input) => dumbModeCall("prepareDumbMode", input);
+export const shareDumbModeCode = (input) => dumbModeCall("shareDumbModeCode", input);
+export const activateDumbMode = (input) => dumbModeCall("activateDumbMode", input);
+export const cancelDumbModeSetup = (input) => dumbModeCall("cancelDumbModeSetup", input);
+export const unlockDumbMode = (input) => dumbModeCall("unlockDumbMode", input);
+export const getFriendAuthenticatorState = () => dumbModeCall("getFriendAuthenticatorState");
+export const beginFriendPairing = input => dumbModeCall("beginFriendPairing", input);
+export const acceptFriendPairing = input => dumbModeCall("acceptFriendPairing", input);
+export const inspectFriendPairing = input => dumbModeCall("inspectFriendPairing", input);
+export const completeFriendPairing = input => dumbModeCall("completeFriendPairing", input);
+export const acknowledgeFriendPairing = input => dumbModeCall("acknowledgeFriendPairing", input);
+export const cancelFriendPairing = input => dumbModeCall("cancelFriendPairing", input);
+export const removeFriendPairing = input => dumbModeCall("removeFriendPairing", input);
+export const getHeldFriendCode = input => dumbModeCall("getHeldFriendCode", input);
+export const getFriendPairingQr = input => dumbModeCall("getFriendPairingQr", input);
+export const startFriendPairingScan = input => dumbModeCall("startFriendPairingScan", input);
+export const stopFriendPairingScan = input => dumbModeCall("stopFriendPairingScan", input);
+export const shareFriendPairingText = input => dumbModeCall("shareFriendPairingText", input);
+export const pasteFriendPairingText = async () => {
+  if (isNativeLauncher()) return (await dumbModeCall("pasteFriendPairingText")).text;
+  return navigator.clipboard.readText();
+};
+export const openDumbModeAccessibilitySettings = () => dumbModeCall("showAccessibilitySettings");
+export const pasteDumbModeCode = async () => {
+  if (isNativeLauncher()) return (await dumbModeCall("pasteDumbModeCode")).code;
+  return navigator.clipboard.readText();
+};
+export const APP_STORE_URL = "https://play.google.com/store/apps/details?id=com.nokialauncher";
+export const APP_SHARE_TEXT = "Try Nokia Launcher — a calmer way to use your phone. Make more room for life beyond the screen.";
+
+export const openAppReview = async () => {
+  const plugin = getLauncherAppsPlugin();
+  if (plugin?.openAppReview) return plugin.openAppReview();
+  window.open(APP_STORE_URL, "_blank", "noopener,noreferrer");
+};
+
+export const shareLauncherApp = async () => {
+  const plugin = getLauncherAppsPlugin();
+  if (plugin?.shareApp) return plugin.shareApp();
+  if (navigator.share) return navigator.share({ title: "Nokia Launcher", text: APP_SHARE_TEXT, url: APP_STORE_URL });
+  throw new Error("Sharing is unavailable on this device");
+};
 export { requestPlayIntegrityCheck } from "./playIntegrity";
 
 const STATIC_FALLBACK_APPS = [
@@ -28,20 +80,26 @@ const STATIC_FALLBACK_APPS = [
 
 let installedAppsCache = null;
 let installedAppsRequest = null;
+let installedAppsGeneration = 0;
 const INSTALLED_APPS_STORAGE_KEY = "nokia-launcher.installed-apps.v1";
+
+const validInstalledApps = (apps) => Array.isArray(apps) ? apps.filter((app) =>
+  app && typeof app === "object" && typeof app.id === "string" &&
+  (!isNativeLauncher() || (typeof app.packageName === "string" && app.packageName.trim()))
+) : [];
 
 export const getCachedInstalledApps = () => {
   if (typeof window === "undefined") return [];
   try {
     const cached = JSON.parse(window.localStorage.getItem(INSTALLED_APPS_STORAGE_KEY) || "[]");
-    return Array.isArray(cached) ? cached : [];
+    return validInstalledApps(cached);
   } catch (_error) {
     return [];
   }
 };
 
 const persistInstalledApps = (apps) => {
-  if (typeof window === "undefined" || !Array.isArray(apps) || apps.length === 0) return;
+  if (typeof window === "undefined" || !Array.isArray(apps)) return;
   try {
     window.localStorage.setItem(INSTALLED_APPS_STORAGE_KEY, JSON.stringify(apps));
   } catch (_error) {
@@ -60,6 +118,7 @@ export const getInstalledApps = async () => {
 
   const launcherApps = getLauncherAppsPlugin();
   if (!launcherApps) {
+    if (isNativeLauncher()) return getCachedInstalledApps();
     console.warn("LauncherApps plugin unavailable, falling back to backend API or static mock apps");
     
     let backendUrl = process.env.REACT_APP_BACKEND_URL || "";
@@ -97,21 +156,22 @@ export const getInstalledApps = async () => {
   }
 
   // Capacitor native bridge is present
-  installedAppsRequest = launcherApps
-    .getInstalledApps()
-    .then((result) => {
-      installedAppsCache = Array.isArray(result?.apps) ? result.apps : [];
-      if (installedAppsCache.length === 0) {
-        console.warn("Native LauncherApps plugin returned 0 apps. Falling back to static mock apps.");
-        installedAppsCache = STATIC_FALLBACK_APPS;
-      }
+  installedAppsRequest = (async () => {
+      // Only one scan in flight. If packages change during the scan, discard
+      // that result and fetch the new generation before publishing it.
+      let generation, result;
+      do {
+        generation = installedAppsGeneration;
+        result = await launcherApps.getInstalledApps();
+      } while (generation !== installedAppsGeneration);
+      installedAppsCache = validInstalledApps(result?.apps);
       persistInstalledApps(installedAppsCache);
       return installedAppsCache;
-    })
+    })()
     .catch((error) => {
-      console.error("Error calling native LauncherApps, falling back to static mock apps:", error);
-      installedAppsCache = STATIC_FALLBACK_APPS;
-      return STATIC_FALLBACK_APPS;
+      console.error("Error loading native apps; retaining the last real app list:", error);
+      // Do not cache failures: a later request must be able to recover.
+      return getCachedInstalledApps();
     })
     .finally(() => {
       installedAppsRequest = null;
@@ -302,6 +362,7 @@ export const getDeviceStatus = async () => {
       silent: false,
       batteryLevel: 100,
       notificationCount: 0,
+      packageNotificationCounts: {},
       notificationAccess: false,
     };
   }
@@ -485,37 +546,153 @@ let deviceContactsCache = null;
 let deviceContactsRequest = null;
 
 export const getDeviceContacts = async (forceRefresh = false) => {
-  if (!forceRefresh && deviceContactsCache && deviceContactsCache.length > 0) {
-    return deviceContactsCache;
-  }
-  if (!forceRefresh && deviceContactsRequest) {
-    return deviceContactsRequest;
-  }
-
-  deviceContactsRequest = (async () => {
+  if (deviceContactsRequest) return deviceContactsRequest;
+  if (!forceRefresh && deviceContactsCache !== null) return deviceContactsCache;
+  const request = Promise.resolve().then(async () => {
     const plugin = getLauncherAppsPlugin();
-    if (!plugin || typeof plugin.getContacts !== "function") {
-      deviceContactsCache = STATIC_FALLBACK_CONTACTS;
-      return STATIC_FALLBACK_CONTACTS;
-    }
+    if (!plugin || typeof plugin.getContacts !== "function") return STATIC_FALLBACK_CONTACTS;
     try {
       const result = await plugin.getContacts();
-      if (result && Array.isArray(result.contacts) && result.contacts.length > 0) {
-        deviceContactsCache = result.contacts;
-        return result.contacts;
-      }
-      deviceContactsCache = STATIC_FALLBACK_CONTACTS;
-      return STATIC_FALLBACK_CONTACTS;
-    } catch (error) {
-      console.warn("Could not fetch device contacts, using fallback:", error);
-      deviceContactsCache = STATIC_FALLBACK_CONTACTS;
-      return STATIC_FALLBACK_CONTACTS;
-    } finally {
-      deviceContactsRequest = null;
-    }
-  })();
+      return Array.isArray(result?.contacts) ? result.contacts : [];
+    } catch (_) { return null; }
+  }).then((contacts) => {
+    if (contacts !== null) deviceContactsCache = contacts;
+    return contacts ?? [];
+  });
+  deviceContactsRequest = request;
+  request.then(
+    () => { if (deviceContactsRequest === request) deviceContactsRequest = null; },
+    () => { if (deviceContactsRequest === request) deviceContactsRequest = null; }
+  );
+  return request;
+};
 
-  return deviceContactsRequest;
+export const STATIC_FALLBACK_RECENT_CALLS = [
+  {
+    id: "call_1",
+    number: "0915231765",
+    name: "An Na",
+    type: "missed",
+    date: Date.now() - 1000 * 60 * 35,
+    duration: 0,
+    sim: "SIM 1",
+  },
+  {
+    id: "call_2",
+    number: "0796359718",
+    name: "Anh Bình. pbqlto..",
+    type: "outgoing",
+    date: Date.now() - 1000 * 60 * 60 * 3,
+    duration: 145,
+    sim: "SIM 1",
+  },
+  {
+    id: "call_3",
+    number: "0918404949",
+    name: "Anh Châu. cơm",
+    type: "incoming",
+    date: Date.now() - 1000 * 60 * 60 * 25,
+    duration: 62,
+    sim: "SIM 2",
+  },
+  {
+    id: "call_4",
+    number: "0913893896",
+    name: "Anh Khôi",
+    type: "missed",
+    date: Date.now() - 1000 * 60 * 60 * 49,
+    duration: 0,
+    sim: "SIM 1",
+  },
+  {
+    id: "call_5",
+    number: "0908123456",
+    name: "Anh Sinh",
+    type: "outgoing",
+    date: Date.now() - 1000 * 60 * 60 * 75,
+    duration: 310,
+    sim: "SIM 2",
+  },
+  {
+    id: "call_6",
+    number: "0909999888",
+    name: "",
+    type: "incoming",
+    date: Date.now() - 1000 * 60 * 60 * 120,
+    duration: 45,
+    sim: "SIM 1",
+  },
+];
+
+let deviceRecentCallsCache = null;
+let deviceRecentCallsRequest = null;
+let recentCallsCacheGeneration = 0;
+
+export const getDeviceRecentCalls = async (forceRefresh = false, limit = 100) => {
+  // One bounded native snapshot; callers requesting fewer rows share its cache.
+  const boundedLimit = Number.isFinite(limit) ? Math.max(1, Math.min(100, Math.floor(limit))) : 100;
+  if (boundedLimit !== 100) {
+    return (await getDeviceRecentCalls(forceRefresh, 100)).slice(0, boundedLimit);
+  }
+  if (deviceRecentCallsRequest) {
+    return deviceRecentCallsRequest;
+  }
+  if (!forceRefresh && deviceRecentCallsCache !== null) {
+    return deviceRecentCallsCache;
+  }
+
+  const generation = recentCallsCacheGeneration;
+  const request = (async () => {
+    const plugin = getLauncherAppsPlugin();
+    if (!plugin || typeof plugin.getRecentCalls !== "function") {
+      return STATIC_FALLBACK_RECENT_CALLS;
+    }
+    try {
+      const result = await plugin.getRecentCalls({ limit });
+      return Array.isArray(result?.calls) ? result.calls : [];
+    } catch (error) {
+      console.warn("Could not fetch device recent calls:", error);
+      return [];
+    }
+  })().then((calls) => {
+    if (generation !== recentCallsCacheGeneration) {
+      // Release this request before retrying, otherwise it waits on itself forever.
+      if (deviceRecentCallsRequest === request) deviceRecentCallsRequest = null;
+      return getDeviceRecentCalls(true, limit);
+    }
+    deviceRecentCallsCache = calls;
+    return calls;
+  });
+
+  deviceRecentCallsRequest = request;
+  request.then(
+    () => { if (deviceRecentCallsRequest === request) deviceRecentCallsRequest = null; },
+    () => { if (deviceRecentCallsRequest === request) deviceRecentCallsRequest = null; }
+  );
+  return request;
+};
+
+export const deleteDeviceRecentCall = async (id) => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin || typeof plugin.deleteRecentCall !== "function") {
+    if (plugin) return { success: false, error: "delete_unavailable" };
+    recentCallsCacheGeneration += 1;
+    deviceRecentCallsCache = (deviceRecentCallsCache ?? STATIC_FALLBACK_RECENT_CALLS).filter((c) => c.id !== id);
+    return { success: true };
+  }
+  try {
+    const result = await plugin.deleteRecentCall({ id });
+    if (result?.success) clearRecentCallsCache();
+    return result;
+  } catch (error) {
+    console.warn("Failed to delete recent call:", error);
+    return { success: false, error: error?.message };
+  }
+};
+
+export const clearRecentCallsCache = () => {
+  recentCallsCacheGeneration += 1;
+  deviceRecentCallsCache = null;
 };
 
 export const STATIC_FALLBACK_CONVERSATIONS = [
@@ -564,40 +741,29 @@ export const STATIC_FALLBACK_THREADS = {
 
 let deviceConversationsCache = null;
 let deviceConversationsRequest = null;
-const deviceThreadCache = {};
+const deviceThreadCache = Object.create(null);
+const deviceThreadRequests = Object.create(null);
+let smsCacheGeneration = 0;
 
 export const getDeviceConversations = async (forceRefresh = false) => {
-  if (!forceRefresh && deviceConversationsCache && deviceConversationsCache.length > 0) {
-    return deviceConversationsCache;
-  }
-  if (!forceRefresh && deviceConversationsRequest) {
-    return deviceConversationsRequest;
-  }
-
-  deviceConversationsRequest = (async () => {
+  if (deviceConversationsRequest) return deviceConversationsRequest;
+  if (!forceRefresh && deviceConversationsCache !== null) return deviceConversationsCache;
+  const generation = smsCacheGeneration;
+  const request = Promise.resolve().then(async () => {
     const plugin = getLauncherAppsPlugin();
-    if (!plugin || typeof plugin.getConversations !== "function") {
-      deviceConversationsCache = STATIC_FALLBACK_CONVERSATIONS;
-      return STATIC_FALLBACK_CONVERSATIONS;
-    }
+    if (!plugin || typeof plugin.getConversations !== "function") return STATIC_FALLBACK_CONVERSATIONS;
     try {
       const result = await plugin.getConversations();
-      if (result && Array.isArray(result.conversations) && result.conversations.length > 0) {
-        deviceConversationsCache = result.conversations;
-        return result.conversations;
-      }
-      deviceConversationsCache = STATIC_FALLBACK_CONVERSATIONS;
-      return STATIC_FALLBACK_CONVERSATIONS;
-    } catch (error) {
-      console.warn("Could not fetch device conversations, using fallback:", error);
-      deviceConversationsCache = STATIC_FALLBACK_CONVERSATIONS;
-      return STATIC_FALLBACK_CONVERSATIONS;
-    } finally {
-      deviceConversationsRequest = null;
-    }
-  })();
-
-  return deviceConversationsRequest;
+      return Array.isArray(result?.conversations) ? result.conversations : [];
+    } catch (_) { return null; }
+  }).then((conversations) => {
+    if (deviceConversationsRequest === request) deviceConversationsRequest = null;
+    if (generation !== smsCacheGeneration) return getDeviceConversations(true);
+    if (conversations !== null) deviceConversationsCache = conversations;
+    return conversations ?? [];
+  });
+  deviceConversationsRequest = request;
+  return request;
 };
 
 export const getDeviceThread = async (threadIdOrOptions, maybeAddress, forceRefresh = false) => {
@@ -612,45 +778,82 @@ export const getDeviceThread = async (threadIdOrOptions, maybeAddress, forceRefr
   }
 
   const cacheKey = threadId || address;
+  if (cacheKey && deviceThreadRequests[cacheKey]) {
+    return deviceThreadRequests[cacheKey];
+  }
   if (!forceRefresh && cacheKey && deviceThreadCache[cacheKey]) {
     return deviceThreadCache[cacheKey];
   }
 
-  const plugin = getLauncherAppsPlugin();
-  if (!plugin || typeof plugin.getThreadMessages !== "function") {
-    const fallback = (threadId && STATIC_FALLBACK_THREADS[threadId]) ||
-      (address && STATIC_FALLBACK_THREADS[address]) ||
-      STATIC_FALLBACK_THREADS["1"] || [];
-    if (cacheKey) deviceThreadCache[cacheKey] = fallback;
-    return fallback;
-  }
-
-  try {
-    const result = await plugin.getThreadMessages({ threadId, address });
-    if (result && Array.isArray(result.messages)) {
-      if (cacheKey) deviceThreadCache[cacheKey] = result.messages;
-      return result.messages;
+  const generation = smsCacheGeneration;
+  const request = Promise.resolve().then(async () => {
+    const plugin = getLauncherAppsPlugin();
+    if (!plugin || typeof plugin.getThreadMessages !== "function") {
+      return (threadId && STATIC_FALLBACK_THREADS[threadId]) ||
+        (address && STATIC_FALLBACK_THREADS[address]) || STATIC_FALLBACK_THREADS["1"] || [];
     }
-    const fallback = (threadId && STATIC_FALLBACK_THREADS[threadId]) ||
-      (address && STATIC_FALLBACK_THREADS[address]) ||
-      STATIC_FALLBACK_THREADS["1"] || [];
-    if (cacheKey) deviceThreadCache[cacheKey] = fallback;
-    return fallback;
-  } catch (error) {
-    console.warn("Could not fetch thread messages, using fallback:", error);
-    const fallback = (threadId && STATIC_FALLBACK_THREADS[threadId]) ||
-      (address && STATIC_FALLBACK_THREADS[address]) ||
-      STATIC_FALLBACK_THREADS["1"] || [];
-    if (cacheKey) deviceThreadCache[cacheKey] = fallback;
-    return fallback;
-  }
+    try {
+      const result = await plugin.getThreadMessages({ threadId, address });
+      return Array.isArray(result?.messages) ? result.messages : [];
+    } catch (_) { return []; }
+  }).then((messages) => {
+    if (cacheKey && deviceThreadRequests[cacheKey] === request) delete deviceThreadRequests[cacheKey];
+    if (generation !== smsCacheGeneration) return getDeviceThread({ threadId, address }, undefined, true);
+    if (cacheKey) deviceThreadCache[cacheKey] = messages;
+    return messages;
+  });
+  if (cacheKey) deviceThreadRequests[cacheKey] = request;
+  return request;
 };
+
+export const clearSmsCaches = () => {
+  smsCacheGeneration += 1;
+  deviceConversationsCache = null;
+  Object.keys(deviceThreadCache).forEach((k) => delete deviceThreadCache[k]);
+};
+
+const subscribeNativeEvent = (name, callback) => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin?.addListener) return () => {};
+  let disposed = false;
+  let handle;
+  const remove = (item) => {
+    try { Promise.resolve(item?.remove?.()).catch(() => {}); } catch (_) {}
+  };
+  try {
+    Promise.resolve(plugin.addListener(name, (event) => {
+      if (!disposed) callback?.(event);
+    })).then((item) => {
+      if (disposed) remove(item);
+      else handle = item;
+    }).catch(() => {});
+  } catch (_) {}
+  return () => { disposed = true; remove(handle); handle = null; };
+};
+
+export const subscribeToSmsUpdates = (callback) => subscribeNativeEvent("smsReceived", (event) => {
+  clearSmsCaches();
+  callback?.(event);
+});
+
+export const subscribeToDumbModeUpdates = (callback) => subscribeNativeEvent("dumbModeChanged", callback);
+export const subscribeToFriendAuthenticatorUpdates = callback => subscribeNativeEvent("friendAuthenticatorChanged", callback);
+
+export const subscribeToInstalledAppsUpdates = (callback) => subscribeNativeEvent("installedAppsChanged", () => {
+  installedAppsGeneration += 1;
+  installedAppsCache = null;
+  callback?.();
+});
+
+export const subscribeToRecentCallsUpdates = (callback) => subscribeNativeEvent("recentCallsChanged", (event) => {
+  clearRecentCallsCache();
+  callback?.(event);
+});
 
 export const sendDeviceSms = async (address, body) => {
   const plugin = getLauncherAppsPlugin();
   // Clear caches so updated message list shows
-  deviceConversationsCache = null;
-  Object.keys(deviceThreadCache).forEach((k) => delete deviceThreadCache[k]);
+  clearSmsCaches();
 
   if (!plugin || typeof plugin.sendSms !== "function") {
     console.warn("sendSms not supported on this platform");
@@ -662,5 +865,109 @@ export const sendDeviceSms = async (address, body) => {
   } catch (error) {
     console.warn("Failed to send device SMS:", error);
     return { sent: false, fallback: true, error: error?.message };
+  }
+};
+
+export const markDeviceConversationRead = async (threadId, address) => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin || typeof plugin.markConversationRead !== "function") {
+    return;
+  }
+  try {
+    await plugin.markConversationRead({ threadId, address });
+  } catch (error) {
+    console.warn("Failed to mark conversation read:", error);
+  }
+};
+
+let deviceNotificationConversationsCache = [];
+
+export const getDeviceNotificationConversations = async () => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin || typeof plugin.getNotificationConversations !== "function") {
+    return deviceNotificationConversationsCache;
+  }
+  try {
+    const result = await plugin.getNotificationConversations();
+    if (result && Array.isArray(result.conversations)) {
+      deviceNotificationConversationsCache = result.conversations;
+      return result.conversations;
+    }
+    return deviceNotificationConversationsCache;
+  } catch (error) {
+    console.warn("Failed to get notification conversations:", error);
+    return deviceNotificationConversationsCache;
+  }
+};
+
+export const replyDeviceNotification = async (notificationKey, body) => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin || typeof plugin.replyNotificationMessage !== "function") {
+    console.warn("replyNotificationMessage not supported on this platform");
+    return { success: false, error: "Not supported" };
+  }
+  try {
+    return await plugin.replyNotificationMessage({ notificationKey, body });
+  } catch (error) {
+    console.warn("Failed to reply notification:", error);
+    return { success: false, error: error?.message };
+  }
+};
+
+export const deleteDeviceConversation = async ({ threadId, address, notificationKey, source } = {}) => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin || typeof plugin.deleteConversation !== "function") {
+    return { success: true };
+  }
+  try {
+    return await plugin.deleteConversation({ threadId, address, notificationKey, source });
+  } catch (error) {
+    console.warn("Failed to delete conversation:", error);
+    return { success: false, error: error?.message };
+  }
+};
+
+export const deleteDeviceMessage = async ({ id, notificationKey } = {}) => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin || typeof plugin.deleteMessage !== "function") {
+    return { success: true };
+  }
+  try {
+    return await plugin.deleteMessage({ id, notificationKey });
+  } catch (error) {
+    console.warn("Failed to delete message:", error);
+    return { success: false, error: error?.message };
+  }
+};
+
+
+export const subscribeToNotificationMessages = (callback) =>
+  subscribeNativeEvent("notificationMessageReceived", callback);
+
+export const subscribeToNotificationCounts = (callback) =>
+  subscribeNativeEvent("notificationCountsChanged", callback);
+
+export const checkNotificationAccess = async () => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin || typeof plugin.checkNotificationAccess !== "function") {
+    return false;
+  }
+  try {
+    const res = await plugin.checkNotificationAccess();
+    return Boolean(res?.hasAccess);
+  } catch (_e) {
+    return false;
+  }
+};
+
+export const openNotificationListenerSettings = async () => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin || typeof plugin.openNotificationAccessSettings !== "function") {
+    return;
+  }
+  try {
+    await plugin.openNotificationAccessSettings();
+  } catch (err) {
+    console.warn("Failed to open notification settings:", err);
   }
 };

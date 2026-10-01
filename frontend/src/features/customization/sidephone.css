@@ -1,0 +1,50 @@
+/* Source photograph mapped to its measured front-face bounds (690,340)-(1228,1618).
+ * Static raster material; interactive controls remain the shared Keypad.
+ * Display-on colors are an interpretation: supplied references show glass off.
+ */
+.nokia-launcher[data-appearance="sidephone"] {
+  --lcd: #232323; --lcd-light: #292929; --lcd-dark: #1d1d1d; --ink: #d6d5d1;
+  border-radius: 14cqw;
+  background: #999 url('../../assets/sidephone-classic.webp') 49.89% 52.8% / 356.9% 150.23% no-repeat;
+}
+.nokia-launcher[data-appearance="sidephone"] .nokia-shell-rim,
+.nokia-launcher[data-appearance="sidephone"] .nokia-wordmark { display: none; }
+.nokia-launcher[data-appearance="sidephone"] .nokia-launcher__screen {
+  position: absolute; left: 9%; top: 5%; width: 82%; height: 48%;
+  padding: 0; background: transparent; border: 0; border-radius: 5cqw; overflow: hidden;
+}
+.nokia-launcher[data-appearance="sidephone"] .lcd-screen {
+  background: #232323c9; color: var(--ink); border: 0; border-radius: 5cqw; box-shadow: none;
+}
+.nokia-launcher[data-appearance="sidephone"] .nokia-launcher__keypad {
+  position: absolute; left: 3.4%; top: 59.3%; width: 93.2%; height: 39.2%; padding: 0;
+  background: transparent !important;
+}
+.nokia-launcher[data-appearance="sidephone"] .physical-keypad {
+  background: transparent; border: 0; box-shadow: none; border-radius: 13cqw; grid-template-rows: 1fr 2fr;
+}
+.nokia-launcher[data-appearance="sidephone"] .physical-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.nokia-launcher[data-appearance="sidephone"] .physical-call { grid-area: 1 / 1; }
+.nokia-launcher[data-appearance="sidephone"] .physical-end { grid-area: 1 / 3; }
+.nokia-launcher[data-appearance="sidephone"] .physical-soft-left { grid-area: 2 / 1; }
+.nokia-launcher[data-appearance="sidephone"] .physical-soft-right { grid-area: 2 / 3; }
+.nokia-launcher[data-appearance="sidephone"] .physical-key,
+.nokia-launcher[data-appearance="sidephone"] .physical-dpad { background: transparent; border: 0; box-shadow: none; }
+.nokia-launcher[data-appearance="sidephone"] .physical-key__face,
+.nokia-launcher[data-appearance="sidephone"] .physical-dpad__rocker { visibility: hidden; }
+.nokia-launcher[data-appearance="sidephone"] .physical-dpad { top: 0; height: 100%; width: 33.33%; padding: 0; border-radius: 0; }
+.nokia-launcher[data-appearance="sidephone"] .physical-key:active { background: #ffffff12; }
+.nokia-launcher[data-appearance="sidephone"] .physical-key:focus-visible,
+.nokia-launcher[data-appearance="sidephone"] .physical-dpad__hit:focus-visible { outline: 2px solid #dedede; outline-offset: -3px; }
+.nokia-launcher[data-appearance="sidephone"] .lcd-home .lcd-identity,
+.nokia-launcher[data-appearance="sidephone"] .lcd-carrier,
+.nokia-launcher[data-appearance="sidephone"] .lcd-date { font-family: Arial, sans-serif; letter-spacing: -.04em; text-shadow: none; }
+.nokia-launcher[data-appearance="sidephone"] .lcd-carrier { font-size: 8cqw; }
+.nokia-launcher[data-appearance="sidephone"] .lcd-date { font-size: 4.5cqw; }
+@media (orientation: portrait) {
+  .nokia-launcher[data-appearance="sidephone"] {
+    inset: auto; top: 50%; left: 50%;
+    width: min(100vw, 42.097vh); height: min(100vh, 237.547vw);
+    transform: translate(-50%, -50%);
+  }
+}

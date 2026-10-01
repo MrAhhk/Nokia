@@ -16,7 +16,7 @@ test("opens Snake from Settings, returns with Back, and red always returns Home"
   act(() => [...container.querySelectorAll('.lcd-softkeys button')].find(button => button.textContent === 'Settings').click());
   expect(container.querySelector('[data-testid="settings-item-snake"]')).not.toBeNull();
 
-  act(() => container.querySelector('[data-testid="keypad-btn-select"]').click());
+  act(() => container.querySelector('[data-testid="settings-item-snake"]').click());
   expect(container.querySelector('[data-testid="screen-snake"]')).not.toBeNull();
 
   act(() => container.querySelector('[aria-label="Up"]').click());

@@ -1,0 +1,29 @@
+.nokia-launcher .week-check-in {
+  position: absolute; z-index: 31; top: 3.2cqh; bottom: 0; left: 4.7%; right: 4.7%;
+  width: auto; height: auto; padding: clamp(16px, 5vw, 24px);
+  display: flex; flex-direction: column; gap: 12px; color: var(--ink);
+  font-family: "Inter", system-ui, sans-serif;
+}
+.week-check-in__header { display: flex; align-items: center; justify-content: space-between; font: 10px monospace; letter-spacing: .1em; border-bottom: 1px solid var(--ink); padding-bottom: 8px; }
+.week-check-in__body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; justify-content: safe center; }
+.week-check-in h2 { margin: 0 0 14px; font: 700 clamp(23px, 6vw, 30px)/1.1 Consolas, monospace; letter-spacing: -.04em; }
+.week-check-in p { margin: 0 0 14px; font-size: 14px; line-height: 1.5; }
+.week-check-in .week-check-in__note { margin: 12px 0 0; font-size: 11px; }
+.week-check-in button { min-height: 38px; padding: 8px 12px; border: 1px solid var(--ink); border-radius: 2px; background: transparent; color: inherit; font: 600 12px/1.25 "Inter", system-ui, sans-serif; }
+.week-check-in button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.week-check-in button:disabled { opacity: .5; }
+.week-check-in__answers { display: flex; gap: 8px; }
+.week-check-in__answers button { flex: 1; }
+.week-check-in__actions { display: grid; gap: 7px; flex-shrink: 0; }
+.week-check-in__actions button:first-child { color: var(--lcd); background: var(--ink); }
+.week-check-in footer { font: 10px/1.4 monospace; }
+
+@media (max-height: 700px) {
+  .nokia-launcher .week-check-in { padding: 14px; gap: 7px; }
+  .week-check-in__header { padding-bottom: 4px; }
+  .week-check-in__header button { min-height: 28px; padding: 4px 8px; }
+  .week-check-in h2 { font-size: 21px; margin-bottom: 8px; }
+  .week-check-in p { font-size: 12px; line-height: 1.4; margin-bottom: 8px; }
+  .week-check-in .week-check-in__note { font-size: 10px; margin-top: 8px; }
+  .week-check-in button { min-height: 34px; }
+}

@@ -7,12 +7,41 @@
   --aged-shell: #090b0b;
   --aged-key: #121516;
   --aged-key-label: #d8d8d2;
+  border-radius: 0 0 10cqw 10cqw;
   background: linear-gradient(108deg, #080909, #222323 62%, #101111);
+}
+
+.nokia-system-keyboard .nokia-shell-rim {
+  /* Keep ReferenceHardware.css's border and seven shared inset layers. The
+     IME is the unchanged 41% keypad plus a 7% wordmark band, so fitting that
+     same rim to this viewport closes the cut edge without redrawing it. */
+  inset: 0;
+  height: auto;
+  border-radius: 0 0 10cqw 10cqw;
+}
+
+/* An IME window is wider than it is tall, so the browser reports landscape
+   even while the phone itself is portrait. Preserve the homescreen legend
+   scale instead of inheriting the full-launcher landscape reduction. */
+@media (orientation: landscape) {
+  .nokia-system-keyboard .physical-number strong { font-size: 8cqw; }
+  .nokia-system-keyboard .physical-number small { font-size: 3.4cqw; }
 }
 
 .nokia-system-keyboard .nokia-wordmark {
   /* Homescreen uses 6% wordmark + 41% keypad. This IME is that exact 47% module. */
   flex: 0 0 calc(6 / 47 * 100%);
+  box-sizing: border-box;
+  padding-top: 2px;
+}
+
+.nokia-system-keyboard .nokia-wordmark svg {
+  width: 29%;
+  max-height: 56%;
+  stroke: currentColor;
+  stroke-width: .65;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
 }
 
 .nokia-system-keyboard [data-testid="keypad"] button.physical-call {

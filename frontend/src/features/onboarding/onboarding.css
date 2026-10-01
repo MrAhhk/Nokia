@@ -1,0 +1,45 @@
+/* Guide content fills the existing LCD; the real shell and keypad stay mounted. */
+.nokia-launcher .onboarding-coach {
+  position: absolute;
+  z-index: 30;
+  top: 3.2cqh;
+  bottom: 0;
+  left: 4.7%;
+  right: 4.7%;
+  width: auto;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(16px, 5vw, 24px);
+  border: 1px solid var(--lcd-light);
+  border-radius: 8px;
+  /* Background and texture come from the same .lcd-screen theme as Home. */
+  color: var(--ink);
+  box-shadow: inset 0 0 24px rgba(56,65,13,.22);
+  font-family: "Inter", system-ui, sans-serif;
+  touch-action: pan-y;
+}
+.onboarding-coach__eyebrow { display: flex; justify-content: space-between; gap: 8px; font: 10px/1.3 monospace; letter-spacing: .1em; }
+.onboarding-coach__progress { display: flex; gap: 4px; margin: 9px 0 12px; }
+.onboarding-coach__progress i { height: 2px; flex: 1; background: var(--ink); opacity: .2; }
+.onboarding-coach__progress .is-done { opacity: 1; }
+.onboarding-coach__copy { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; justify-content: safe center; }
+.onboarding-coach h2 { margin: 0 0 20px; font: 700 clamp(23px, 6vw, 30px)/1.1 "Consolas", monospace; letter-spacing: -.04em; }
+.onboarding-coach h2:focus { outline: none; }
+.onboarding-coach p { margin: 0 0 18px; font: 14px/1.6 "Inter", system-ui, sans-serif; white-space: pre-line; }
+.onboarding-coach .onboarding-coach__hint { font-size: 11px; border-top: 1px solid var(--ink); padding-top: 8px; }
+.onboarding-coach button { min-height: 38px; border: 1px solid var(--ink); border-radius: 2px; background: transparent; color: inherit; padding: 7px 10px; font: 600 12px/1.2 "Inter", system-ui, sans-serif; cursor: pointer; }
+.onboarding-coach button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.onboarding-coach button:disabled { opacity: .5; }
+.onboarding-coach__footer { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding-top: 8px; flex-shrink: 0; }
+.onboarding-coach__footer > div { display: flex; gap: 5px; }
+.onboarding-coach .onboarding-coach__skip { border: 0; padding-left: 0; font-weight: 400; font-size: 11px; }
+.onboarding-coach .onboarding-coach__next { background: var(--ink); color: var(--lcd); }
+.onboarding-coach__settings { display: flex; gap: 5px; flex-wrap: wrap; }
+.onboarding-coach__action { width: 100%; }
+.nokia-launcher[data-guide="navigation"] .physical-dpad,
+.nokia-launcher[data-guide="softkeys"] .physical-soft-left,
+.nokia-launcher[data-guide="softkeys"] .physical-soft-right,
+.nokia-launcher[data-guide="typing"] [data-testid="keypad-btn-2"],
+.nokia-launcher[data-guide="typing"] [data-testid="keypad-btn-hash"] { outline: 2px solid #c6d275; outline-offset: -4px; }
+.nokia-launcher[data-guide="defaults"] [data-testid="home-menu-item-messages"] { outline: 2px solid var(--ink); outline-offset: 3px; }

@@ -1,0 +1,13 @@
+.customization-screen { display: flex; flex-direction: column; gap: 10px; }
+.customization-heading { font-size: clamp(18px, 5cqw, 25px); font-weight: bold; }
+.customization-description, .customization-message { margin: 0; font-size: 14px; }
+.customization-choices { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; overflow: auto; }
+.customization-choice { display: flex; align-items: center; gap: 12px; min-height: 78px; padding: 8px; border: 1px solid var(--ink); border-radius: 8px; color: var(--ink); background: var(--lcd); text-align: left; font-size: 15px; }
+.customization-choice.is-focused { outline: 2px solid var(--ink); outline-offset: -4px; }
+.customization-check { margin-left: auto; }
+.customization-preview { flex: 0 0 31px; height: 74px; border-radius: 5px; background-color: #222; }
+.customization-preview--sidephone { background-image: url('../../assets/sidephone-classic.webp'); background-size: 356.9% 150.23%; background-position: 49.89% 52.8%; }
+.customization-preview--nokia { border: 2px solid #444; background: linear-gradient(#858712 0 54%, #171919 54% 100%); }
+.customization-screen .lcd-list-softkeys { flex: 0 0 26px; }
+.lcd-list-row.is-customization { min-height: 62px; border: 2px solid currentColor; border-radius: 6px; margin: 3px 0 8px; font-weight: bold; }
+@media (orientation: landscape) { .customization-choices { flex-direction: row; } .customization-choice { flex: 1; min-height: 58px; font-size: 12px; } .customization-preview { height: 48px; flex-basis: 20px; } .customization-screen { gap: 3px; } }

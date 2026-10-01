@@ -72,28 +72,49 @@ const ClockFeature = forwardRef(({ onExit }, ref) => {
   }, []);
 
   useEffect(() => {
+    let interval = null;
+    let deadline = null;
+    let alarmDelivered = false;
     const tick = () => {
       const timestamp = Date.now();
-      setNow(new Date(timestamp));
+      const visible = document.visibilityState !== "hidden";
+      if (visible) setNow(new Date(timestamp));
 
       if (timerRunning) {
         const remaining = Math.max(0, timerDeadlineRef.current - timestamp);
-        setTimerRemaining(remaining);
-        if (remaining === 0) {
+        if (visible || remaining === 0) setTimerRemaining(remaining);
+        if (remaining === 0 && !alarmDelivered) {
+          alarmDelivered = true;
           setTimerRunning(false);
           const soundPrefs = loadSoundSettings();
           playAlarmTone(soundPrefs.alarmTone, soundPrefs.volume, false, soundPrefs.vibrate);
         }
       }
 
-      if (stopwatchRunning) {
+      if (stopwatchRunning && visible) {
         setStopwatchElapsed(timestamp - stopwatchStartedRef.current);
       }
     };
 
-    tick();
-    const interval = setInterval(tick, timerRunning || stopwatchRunning ? 100 : 1000);
-    return () => clearInterval(interval);
+    const schedule = () => {
+      clearInterval(interval);
+      clearTimeout(deadline);
+      tick();
+      if (document.visibilityState !== "hidden") {
+        interval = setInterval(tick, timerRunning || stopwatchRunning ? 100 : 1000);
+      } else if (timerRunning && !alarmDelivered) {
+        // Keep the existing best-effort timer alarm, without ten UI updates a
+        // second in the background. Android may defer this while suspended.
+        deadline = setTimeout(tick, Math.max(0, timerDeadlineRef.current - Date.now()));
+      }
+    };
+    schedule();
+    document.addEventListener("visibilitychange", schedule);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(deadline);
+      document.removeEventListener("visibilitychange", schedule);
+    };
   }, [stopwatchRunning, timerRunning]);
 
   const selectMode = useCallback((nextMode) => setMode(nextMode), []);

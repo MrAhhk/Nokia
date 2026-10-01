@@ -9,12 +9,15 @@ if (releasePropertiesFile.exists()) {
 android {
     namespace "com.nokialauncher"
     compileSdk rootProject.ext.compileSdkVersion
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+    }
     defaultConfig {
         applicationId "com.nokialauncher"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 9
-        versionName "1.2.5"
+        versionCode 10
+        versionName "1.2.6"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -34,6 +37,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Optional isolated device test; preserves an installed Play-signed app and its data.
+            if (project.hasProperty('nokiaStartupDeviceTest')) {
+                applicationIdSuffix '.startuptest'
+            }
+        }
         release {
             if (releasePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
@@ -51,6 +60,8 @@ repositories {
 }
 
 dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+    implementation 'com.google.zxing:core:3.5.4'
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"

@@ -7,20 +7,17 @@ import org.junit.Test;
 
 public class InputSessionPolicyTest {
     @Test
-    public void freshExternalInputStartsAndResetsTheComposer() {
-        assertTrue(InputSessionPolicy.shouldRequestShow(false, NokiaIME.IMEState.ACTIVE));
+    public void freshExternalInputResetsTheComposer() {
         assertTrue(InputSessionPolicy.shouldResetComposer(false, NokiaIME.IMEState.ACTIVE));
     }
 
     @Test
-    public void restartingInputDoesNotReshowOrResetTheComposer() {
-        assertFalse(InputSessionPolicy.shouldRequestShow(true, NokiaIME.IMEState.ACTIVE));
+    public void restartingInputDoesNotResetTheComposer() {
         assertFalse(InputSessionPolicy.shouldResetComposer(true, NokiaIME.IMEState.ACTIVE));
     }
 
     @Test
-    public void suppressedInputNeverReshowsOrResetsTheComposer() {
-        assertFalse(InputSessionPolicy.shouldRequestShow(false, NokiaIME.IMEState.LAUNCHER_SUPPRESSED));
+    public void suppressedInputNeverResetsTheComposer() {
         assertFalse(InputSessionPolicy.shouldResetComposer(false, NokiaIME.IMEState.LAUNCHER_SUPPRESSED));
     }
 

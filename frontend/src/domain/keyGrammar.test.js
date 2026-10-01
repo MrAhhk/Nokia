@@ -48,7 +48,7 @@ describe("unified Nokia key grammar", () => {
       menu: { SOFT_LEFT: "DELETE", GREEN: "RECENT_APPS", SOFT_RIGHT: "BACK" },
       settings: { SOFT_LEFT: "DELETE", GREEN: "RECENT_APPS", SOFT_RIGHT: "BACK" },
       messages: { SOFT_LEFT: "DELETE", GREEN: "RECENT_APPS", SOFT_RIGHT: "BACK", SELECT: "SELECT" },
-      "message-thread": { SOFT_LEFT: "SELECT", GREEN: "SEND", SOFT_RIGHT: "BACK", SELECT: "SEND" },
+      "message-thread": { SOFT_LEFT: "DELETE", GREEN: "SEND", SOFT_RIGHT: "BACK", SELECT: "SEND" },
       "message-compose": { SOFT_LEFT: "SEND", GREEN: "SEND", SOFT_RIGHT: "BACK", SELECT: "DELETE" },
     };
 
@@ -83,15 +83,20 @@ describe("unified Nokia key grammar", () => {
       expect(mode3).toBe(CASE_MODES.LOWER);
     });
 
-    it("cancels title mode back to lower if # pressed again after double-press window", () => {
+    it("transitions title mode to upper (caps lock) on second # press", () => {
       const t1 = 1000;
       const mode1 = resolveNextCaseMode(CASE_MODES.LOWER, 0, t1);
       expect(mode1).toBe(CASE_MODES.TITLE);
 
-      // Press again after 800ms (> 600ms) -> cancels back to lower
+      // Press # again (double #) -> transitions to UPPER (caps lock)
       const t2 = 1850;
       const mode2 = resolveNextCaseMode(mode1, t1, t2, 600);
-      expect(mode2).toBe(CASE_MODES.LOWER);
+      expect(mode2).toBe(CASE_MODES.UPPER);
+
+      // Press # again -> transitions to LOWER (abc)
+      const t3 = 2500;
+      const mode3 = resolveNextCaseMode(mode2, t2, t3, 600);
+      expect(mode3).toBe(CASE_MODES.LOWER);
     });
 
     it("formats characters correctly per case mode", () => {

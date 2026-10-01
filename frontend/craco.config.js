@@ -64,6 +64,32 @@ let webpackConfig = {
 };
 
 webpackConfig.devServer = (devServerConfig) => {
+  // CRA 5 supplies the removed v4 hooks. Keep their middleware ordering on v5.
+  const before = devServerConfig.onBeforeSetupMiddleware;
+  const after = devServerConfig.onAfterSetupMiddleware;
+  const setup = devServerConfig.setupMiddlewares;
+  delete devServerConfig.onBeforeSetupMiddleware;
+  delete devServerConfig.onAfterSetupMiddleware;
+  const https = devServerConfig.https;
+  delete devServerConfig.https;
+  if (https) devServerConfig.server = { type: 'https', options: https === true ? {} : https };
+  devServerConfig.host = process.env.HOST || '127.0.0.1';
+  devServerConfig.allowedHosts = ['localhost', '127.0.0.1', ...
+    (process.env.DEV_ALLOWED_HOSTS || '').split(',').map(host => host.trim()).filter(Boolean)];
+  // Do not override the dev server's same-origin resource protection with CRA's wildcard CORS.
+  devServerConfig.headers = { 'Cross-Origin-Resource-Policy': 'same-origin' };
+  devServerConfig.setupMiddlewares = (middlewares, server) => {
+    if (before) before(server);
+    if (setup) middlewares = setup(middlewares, server);
+    // Register CRA's trailing fallbacks after built-in dev middleware.
+    if (after) middlewares.push({ name: 'cra-fallbacks', middleware: (() => {
+      const express = require('express');
+      const router = express.Router();
+      after({ ...server, app: router });
+      return router;
+    })() });
+    return middlewares;
+  };
   // Add health check endpoints if enabled
   if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
     const originalSetupMiddlewares = devServerConfig.setupMiddlewares;

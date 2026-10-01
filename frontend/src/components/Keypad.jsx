@@ -206,7 +206,27 @@ const LauncherKeypad = memo(({ onPress }) => {
     longPressTimersRef.current.clear();
   }, []);
 
-  useEffect(() => clearAllLongPress, [clearAllLongPress]);
+  useEffect(() => {
+    const cancelPendingPresses = () => {
+      clearAllLongPress();
+      longPressFiredRef.current.clear();
+      recentPointerRef.current.clear();
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    };
+    const cancelWhenHidden = () => {
+      if (document.visibilityState === "hidden") cancelPendingPresses();
+    };
+
+    document.addEventListener("visibilitychange", cancelWhenHidden);
+    window.addEventListener("blur", cancelPendingPresses);
+    return () => {
+      document.removeEventListener("visibilitychange", cancelWhenHidden);
+      window.removeEventListener("blur", cancelPendingPresses);
+      cancelPendingPresses();
+    };
+  }, [clearAllLongPress]);
 
   const handlePointerDownKey = useCallback((key) => {
     recentPointerRef.current.set(key, Date.now());
@@ -270,8 +290,11 @@ const LauncherKeypad = memo(({ onPress }) => {
         <button
           type="button"
           className="physical-key physical-soft-left"
-          onPointerDown={() => handlePointerDownKey("SOFT_LEFT")}
-          onClick={() => handleClickKey("SOFT_LEFT")}
+          onClick={() => handleClickLongPress("SOFT_LEFT", "SOFT_LEFT")}
+          onPointerDown={() => startLongPress("SOFT_LEFT", "LONG_DELETE")}
+          onPointerUp={() => finishLongPress("SOFT_LEFT", "SOFT_LEFT")}
+          onPointerCancel={() => cancelLongPress("SOFT_LEFT")}
+          onContextMenu={(e) => e.preventDefault()}
           aria-label="Go to or Delete"
         >
           <span className="physical-key__face">

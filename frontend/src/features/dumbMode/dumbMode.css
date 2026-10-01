@@ -1,0 +1,112 @@
+/* Dumb Mode uses the existing LCD palette; all typography is scoped to this feature. */
+.nokia-launcher .lcd-screen.dumb-mode {
+  display: flex; flex-direction: column; gap: 0;
+  padding: 14px 16px 10px; height: 100%; min-height: 0;
+  contain: layout paint;
+  color: var(--ink); font: 14px/1.5 "Inter", system-ui, sans-serif;
+  letter-spacing: 0; text-align: left;
+}
+.dumb-mode *, .dumb-mode *::before, .dumb-mode *::after { box-sizing: border-box; }
+.dumb-mode .dm-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; padding-bottom: 9px; border-bottom: 1px solid var(--ink); }
+.dumb-mode .dm-header h2 { margin: 0; font: 700 14px/1.2 Consolas, "Courier New", monospace; letter-spacing: -.025em; outline: none; }
+.dumb-mode .dm-status { flex-shrink: 0; font: 700 9px/1.2 "Inter", sans-serif; letter-spacing: .08em; }
+.dumb-mode .dumb-mode__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px 0 12px; scrollbar-width: thin; scrollbar-color: var(--ink) transparent; }
+.dumb-mode p { margin: 0; }
+.dumb-mode h3 { margin: 0 0 10px; font: 700 18px/1.2 Consolas, "Courier New", monospace; letter-spacing: -.03em; }
+ .dumb-mode .dm-state-panel { border-bottom: 1px solid rgba(17,24,3,.3); padding: 2px 0 12px; }
+.dumb-mode .dm-state-title { display: flex; gap: 13px; align-items: center; margin: 4px 0 17px; }
+.dumb-mode .dm-state-title h3 { font-size: 18px; margin: 0 0 4px; }
+.dumb-mode .dm-state-title p { font-size: 14px; }
+.dumb-mode .dm-lock { flex: 0 0 24px; height: 21px; border: 2px solid currentColor; position: relative; margin-top: 8px; }
+.dumb-mode .dm-lock::before { content: ""; position: absolute; width: 16px; height: 12px; bottom: 17px; left: 2px; border: 2px solid currentColor; border-bottom: 0; border-radius: 7px 7px 0 0; }
+.dumb-mode .dm-lock::after { content: ""; position: absolute; width: 2px; height: 7px; top: 5px; left: 9px; background: currentColor; }
+.dumb-mode .dm-facts { margin: 0; font-size: 14px; }
+.dumb-mode .dm-facts > div { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; }
+.dumb-mode .dm-facts dt { opacity: 1; }
+.dumb-mode .dm-facts dd { margin: 0; font-weight: 600; text-align: right; }
+.dumb-mode .dm-how { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; gap: 4px; font: 11px/1.4 Consolas, monospace; }
+.dumb-mode .dm-how i { font-style: normal; }
+.dumb-mode .dm-note { font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+.dumb-mode .dm-eyebrow { display: block; margin-bottom: 9px; font-size: 13px; line-height: 1.3; letter-spacing: .025em; }
+.nokia-launcher .dumb-mode button { cursor: pointer; border-radius: 0; color: inherit; font: 600 14px/1.3 "Inter", system-ui, sans-serif; }
+.dumb-mode button:disabled { opacity: .4; cursor: default; }
+.dumb-mode :is(button, input, summary):focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.dumb-mode .dm-menu-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 37px; padding: 9px 0; background: transparent; border: 0; border-top: 1px solid rgba(17,24,3,.25); text-align: left; }
+.dumb-mode .dm-menu-row b { font: 18px/1 monospace; padding-left: 7px; }
+.dumb-mode .dm-text-action {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  background: transparent;
+  border: 0;
+  padding: 8px 0;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 13px;
+}
+.dumb-mode .dm-alert { border-left: 3px solid currentColor; padding: 6px 9px; margin-bottom: 12px; font-size: 14px; }
+.dumb-mode .dm-loading { padding: 20px 0; }
+.dumb-mode .dm-permission p { margin-bottom: 12px; }
+.dumb-mode .dm-selection-summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 10px; font-size: 14px; }
+.dumb-mode .dm-selection-summary strong { font: 700 18px/1 Consolas, monospace; }
+.dumb-mode .dm-filter { border: 1px solid rgba(17,24,3,.4); padding: 5px 8px; background: transparent; font-size: 13px; }
+.dumb-mode .dm-filter[aria-pressed=true] { background: var(--ink); color: var(--lcd); }
+.dumb-mode .dm-search { display: flex; border: 1px solid rgba(17,24,3,.5); margin-bottom: 10px; min-height: 33px; }
+.dumb-mode .dm-search input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 7px 9px; color: inherit; font: 14px/1.4 "Inter",sans-serif; }
+.dumb-mode .dm-search input::placeholder { color: inherit; opacity: 1; }
+.dumb-mode .dm-search button { background: transparent; border: 0; padding: 4px 10px; }
+.dumb-mode .dm-group-toggle { display: block; margin: 0 0 4px auto; padding: 6px 4px; border: 0; background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+.dumb-mode .dm-group { border-top: 1px solid rgba(17,24,3,.35); }
+.dumb-mode .dm-group summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 39px; padding: 9px 0; font-size: 14px; font-weight: 600; list-style: none; cursor: pointer; }
+.dumb-mode .dm-group summary::-webkit-details-marker { display: none; }
+.dumb-mode .dm-group-count { display: flex; gap: 9px; align-items: center; font-size: 13px; font-weight: 400; white-space: nowrap; }
+.dumb-mode .dm-chevron { display: inline-block; font: 18px/1 monospace; }
+.dumb-mode details[open] .dm-chevron { transform: rotate(90deg); }
+.dumb-mode .dm-group-note { font-size: 13px; padding: 0 0 8px; }
+.dumb-mode .dm-app-row { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 7px 3px; font-size: 14px; line-height: 1.3; }
+.dumb-mode .dm-app-row > span { flex: 1; overflow-wrap: anywhere; }
+.dumb-mode .dm-app-row small { font-size: 13px; }
+.dumb-mode input[type=checkbox] { appearance: none; flex: 0 0 13px; width: 13px; height: 13px; margin: 0; border: 1px solid currentColor; border-radius: 0; background: transparent; color: var(--ink); position: relative; }
+.dumb-mode input[type=checkbox]:checked::after { content: ""; position: absolute; left: 3px; top: 0px; width: 4px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+.dumb-mode input[type=checkbox]:disabled { opacity: 1; }
+.dumb-mode .dm-check { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 0; font-size: 13px; line-height: 1.5; }
+.dumb-mode .dm-check input { margin-top: 1px; }
+.dumb-mode .dm-code-intro { margin: 3px 0 15px; }
+.dumb-mode .dm-code-intro h3 { margin-bottom: 5px; }
+.dumb-mode .dm-code-intro p { font-size: 14px; }
+.dumb-mode .dumb-mode__code { display: block; text-align: center; white-space: nowrap; padding: 16px 6px; margin: 0 0 8px; border: 1px solid currentColor; background: rgba(17,24,3,.06); font: 700 clamp(18px,5.4vw,25px)/1.2 Consolas,"Courier New",monospace; letter-spacing: -.03em; user-select: text; }
+.dumb-mode .dm-secondary { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 10px; min-height: 36px; border: 1px solid var(--ink); background: transparent; text-align: left; }
+.dumb-mode .dm-warning { font-size: 13px; line-height: 1.5; margin-top: 13px; }
+.dumb-mode .dm-code-label { display: block; font-size: 13px; }
+.dumb-mode .dm-code-label input { width: 100%; min-height: 45px; padding: 8px 10px; margin-top: 6px; background: transparent; border: 1px solid currentColor; border-radius: 0; color: inherit; font: 20px/1.2 Consolas, monospace; letter-spacing: .1em; }
+.dumb-mode .dm-input-meta { display: flex; justify-content: space-between; padding: 5px 0 15px; font: 13px/1.4 Consolas,monospace; }
+.dumb-mode .dm-blocked-list { list-style: none; margin: 0; padding: 0; }
+.dumb-mode .dm-blocked-list li { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(17,24,3,.2); font-size: 14px; overflow-wrap: anywhere; }
+.dumb-mode .dm-footer { flex-shrink: 0; padding-top: 9px; border-top: 1px solid var(--ink); }
+.dumb-mode .dm-actions { display: flex; gap: 10px; align-items: stretch; }
+.dumb-mode .dm-back { min-height: 34px; padding: 8px 0; border: 0; background: transparent; text-align: left; }
+.dumb-mode .dm-primary { flex: 1; min-height: 34px; padding: 8px 9px; border: 1px solid var(--ink); background: var(--ink); color: var(--lcd); text-align: center; }
+.nokia-launcher .dumb-mode .dm-primary { color: var(--lcd); }
+.dumb-mode .dm-progress { font-size: 13px; margin: 0 0 5px; }
+@media (max-height: 700px) {
+  .nokia-launcher .lcd-screen.dumb-mode { padding: 10px 12px 8px; }
+  .dumb-mode .dumb-mode__body { padding-top: 10px; }
+  .dumb-mode h3 { font-size: 17px; }
+  .dumb-mode .dm-code-intro { margin-bottom: 10px; }
+}
+
+/* Match the existing guide component without its overlay positioning. */
+.dm-guide-host { height: 100%; min-height: 0; }
+.nokia-launcher .dm-guide-host .onboarding-coach { position: relative; inset: auto; width: 100%; height: 100%; }
+.nokia-launcher .lcd-screen.dumb-mode--loading { min-height: 0; }
+.dumb-mode .dm-app-row:focus-within { outline: 2px solid var(--ink); outline-offset: -2px; }
+.dumb-mode .dm-search input { caret-color: transparent; }
+.dumb-mode .dm-code-label textarea, .dumb-mode details textarea { display: block; width: 100%; min-height: 90px; margin: 6px 0 12px; padding: 8px; border: 1px solid var(--ink); color: inherit; background: transparent; resize: vertical; font: 12px/1.4 Consolas, monospace; overflow-wrap: anywhere; }
+.dumb-mode .dm-pair-qr { display: block; max-width: 100%; width: 190px; height: auto; margin: 10px auto; image-rendering: pixelated; }
+.dumb-mode .dm-scan-window { min-height: 160px; border: 1px solid currentColor; margin-bottom: 10px; }
+.dumb-mode .dm-secondary + .dm-secondary { margin-top: 8px; }
+.dumb-mode .dm-code-label + .dm-code-label { margin-top: 10px; }
+.dumb-mode .dm-app-row:has(input:checked) { background: rgba(17,24,3,.09); }
+
+.dumb-mode .dm-paired-row:disabled { opacity: 1; }

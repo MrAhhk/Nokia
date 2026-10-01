@@ -13,6 +13,10 @@
 
 Run from `app/frontend`:
 
+For release packaging use `npm run build:android:release`. It fails if the AAB's own manifest references missing DEX classes. Keep its artifact hash with test evidence. The historical version5 AAB was internally inconsistent despite a successful build; source inspection and generic ProGuard rules do not detect or repair that artifact. This gate is separate from physical-device validation and Play version/signing checks.
+
+The checker supports single-base AABs only; dynamic-feature manifests and DEX are not verified. Extend it before introducing those modules. APK checks require the matching text merged manifest.
+
 ```powershell
 npm run trace -- camera
 npm run check:architecture

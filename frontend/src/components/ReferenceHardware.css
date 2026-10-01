@@ -7,8 +7,12 @@
   --lcd-dark: #73750c;
   --ink: #030400;
   container-type: size;
-  position: relative;
-  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden !important;
+  overscroll-behavior: none;
   border-radius: 10cqw;
   background: linear-gradient(108deg, #080909, #222323 62%, #101111);
 }
@@ -51,13 +55,15 @@
   border: 0;
   box-shadow: none;
   background: linear-gradient(108deg, #080909, #222323 62%, #101111);
-  contain: paint;
+  overflow: hidden !important;
+  contain: layout paint;
 }
 .nokia-launcher .nokia-launcher__keypad {
   flex: 1 1 0;
   height: auto;
   min-height: 0;
-  padding: 0 3.7% max(1.7cqh, env(safe-area-inset-bottom));
+  /* Transient system bars overlay Home. Their changing inset must not lift keys. */
+  padding: 0 3.7% 1.7cqh;
 }
 .lcd-home {
   display: block;

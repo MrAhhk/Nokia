@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <external-path name="my_images" path="." />
-    <cache-path name="my_cache_images" path="." />
+    <!-- Reserve explicit sharing directories; never expose the external-storage root. -->
+    <external-files-path name="camera_images" path="Pictures/Nokia Launcher/" />
+    <external-files-path name="camera_videos" path="Movies/Nokia Launcher/" />
+    <cache-path name="shared_images" path="shared_images/" />
 </paths>

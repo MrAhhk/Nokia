@@ -96,6 +96,55 @@ test("system IME applies the current shared default control grammar", () => {
   delete window.NokiaIMEBridge;
 });
 
+test("IME closes its top edge with the exact shared homescreen rim instead of restyling it", () => {
+  const css = fs.readFileSync(
+    __filename.replace("NokiaSystemKeyboard.test.jsx", "NokiaSystemKeyboard.css"),
+    "utf8"
+  );
+  expect(css).toContain("border-radius: 0 0 10cqw 10cqw");
+  expect(css).toContain("width: 29%");
+  expect(css).toContain("max-height: 56%");
+  expect(css).toContain("inset: 0");
+  expect(css).toContain("height: auto");
+  expect(css).not.toContain("height: calc(100% / 0.47)");
+  const rimRule = css.match(/\.nokia-system-keyboard \.nokia-shell-rim\s*\{([^}]*)\}/)?.[1] || "";
+  expect(rimRule).not.toContain("border:");
+  expect(rimRule).not.toContain("box-shadow:");
+});
+
+test("IME keeps homescreen number legend scale when its short window is classified landscape", () => {
+  const css = fs.readFileSync(
+    __filename.replace("NokiaSystemKeyboard.test.jsx", "NokiaSystemKeyboard.css"),
+    "utf8"
+  );
+  expect(css).toMatch(/@media \(orientation: landscape\)[\s\S]*\.nokia-system-keyboard \.physical-number strong\s*\{[^}]*font-size:\s*8cqw/);
+  expect(css).toMatch(/@media \(orientation: landscape\)[\s\S]*\.nokia-system-keyboard \.physical-number small\s*\{[^}]*font-size:\s*3\.4cqw/);
+});
+
+test("swiping down from the Nokia band dismisses the IME without adding a key delay", () => {
+  window.NokiaIMEBridge = { hideKeyboard: jest.fn() };
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  act(() => root.render(<NokiaSystemKeyboard />));
+
+  const wordmark = container.querySelector(".nokia-wordmark");
+  const down = new Event("pointerdown", { bubbles: true });
+  Object.defineProperties(down, { clientX: { value: 180 }, clientY: { value: 10 } });
+  const up = new Event("pointerup", { bubbles: true });
+  Object.defineProperties(up, { clientX: { value: 185 }, clientY: { value: 100 } });
+  act(() => {
+    wordmark.dispatchEvent(down);
+    wordmark.dispatchEvent(up);
+  });
+
+  expect(window.NokiaIMEBridge.hideKeyboard).toHaveBeenCalledTimes(1);
+
+  act(() => root.unmount());
+  container.remove();
+  delete window.NokiaIMEBridge;
+});
+
 test("physical hash key keeps the IME case-mode cycle", () => {
   const container = document.createElement("div");
   document.body.appendChild(container);

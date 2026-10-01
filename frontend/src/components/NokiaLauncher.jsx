@@ -6,6 +6,7 @@ import useDumbMode from "@/features/dumbMode/useDumbMode";
 import { isDumbModeBlocked, visibleDumbModeApps, dumbModeSettingLabel } from "@/features/dumbMode/dumbModeVisibility";
 import Keypad from "./Keypad";
 import CustomizationFeature from "@/features/customization/CustomizationFeature";
+import { SidephoneShell } from "@/features/customization/SidephoneHardware";
 import { loadAppearance, saveAppearance } from "@/features/customization/appearanceStorage";
 import CameraFeature from "@/features/camera/CameraFeature";
 import BrowserFeature from "@/features/browser/BrowserFeature";
@@ -2286,6 +2287,7 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
   return (
     <div className="nokia-launcher h-full w-full flex flex-col overflow-hidden select-none" data-testid="nokia-launcher" data-appearance={appearance} data-guide={onboarding.active ? onboarding.step.id : undefined}>
       <div className="nokia-shell-rim" aria-hidden="true" />
+      {appearance === "sidephone" && <SidephoneShell />}
       {/* LCD and the brand band share a continuous dark surround. */}
       <div className="nokia-launcher__screen h-1/2 w-full relative flex flex-col">
         <div className="h-full w-full min-h-0" inert={(onboarding.active && !onboarding.choosing) || weekCheckInVisible ? true : undefined}>
@@ -2408,7 +2410,7 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
       </div>
       {/* Physical tray retains the shared logical keypad interface. */}
       <div className="nokia-launcher__keypad h-1/2 w-full flex items-center justify-center">
-        <Keypad variant="launcher" onKeypadPress={stableKeypadPress} />
+        <Keypad variant="launcher" appearance={appearance} onKeypadPress={stableKeypadPress} />
       </div>
     </div>
   );

@@ -398,9 +398,10 @@
         "sidephone",
         "theme"
       ],
-      "trace": "Settings -> CustomizationFeature -> appearanceStorage -> NokiaLauncher data-appearance -> static Sidephone skin; shared Keypad and existing native lifecycle retained",
+      "trace": "Settings -> CustomizationFeature -> appearanceStorage -> NokiaLauncher/SidephoneShell -> scalable Sidephone layers; shared Keypad accepts appearance for vector legends and retains input behavior",
       "files": [
         "src/features/customization/CustomizationFeature.jsx",
+        "src/features/customization/SidephoneHardware.jsx",
         "src/features/customization/appearanceStorage.js",
         "src/features/customization/customization.css",
         "src/features/customization/sidephone.css"

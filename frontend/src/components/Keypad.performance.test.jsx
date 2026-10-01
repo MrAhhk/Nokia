@@ -30,12 +30,12 @@ test("system-keyboard keys do not animate every changed CSS property", () => {
   expect(source).not.toContain("transition-all");
 });
 
-test("physical launcher controls preserve logical keys and twenty rapid alternating inputs", () => {
+test.each(["nokia", "sidephone"])("%s physical controls preserve logical keys and twenty rapid alternating inputs", (appearance) => {
   const onKeypadPress = jest.fn();
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  act(() => root.render(<Keypad variant="launcher" onKeypadPress={onKeypadPress} />));
+  act(() => root.render(<Keypad variant="launcher" appearance={appearance} onKeypadPress={onKeypadPress} />));
   for (const [label, key] of [["Go to or Delete", "SOFT_LEFT"], ["Settings or Back", "SOFT_RIGHT"], ["Call or Tab", "GREEN"], ["Home", "END"], ["Up", "UP"], ["Left", "LEFT"], ["Select", "SELECT"], ["Right", "RIGHT"], ["Down", "DOWN"]]) {
     act(() => container.querySelector(`button[aria-label="${label}"]`).click());
     expect(onKeypadPress).toHaveBeenLastCalledWith(key);

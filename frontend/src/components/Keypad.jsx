@@ -1,4 +1,5 @@
 import { memo, useRef, useCallback, useEffect } from "react";
+import { SidephoneHandset, SidephoneAccessory } from "@/features/customization/SidephoneHardware";
 import { 
   Phone, 
   PhoneOff, 
@@ -13,7 +14,7 @@ import {
   Music2
 } from "lucide-react";
 
-const Keypad = ({ onKeypadPress, variant = "default" }) => {
+const Keypad = ({ onKeypadPress, variant = "default", appearance = "nokia" }) => {
   const lastPressRef = useRef({ key: null, time: 0 });
 
   const keys = [
@@ -59,6 +60,7 @@ const Keypad = ({ onKeypadPress, variant = "default" }) => {
     return (
       <LauncherKeypad
         onPress={handleKeyPress}
+        appearance={appearance}
       />
     );
   }
@@ -196,7 +198,8 @@ const HandsetLegend = ({ end = false }) => (
   </svg>
 );
 
-const LauncherKeypad = memo(({ onPress }) => {
+const LauncherKeypad = memo(({ onPress, appearance = "nokia" }) => {
+  const isSidephone = appearance === "sidephone";
   const longPressTimersRef = useRef(new Map());
   const longPressFiredRef = useRef(new Map());
   const recentPointerRef = useRef(new Map());
@@ -327,7 +330,7 @@ const LauncherKeypad = memo(({ onPress }) => {
           aria-label="Call or Tab"
         >
           <span className="physical-key__face">
-            <HandsetLegend />
+            {isSidephone ? <SidephoneHandset /> : <HandsetLegend />}
           </span>
         </button>
 
@@ -387,7 +390,7 @@ const LauncherKeypad = memo(({ onPress }) => {
           aria-label="Home"
         >
           <span className="physical-key__face">
-            <HandsetLegend end />
+            {isSidephone ? <SidephoneHandset end /> : <HandsetLegend end />}
           </span>
         </button>
       </div>
@@ -423,7 +426,7 @@ const LauncherKeypad = memo(({ onPress }) => {
                     key.number
                   )}
                 </strong>
-                {key.number === "0" ? (
+                {isSidephone ? <SidephoneAccessory number={key.number} letters={key.letters} /> : key.number === "0" ? (
                   <span className="physical-accessory"><Globe2 /></span>
                 ) : isHash ? (
                   <span className="physical-accessory"><House /><Music2 /></span>

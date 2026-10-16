@@ -1,45 +1,59 @@
-/* Guide content fills the existing LCD; the real shell and keypad stay mounted. */
+/* Finite guide over the real LCD. Only the copy body scrolls. */
 .nokia-launcher .onboarding-coach {
-  position: absolute;
-  z-index: 30;
-  top: 3.2cqh;
-  bottom: 0;
-  left: 4.7%;
-  right: 4.7%;
-  width: auto;
-  height: auto;
-  display: flex;
-  flex-direction: column;
-  padding: clamp(16px, 5vw, 24px);
-  border: 1px solid var(--lcd-light);
-  border-radius: 8px;
-  /* Background and texture come from the same .lcd-screen theme as Home. */
-  color: var(--ink);
-  box-shadow: inset 0 0 24px rgba(56,65,13,.22);
-  font-family: "Inter", system-ui, sans-serif;
-  touch-action: pan-y;
+  position: absolute; z-index: 30; top: 3.2cqh; bottom: 0; left: 4.7%; right: 4.7%;
+  width: auto; height: auto; display: flex; flex-direction: column;
+  padding: clamp(12px, 4vw, 20px); border: 1px solid var(--lcd-light);
+  border-radius: var(--control-radius, 8px); color: var(--ink);
+  font-family: "Inter", system-ui, sans-serif; touch-action: pan-y;
 }
-.onboarding-coach__eyebrow { display: flex; justify-content: space-between; gap: 8px; font: 10px/1.3 monospace; letter-spacing: .1em; }
-.onboarding-coach__progress { display: flex; gap: 4px; margin: 9px 0 12px; }
-.onboarding-coach__progress i { height: 2px; flex: 1; background: var(--ink); opacity: .2; }
+.onboarding-coach__eyebrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 700 14px/1.2 "Consolas", monospace; }
+.onboarding-coach__eyebrow small { display: block; margin-top: 3px; font: 14px/1.2 "Inter", sans-serif; }
+.onboarding-coach__progress { display: flex; gap: 6px; margin: 8px 0 14px; flex-shrink: 0; }
+.onboarding-coach__progress i { height: 4px; flex: 1; border-radius: 4px; background: var(--ink); opacity: .2; }
 .onboarding-coach__progress .is-done { opacity: 1; }
-.onboarding-coach__copy { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; justify-content: safe center; }
-.onboarding-coach h2 { margin: 0 0 20px; font: 700 clamp(23px, 6vw, 30px)/1.1 "Consolas", monospace; letter-spacing: -.04em; }
+.onboarding-coach__copy { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 3px 8px; display: flex; flex-direction: column; gap: 12px; }
+.nokia-launcher .onboarding-coach h2 { margin: 0; font: 700 clamp(26px, 7vw, 32px)/1.08 "Consolas", monospace; letter-spacing: -.04em; white-space: pre-line; }
 .onboarding-coach h2:focus { outline: none; }
-.onboarding-coach p { margin: 0 0 18px; font: 14px/1.6 "Inter", system-ui, sans-serif; white-space: pre-line; }
-.onboarding-coach .onboarding-coach__hint { font-size: 11px; border-top: 1px solid var(--ink); padding-top: 8px; }
-.onboarding-coach button { min-height: 38px; border: 1px solid var(--ink); border-radius: 2px; background: transparent; color: inherit; padding: 7px 10px; font: 600 12px/1.2 "Inter", system-ui, sans-serif; cursor: pointer; }
+.nokia-launcher .onboarding-coach p { margin: 0; font: 16px/1.4 "Inter", system-ui, sans-serif; white-space: pre-line; }
+.nokia-launcher .onboarding-coach .onboarding-coach__hint { font-size: 14px; border-top: 1px solid var(--ink); padding-top: 10px; }
+.nokia-launcher .onboarding-coach button { flex-shrink: 0; min-height: 48px; border: 1px solid var(--ink); border-radius: var(--control-radius, 8px); background: transparent; color: inherit; padding: 10px 12px; font: 600 16px/1.2 "Inter", system-ui, sans-serif; cursor: pointer; }
 .onboarding-coach button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .onboarding-coach button:disabled { opacity: .5; }
-.onboarding-coach__footer { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding-top: 8px; flex-shrink: 0; }
-.onboarding-coach__footer > div { display: flex; gap: 5px; }
-.onboarding-coach .onboarding-coach__skip { border: 0; padding-left: 0; font-weight: 400; font-size: 11px; }
-.onboarding-coach .onboarding-coach__next { background: var(--ink); color: var(--lcd); }
-.onboarding-coach__settings { display: flex; gap: 5px; flex-wrap: wrap; }
+.onboarding-coach__footer { display: flex; align-items: stretch; gap: 8px; padding-top: 10px; border-top: 1px solid var(--ink); flex-shrink: 0; }
+.nokia-launcher .onboarding-coach .onboarding-coach__skip { border: 0; padding: 8px; font-size: 14px; font-weight: 400; }
+.nokia-launcher .onboarding-coach .onboarding-coach__next { flex: 1; background: var(--ink); color: var(--lcd); }
+.onboarding-coach__settings { display: flex; flex-direction: column; gap: 8px; }
 .onboarding-coach__action { width: 100%; }
-.nokia-launcher[data-guide="navigation"] .physical-dpad,
-.nokia-launcher[data-guide="softkeys"] .physical-soft-left,
-.nokia-launcher[data-guide="softkeys"] .physical-soft-right,
-.nokia-launcher[data-guide="typing"] [data-testid="keypad-btn-2"],
-.nokia-launcher[data-guide="typing"] [data-testid="keypad-btn-hash"] { outline: 2px solid #c6d275; outline-offset: -4px; }
-.nokia-launcher[data-guide="defaults"] [data-testid="home-menu-item-messages"] { outline: 2px solid var(--ink); outline-offset: 3px; }
+.onboarding-coach__disclosure { display: grid; gap: 4px; }
+.nokia-launcher .onboarding-coach .onboarding-coach__disclosure p { font-size: 14px; line-height: 1.3; font-weight: 400; }
+.onboarding-preview { display: grid; gap: 8px; }
+.onboarding-preview--welcome > div { border: 1px solid var(--ink); border-radius: var(--card-radius, 12px); padding: 12px; display: grid; grid-template-columns: 28px 1fr; gap: 4px 8px; }
+.onboarding-preview--welcome > div > span { grid-row: span 2; font: 14px/1.5 monospace; }
+.onboarding-preview strong { font-size: 17px; line-height: 1.3; }
+.onboarding-preview small { font-size: 14px; line-height: 1.4; }
+.onboarding-preview--welcome > div:last-child { background: var(--ink); color: var(--lcd); }
+.onboarding-preview__label { font-size: 14px; letter-spacing: .08em; }
+.onboarding-preview ol { list-style: none; display: grid; gap: 8px; padding: 0; margin: 0; }
+.onboarding-preview li, .onboarding-preview--keys > div { display: flex; align-items: center; gap: 12px; border: 1px solid var(--ink); border-radius: var(--card-radius, 12px); padding: 10px; }
+.onboarding-preview li > b, .onboarding-preview--keys b { min-width: 36px; text-align: center; font: 700 22px/1.2 "Consolas", monospace; }
+.onboarding-preview li > span, .onboarding-preview--keys span { font-size: 14px; line-height: 1.4; }
+.onboarding-preview li strong, .onboarding-preview--keys strong { display: block; }
+.onboarding-preview--keys .onboarding-preview__red { font-size: 16px; border-bottom: 3px solid #782e23; }
+.onboarding-coach__accountability { display: grid; gap: 10px; border-left: 3px solid var(--ink); padding-left: 10px; }
+.nokia-launcher .onboarding-coach__accountability p { font-size: 14px; }
+.nokia-launcher[data-guide="navigation"] .physical-dpad { outline: 2px solid #c6d275; outline-offset: -4px; }
+.nokia-launcher .onboarding-handoff { position: absolute; top: 18%; left: 4%; right: 4%; max-height: 35%; overflow-y: auto; align-self: center; border: 1px solid var(--ink); border-radius: var(--card-radius, 12px); padding: 10px; display: grid; gap: 6px; font: 16px/1.3 "Inter", sans-serif; }
+.onboarding-handoff > div { display: flex; gap: 8px; }
+.nokia-launcher .onboarding-handoff button { min-height: 48px; padding: 8px; border: 1px solid var(--ink); border-radius: var(--control-radius, 8px); font: 600 14px/1.2 "Inter", sans-serif; background: var(--ink); color: var(--lcd); }
+.nokia-launcher .onboarding-handoff button:last-child { background: transparent; color: var(--ink); }
+.onboarding-handoff button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.nokia-launcher .accessibility-home-notice { top: 13%; max-height: 40%; z-index: 2; background: var(--lcd); }
+.nokia-launcher .accessibility-home-notice p { margin: 0; max-height: 64px; overflow-y: auto; font: 12px/1.3 "Inter", sans-serif; }
+.nokia-launcher .default-launcher-notice { top: 13%; max-height: 40%; }
+.default-launcher-notice > strong { font-size: 20px; line-height: 1.2; }
+.default-launcher-notice p { margin: 0; font-size: 14px; line-height: 1.3; }
+
+.onboarding-preview--dumb ol { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.onboarding-preview--dumb li { flex-direction: column; align-items: flex-start; padding: 8px; gap: 4px; }
+.onboarding-preview--dumb li > b { text-align: left; min-width: 0; }
+.onboarding-preview--dumb li strong { font-size: 14px; margin-top: 4px; }

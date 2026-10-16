@@ -29,6 +29,46 @@ const apps = [
 ];
 
 describe("launcher menu models", () => {
+  test("automatic AI selection skips Gmail and remains empty when no AI app is installed", () => {
+    const gmail = { id: "gmail", name: "Gmail", packageName: "com.google.android.gm" };
+    const chatgpt = { id: "chatgpt", name: "ChatGPT", packageName: "com.openai.chatgpt" };
+    const noPreference = { getItem: () => null };
+
+    // Gmail contains the substring 'ai', and comes first in the installed list.
+    expect(getDefaultApp("ai", [gmail, chatgpt], noPreference)).toBe(chatgpt);
+    expect(getDefaultApp("ai", [gmail], noPreference)).toBeNull();
+    const shortcuts = createHomeShortcuts([gmail, chatgpt], noPreference);
+    expect(resolveHomeShortcut(shortcuts, "ai")).toBe(chatgpt);
+    expect(filterAppsByCategory([gmail, chatgpt], "ai")).toEqual([chatgpt]);
+  });
+
+  test("short generic category words cannot relabel unrelated drawer apps", () => {
+    const unrelated = [
+      { id: "roadmap", name: "Roadmap", packageName: "example.roadmap" },
+      { id: "headphones", name: "Headphones", packageName: "example.headphones" },
+      { id: "audiobooks", name: "Audiobooks", packageName: "example.audiobooks" },
+      { id: "calculus", name: "Calculus", packageName: "example.calculus" },
+    ];
+    const ordered = orderDrawerApps(unrelated);
+    expect(ordered.filter((item) => item.packageName)).toEqual(
+      [...unrelated].sort((a, b) => a.name.localeCompare(b.name))
+    );
+    expect(getDefaultApp("maps", unrelated, { getItem: () => null })).toBeNull();
+  });
+
+  test("token matching still recognizes package segments and explicit user choices", () => {
+    const ai = { id: "assistant", name: "Assistant", packageName: "example.ai.assistant" };
+    const maps = { id: "navigation", name: "Navigation", packageName: "example.maps" };
+    const gmail = { id: "gmail", name: "Gmail", packageName: "com.google.android.gm" };
+    const noPreference = { getItem: () => null };
+    expect(getDefaultApp("ai", [gmail, ai], noPreference)).toBe(ai);
+    expect(getDefaultApp("maps", [gmail, maps], noPreference)).toBe(maps);
+    // A saved choice is intentional; category heuristics must not silently replace it.
+    expect(getDefaultApp("ai", [gmail, ai], { getItem: () => "gmail" })).toBe(gmail);
+    // Removing a saved target falls back to a currently installed valid app.
+    expect(getDefaultApp("ai", [ai], { getItem: () => "gmail" })).toBe(ai);
+  });
+
   test("unavailable preference storage cannot crash Home or default-app selection", () => {
     const unavailable = {
       getItem: () => { throw new Error("storage unavailable"); },
@@ -91,6 +131,8 @@ describe("launcher menu models", () => {
       .toEqual({ name: "System", packageName: "com.android.settings" });
     expect(SETTINGS_ITEMS.map((item) => item.label)).toEqual([
       "Customization",
+      "Phone name",
+      "Font",
       "Snake",
       "Dumb Mode",
       "Default Launcher",

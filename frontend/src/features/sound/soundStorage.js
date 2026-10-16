@@ -8,11 +8,13 @@ let cachedBrowserSettings = null;
 const isBrowserStorage = (storage) =>
   typeof window !== "undefined" && storage === window.localStorage;
 
-const sanitizeSoundSettings = (candidate = {}) => {
+export const sanitizeSoundSettings = (candidate = {}) => {
   const result = { ...DEFAULT_SOUND_SETTINGS };
   Object.keys(SOUND_SETTINGS_CATALOG).forEach((key) => {
     const allowed = SOUND_SETTINGS_CATALOG[key].map((entry) => entry.id);
     if (allowed.includes(candidate[key])) result[key] = candidate[key];
+    const previous = candidate[`${key}Previous`];
+    if (previous !== "off" && allowed.includes(previous)) result[`${key}Previous`] = previous;
   });
   return result;
 };

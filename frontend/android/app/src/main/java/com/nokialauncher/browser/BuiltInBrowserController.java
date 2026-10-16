@@ -81,6 +81,7 @@ public final class BuiltInBrowserController {
         }
     }
 
+    private final java.util.function.BooleanSupplier paidAccess;
     private final Activity activity;
     private final BrowserStateListener stateListener;
     private FrameLayout browserContainer;
@@ -101,9 +102,15 @@ public final class BuiltInBrowserController {
     private int surfaceWidth;
     private int surfaceHeight;
 
-    public BuiltInBrowserController(Activity activity, BrowserStateListener stateListener) {
+    public BuiltInBrowserController(Activity activity, BrowserStateListener stateListener, java.util.function.BooleanSupplier paidAccess) {
+        this.paidAccess = java.util.Objects.requireNonNull(paidAccess);
         this.activity = activity;
         this.stateListener = stateListener;
+    }
+
+    private boolean requirePaid(PluginCall call) {
+        if (paidAccess.getAsBoolean()) return true;
+        call.reject("billing_access_required"); return false;
     }
 
     public void startBrowser(PluginCall call) {
@@ -114,6 +121,7 @@ public final class BuiltInBrowserController {
             return;
         }
         activity.runOnUiThread(() -> {
+            if (!requirePaid(call)) return;
             active = true;
             ensureBrowserView();
             attachToRoot();
@@ -139,6 +147,7 @@ public final class BuiltInBrowserController {
             return;
         }
         activity.runOnUiThread(() -> {
+            if (!requirePaid(call)) return;
             if (webView == null) {
                 call.reject("browser_not_started");
                 return;
@@ -153,6 +162,7 @@ public final class BuiltInBrowserController {
     public void control(PluginCall call) {
         String command = call.getString("command", "");
         activity.runOnUiThread(() -> {
+            if (!requirePaid(call)) return;
             if (webView == null) {
                 call.reject("browser_not_started");
                 return;
@@ -222,6 +232,7 @@ public final class BuiltInBrowserController {
     public void updateSurfaceBounds(PluginCall call) {
         updateBounds(call);
         activity.runOnUiThread(() -> {
+            if (!requirePaid(call)) return;
             if (browserContainer != null) applyBounds();
             JSObject result = new JSObject();
             result.put("updated", browserContainer != null);
@@ -249,6 +260,7 @@ public final class BuiltInBrowserController {
     public void resumeFromBackground() {
         activity.runOnUiThread(() -> {
             if (!active || browserContainer == null || webView == null) return;
+            if (!paidAccess.getAsBoolean()) { stop(); return; }
             attachToRoot();
             for (WebView tab : tabs) tab.onResume();
         });
@@ -294,7 +306,7 @@ public final class BuiltInBrowserController {
 
         column.addView(createTopBar(), new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
-            dpInt(43)
+            dpInt(56)
         ));
 
         progressBar = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
@@ -325,13 +337,15 @@ public final class BuiltInBrowserController {
         TextView back = controlButton("‹", "Back");
         back.setTextSize(24);
         back.setOnClickListener(view -> {
+            if (!paidAccess.getAsBoolean()) { stop(); return; }
             if (webView != null && webView.canGoBack()) webView.goBack();
         });
-        bar.addView(back, new LinearLayout.LayoutParams(dpInt(32), ViewGroup.LayoutParams.MATCH_PARENT));
+        bar.addView(back, new LinearLayout.LayoutParams(dpInt(48), ViewGroup.LayoutParams.MATCH_PARENT));
 
         addressField = new EditText(activity);
         addressField.setSingleLine(true);
-        addressField.setTextSize(13);
+        addressField.setTextSize(15);
+        addressField.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL));
         addressField.setTextColor(INK);
         addressField.setHintTextColor(Color.rgb(104, 108, 99));
         addressField.setHint("Search or enter address");
@@ -350,7 +364,7 @@ public final class BuiltInBrowserController {
         });
         LinearLayout addressAndTabs = new LinearLayout(activity);
         addressAndTabs.setGravity(Gravity.CENTER_VERTICAL);
-        addressAndTabs.setBackgroundColor(Color.TRANSPARENT);
+        addressAndTabs.setBackground(roundedDrawable(Color.TRANSPARENT, dp(8), dpInt(1), CHROME_LINE));
         LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
         addressAndTabs.addView(addressField, addressParams);
 
@@ -362,16 +376,16 @@ public final class BuiltInBrowserController {
         chromeDivider = divider;
         divider.setBackgroundColor(CHROME_LINE);
         addressAndTabs.addView(divider, new LinearLayout.LayoutParams(dpInt(1), dpInt(20)));
-        addressAndTabs.addView(tabCountButton, new LinearLayout.LayoutParams(dpInt(38), ViewGroup.LayoutParams.MATCH_PARENT));
+        addressAndTabs.addView(tabCountButton, new LinearLayout.LayoutParams(dpInt(48), ViewGroup.LayoutParams.MATCH_PARENT));
 
-        LinearLayout.LayoutParams navigationParams = new LinearLayout.LayoutParams(0, dpInt(34), 1f);
+        LinearLayout.LayoutParams navigationParams = new LinearLayout.LayoutParams(0, dpInt(48), 1f);
         navigationParams.setMargins(dpInt(2), 0, dpInt(4), 0);
         bar.addView(addressAndTabs, navigationParams);
 
         TextView menu = controlButton("⋮", "Browser menu");
         menu.setTextSize(22);
         menu.setOnClickListener(this::showBrowserMenu);
-        bar.addView(menu, new LinearLayout.LayoutParams(dpInt(31), ViewGroup.LayoutParams.MATCH_PARENT));
+        bar.addView(menu, new LinearLayout.LayoutParams(dpInt(48), ViewGroup.LayoutParams.MATCH_PARENT));
         return bar;
     }
 
@@ -380,6 +394,8 @@ public final class BuiltInBrowserController {
         button.setText(glyph);
         button.setTextColor(INK);
         button.setTextSize(22);
+        button.setMinHeight(dpInt(48));
+        button.setTypeface(android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.NORMAL));
         button.setGravity(Gravity.CENTER);
         button.setContentDescription(description);
         button.setClickable(true);
@@ -546,6 +562,7 @@ public final class BuiltInBrowserController {
     }
 
     private void createTab(String url, boolean select) {
+        if (!paidAccess.getAsBoolean()) return;
         if (tabs.size() >= MAX_TABS || webHost == null) {
             Toast.makeText(activity, "Four calm tabs are enough", Toast.LENGTH_SHORT).show();
             return;
@@ -563,6 +580,7 @@ public final class BuiltInBrowserController {
     }
 
     private void switchToTab(int index) {
+        if (!paidAccess.getAsBoolean()) { stop(); return; }
         if (index < 0 || index >= tabs.size()) return;
         for (int i = 0; i < tabs.size(); i++) {
             tabs.get(i).setVisibility(i == index ? View.VISIBLE : View.GONE);
@@ -618,6 +636,7 @@ public final class BuiltInBrowserController {
     }
 
     private void showTabsMenu(View anchor) {
+        if (!paidAccess.getAsBoolean()) { stop(); return; }
         if (anchor == null) return;
         final int tabBase = 100;
         final int newTab = 200;
@@ -634,6 +653,7 @@ public final class BuiltInBrowserController {
         popup.getMenu().add(1, closeTab, 101, "Close current tab");
         popup.setOnMenuItemClickListener(item -> {
             int id = item.getItemId();
+            if (!paidAccess.getAsBoolean()) { stop(); return true; }
             if (id >= tabBase && id < tabBase + tabs.size()) switchToTab(id - tabBase);
             else if (id == newTab) createTab(START_URL, true);
             else if (id == closeTab) closeCurrentTab();
@@ -643,6 +663,7 @@ public final class BuiltInBrowserController {
     }
 
     private boolean handleRequestedUrl(WebView view, Uri uri) {
+        if (!paidAccess.getAsBoolean()) return true;
         String normalized = normalizeHttpUrl(uri == null ? null : uri.toString());
         if (normalized == null) {
             Toast.makeText(activity, "This link is not supported", Toast.LENGTH_SHORT).show();
@@ -652,6 +673,7 @@ public final class BuiltInBrowserController {
     }
 
     private void navigateFromAddress() {
+        if (!paidAccess.getAsBoolean()) return;
         if (addressField == null || webView == null) return;
         String input = addressField.getText().toString().trim();
         String url = resolveAddressInput(input);
@@ -791,6 +813,7 @@ public final class BuiltInBrowserController {
     }
 
     private void showBrowserMenu(View anchor) {
+        if (!paidAccess.getAsBoolean()) { stop(); return; }
         PopupMenu popup = new PopupMenu(activity, anchor);
         popup.getMenu().add("Tabs");
         popup.getMenu().add("Reload");
@@ -800,6 +823,7 @@ public final class BuiltInBrowserController {
         popup.getMenu().add("Close");
         popup.setOnMenuItemClickListener(item -> {
             String title = String.valueOf(item.getTitle());
+            if (!"Close".equals(title) && !paidAccess.getAsBoolean()) { stop(); return true; }
             if ("Tabs".equals(title)) {
                 showTabsMenu(anchor);
             } else if ("Reload".equals(title)) {
@@ -825,6 +849,7 @@ public final class BuiltInBrowserController {
     }
 
     private void openExternally() {
+        if (!paidAccess.getAsBoolean()) { stop(); return; }
         if (webView == null) return;
         String url = normalizeHttpUrl(webView.getUrl());
         if (url == null) return;

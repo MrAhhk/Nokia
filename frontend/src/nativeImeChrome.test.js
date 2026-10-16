@@ -24,7 +24,7 @@ test("Nokia IME requests immersive navigation chrome when its window is shown", 
   expect(imeSource).toContain("WindowInsets.Type.navigationBars()");
   expect(imeSource).toContain("WindowInsets.Type.captionBar()");
   expect(imeSource).toContain("View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY");
-  expect(imeSource).toContain("imeWindow.setNavigationBarColor(Color.TRANSPARENT)");
+  expect(imeSource).not.toContain("setNavigationBarColor(");
   expect(imeSource).toContain("imeWindow.setWindowAnimations(0)");
   expect(imeSource).toContain("webView.setBackgroundColor(Color.BLACK)");
 });

@@ -1,13 +1,15 @@
 # First-run guide
 
-Five brief pages occupy the real miniscreen and reuse `lcd-screen` styling. The shared hardware shell and Keypad remain mounted. The Messages exercise uses the existing app chooser; choosing saves a default without launching it. During that exercise the guide returns null: the real picker occupies the entire LCD. Never restore the compact caption or split the miniscreen.
+Four large, finite pages: welcome, Dumb Mode accountability, keys, Home setup. The real LCD and shared keypad stay mounted. Only copy scrolls; footer actions remain fixed. OnboardingPreview is static and never reads authentication material or requests permissions.
 
-`onboardingState` owns the stable completion key. Finish and Skip persist completion; incomplete progress can resume. App updates must not rename the key or restart a completed guide. Clearing app data can reset it.
+Progress stays under `nokia-launcher.onboarding`. Schema 2 persists stable step IDs. Completed legacy records stay complete; unfinished legacy navigation/typing resumes at keys, defaults/permissions/setup at Home setup. Invalid data starts at welcome. useOnboarding owns progress and the session-only finished marker.
 
-`useOnboarding` owns progress; `OnboardingGuide` owns presentation/settings links. All Android access goes through the existing launcherApps facade. Guide button taps and practice keys use nokiaAudioEngine and the user's saved sound/vibration preferences. No autoplay, new audio engine, fake handset or copied Home screenshot.
+OnboardingGuide owns presentation, safe optional practice, focus navigation and settings links through launcherApps. Centre/Green selects, arrows move focus, right softkey goes Back, Red exits (ends practice first). Practice cannot launch, call, send or lock. Custom Dumb Mode steps and the full-LCD Messages picker remain supported.
 
-Native Home resets the chooser session. Practice input never sends, calls, locks or launches apps. Inbox initialization waits until the guide ends. Contacts load on entering Contacts and refresh on focus; failed permission/provider reads must not be cached as successful empty snapshots. Existing Android permission prompts remain under user control.
+Set Home app explicitly arms one settings-return verification. The native systemSettingReturned event covers Android WebViews that do not emit focus/visibility. Blur/hidden also marks departure; focus/visible consumes the arm once and reads getDumbModeState.defaultLauncherAvailable. Check again is explicit. No idle visibility polling; generation checks discard late results after navigation/unmount. Failure never prevents Use for now.
 
-2026-09-18 concise/full-LCD revision: affected tests 17/17 passed and production web build passed. Physical audio and forced-navigation-bar stability require real-device validation; browser renders do not prove those behaviors.
+NokiaLauncher owns the lazy Dumb Mode handoff. Screen accepts a presentation-only homeNotice slot replacing the carrier/date panel during the post-guide session. Home clock, shortcuts and menu stay usable. Later/action dismisses the card; it does not recur on restart or show during active locks, dialer/search or unresolved state. Tone setup and week check-in defer for this session, preserving stored eligibility.
 
-First-use repair and remaining device checks: [2026-09-18 report](../../../../../docs/reports/2026-09-18-first-use-repair.md).
+Evidence: docs/reports/2026-10-02-onboarding-redesign. LauncherAppsPlugin emits a single systemSettingReturned event only after an explicit Home-settings departure and resume. Native authentication, Home task routing, camera and accessibility rules are unchanged.
+
+DefaultLauncherNotice uses the existing subscribed native defaultLauncherAvailable field. Confirmed false shows a large Home card after onboarding; true/unknown/error never triggers it. Later dismisses for the current session; settings opens only explicitly and native role updates remove it automatically. The notice has priority over the post-guide Dumb Mode card and supports keypad focus/selection/dismissal. No additional role polling or startup read.

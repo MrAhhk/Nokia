@@ -1,0 +1,10 @@
+/* Offline polished-metal material, shared by all nine saved color choices. */
+.nokia-launcher { --metal-rim: url("../../assets/hardware/metal-rim-black.webp"); --metal-dark: #0c0e10; --metal-mid: #38393b; }
+.nokia-launcher[data-keyboard-color="red"] { --metal-rim: url("../../assets/hardware/metal-rim-red.webp"); --metal-dark: #5c1014; --metal-mid: #703b3e; }
+.nokia-launcher[data-keyboard-color="orange"] { --metal-rim: url("../../assets/hardware/metal-rim-orange.webp"); --metal-dark: #84390c; --metal-mid: #8c5738; }
+.nokia-launcher[data-keyboard-color="yellow"] { --metal-rim: url("../../assets/hardware/metal-rim-yellow.webp"); --metal-dark: #886d16; --metal-mid: #8f7c3f; }
+.nokia-launcher[data-keyboard-color="green"] { --metal-rim: url("../../assets/hardware/metal-rim-green.webp"); --metal-dark: #104823; --metal-mid: #3b6248; }
+.nokia-launcher[data-keyboard-color="blue"] { --metal-rim: url("../../assets/hardware/metal-rim-blue.webp"); --metal-dark: #0f3067; --metal-mid: #3a5178; }
+.nokia-launcher[data-keyboard-color="indigo"] { --metal-rim: url("../../assets/hardware/metal-rim-indigo.webp"); --metal-dark: #20184b; --metal-mid: #464064; }
+.nokia-launcher[data-keyboard-color="violet"] { --metal-rim: url("../../assets/hardware/metal-rim-violet.webp"); --metal-dark: #4c195b; --metal-mid: #65416f; }
+.nokia-launcher[data-keyboard-color="white"] { --metal-rim: url("../../assets/hardware/metal-rim-white.webp"); --metal-dark: #989da1; --metal-mid: #9a9da0; }

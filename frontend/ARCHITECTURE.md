@@ -21,7 +21,7 @@ src/
     launcherMenus.js         menu/default-app rules; storage defaults are legacy
   features/
     checkIn/                 once-only week check-in, Play review and app sharing
-    onboarding/              first-use guide inside the real LCD
+    onboarding/              four-screen first-use guide, static preview, stable-ID progress
     messages/                outgoing transport and recipient rules
     browser/                 screen, URL rules, commands, keypad controller
     camera/                  screen, state reducer, commands
@@ -148,3 +148,9 @@ not add an Activity or privileged WebView. Unreadable session storage reports
 ERROR and conservatively blocks known nonessential apps without overwriting the
 corrupt store. Full cross-phone and API 23 acceptance remains a physical-device
 gate. See the [friend authentication contract](../../docs/superpowers/specs/2026-10-01-friend-authenticator.md).
+
+2026-10-02 onboarding: `OnboardingPreview` owns static illustrations; `OnboardingGuide` retains custom Dumb Mode guides and owns explicitly armed Home settings-return verification. `useOnboarding` migrates legacy progress under the existing key and tracks session completion. NokiaLauncher owns lazy handoff routing; Screen renders the optional Home notice slot without authentication/navigation rules. Optional setup prompts defer for the just-finished session.
+
+2026-10-02 sound: SoundFeature owns four explicit switches and a separate tone customization surface. Phone switches apply default ringtone/notification/alarm URIs only after WRITE_SETTINGS access; app-specific channels remain Android-owned. Keyboard preferences persist through LauncherAppsPlugin to shared native preferences; NokiaSystemKeyboard reads them through its existing IME adapter. NokiaLauncher observes the sound change event immediately. No additional polling or Activities.
+
+2026-10-09 visual language: `components/CalmMiniscreen.css` applies the approved Dumb Mode typography, cards, selected rows and persistent softkeys to existing LCD owners. NokiaLauncher/NokiaFrame import it; feature state, keypad grammar and hardware geometry remain in their mapped modules. Native camera Canvas chrome and browser toolbar remain owned by their existing Android controllers. Static About/Privacy/Terms routes receive scoped, scrollable document styling in App.css.

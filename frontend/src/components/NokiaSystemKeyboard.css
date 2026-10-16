@@ -12,7 +12,7 @@
 }
 
 .nokia-system-keyboard .nokia-shell-rim {
-  /* Keep ReferenceHardware.css's border and seven shared inset layers. The
+  /* Keep ReferenceHardware.css's narrow shared rim. The
      IME is the unchanged 41% keypad plus a 7% wordmark band, so fitting that
      same rim to this viewport closes the cut edge without redrawing it. */
   inset: 0;
@@ -24,8 +24,8 @@
    even while the phone itself is portrait. Preserve the homescreen legend
    scale instead of inheriting the full-launcher landscape reduction. */
 @media (orientation: landscape) {
-  .nokia-system-keyboard .physical-number strong { font-size: 8cqw; }
-  .nokia-system-keyboard .physical-number small { font-size: 3.4cqw; }
+  .nokia-system-keyboard .physical-number strong { font-size: 9.1cqw; }
+  .nokia-system-keyboard .physical-number small { font-size: 3.5cqw; }
 }
 
 .nokia-system-keyboard .nokia-wordmark {
@@ -45,7 +45,7 @@
 }
 
 .nokia-system-keyboard [data-testid="keypad"] button.physical-call {
-  color: #35d22c;
+  color: var(--deck-ink, #d4d5d3);
 }
 
 .nokia-system-keyboard [data-testid="keypad"] button.physical-dpad__hit {

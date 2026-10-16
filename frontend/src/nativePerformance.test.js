@@ -30,7 +30,7 @@ test("activity resume delegates WebView lifecycle without forcing redraws", () =
   expect(onResume).not.toContain("getWebView().onResume()");
 });
 
-test("renderer recovery removes the dead WebView before guarded Activity recreation", () => {
+test("renderer recovery removes the dead WebView before terminal native recovery", () => {
   const mainActivitySource = fs.readFileSync(
     path.resolve(
       __dirname,
@@ -43,9 +43,10 @@ test("renderer recovery removes the dead WebView before guarded Activity recreat
     mainActivitySource.indexOf("private void sanitizeIntent")
   );
 
-  expect(handler).toContain("if (rendererRecoveryStarted) return true;");
   expect(handler).toContain("((ViewGroup) parent).removeView(view);");
-  expect(handler.indexOf("removeView(view);")).toBeLessThan(handler.indexOf("recreate();"));
+  expect(handler).toContain("if (shellReadiness.rendererGone()) showNativeRecovery();");
+  expect(handler.indexOf("view.destroy();")).toBeLessThan(handler.indexOf("shellReadiness.rendererGone()"));
+  expect(handler).not.toContain("recreate();");
   expect(handler).not.toContain("runOnUiThread");
 });
 
@@ -62,8 +63,8 @@ test("queued Home callbacks cannot touch a WebView after renderer recovery start
     source.indexOf("private void installRecoveringWebViewClient")
   );
 
-  expect(dispatchHome).toContain("if (rendererRecoveryStarted || bridge == null || bridge.getWebView() == null) return;");
-  expect(dispatchHome).toContain("if (rendererRecoveryStarted || bridge == null || bridge.getWebView() != webView) return;");
+  expect(dispatchHome).toContain("if (shellReadiness.isRecovery() || bridge == null || bridge.getWebView() == null) return;");
+  expect(dispatchHome).toContain("if (shellReadiness.isRecovery() || bridge == null || bridge.getWebView() != webView) return;");
 });
 
 test("launcher window draws edge-to-edge and hides both system bars", () => {
@@ -72,11 +73,11 @@ test("launcher window draws edge-to-edge and hides both system bars", () => {
     "utf8",
   );
 
-  expect(source).toContain("setDecorFitsSystemWindows(false)");
-  expect(source).toContain("FLAG_FULLSCREEN");
-  expect(source).toContain("WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars()");
-  expect(source).toContain("SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION");
-  expect(source).toContain("setNavigationBarColor(Color.TRANSPARENT)");
+  expect(source).toContain("WindowCompat.enableEdgeToEdge(getWindow())");
+  expect(source).toContain("controller.hide(WindowInsetsCompat.Type.systemBars())");
+  expect(source).toContain("BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE");
+  expect(source).not.toContain("setStatusBarColor(");
+  expect(source).not.toContain("setNavigationBarColor(");
   expect(source).toContain("webView.setBackgroundResource(R.drawable.launcher_window_background)");
   const cutoutStyle = fs.readFileSync(
     path.resolve(__dirname, "../android/app/src/main/res/values-v28/styles.xml"),

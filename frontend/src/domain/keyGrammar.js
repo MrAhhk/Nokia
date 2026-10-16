@@ -65,6 +65,7 @@ const CONTEXTUAL_INTENTS = Object.freeze({
     "message-thread": KEY_INTENTS.SEND,
     "message-compose": KEY_INTENTS.SEND,
     browser: KEY_INTENTS.TAB,
+    camera: KEY_INTENTS.SEND,
     default: KEY_INTENTS.RECENT_APPS,
   }),
   [KEY_INTENTS.SELECT]: Object.freeze({

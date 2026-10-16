@@ -1,0 +1,18 @@
+/* Satin molded deck: black and coral follow the supplied phone photos. */
+.nokia-launcher { --deck-color: #434343; --deck-ink: #c9c9c9; }
+.nokia-launcher[data-keyboard-color="black"], [data-color="black"] { --deck-color: #434343; --deck-ink: #c9c9c9; }
+.nokia-launcher[data-keyboard-color="red"], [data-color="red"] { --deck-color: #e56a65; --deck-ink: #282a29; }
+.nokia-launcher[data-keyboard-color="orange"], [data-color="orange"] { --deck-color: #d88d50; --deck-ink: #28221d; }
+.nokia-launcher[data-keyboard-color="yellow"], [data-color="yellow"] { --deck-color: #d8bf66; --deck-ink: #27261f; }
+.nokia-launcher[data-keyboard-color="green"], [data-color="green"] { --deck-color: #557e62; --deck-ink: #f1f2e8; }
+.nokia-launcher[data-keyboard-color="blue"], [data-color="blue"] { --deck-color: #527ca3; --deck-ink: #edf1f3; }
+.nokia-launcher[data-keyboard-color="indigo"], [data-color="indigo"] { --deck-color: #585779; --deck-ink: #eff0f2; }
+.nokia-launcher[data-keyboard-color="violet"], [data-color="violet"] { --deck-color: #92718f; --deck-ink: #f7f1f6; }
+.nokia-launcher[data-keyboard-color="white"], [data-color="white"] { --deck-color: #dddeda; --deck-ink: #30322e; }
+.keyboard-color-screen { display: flex; flex-direction: column; gap: 4px; }
+.keyboard-color-screen .customization-heading { margin: 0; }
+.keyboard-color-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; flex: 1; min-height: 0; overflow-y: auto; }
+.keyboard-color-option { min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 1px solid transparent; background: transparent; color: var(--ink); font-size: 14px; text-transform: capitalize; }
+.keyboard-color-option.is-focused { border-color: var(--ink); outline: 1px solid var(--ink); outline-offset: -3px; }
+.keyboard-color-swatch { width: 38px; height: 23px; border-radius: 4px; border: 1px solid #111; background: linear-gradient(110deg, #ffffff0a, #00000008), var(--deck-color, #414342); }
+.keyboard-color-message { margin: 0; font-size: 12px; }

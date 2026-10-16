@@ -89,7 +89,7 @@
 .tone-setup__choices button {
   min-width: 0;
   border: 2px solid var(--ink, #111803);
-  border-radius: 0;
+  border-radius: var(--control-radius, 8px);
   background: transparent;
   color: inherit;
   font-size: clamp(11px, 3.2vw, 15px);

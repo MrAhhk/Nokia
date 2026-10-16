@@ -1,0 +1,22 @@
+@font-face {
+  font-family: 'VT323';
+  src: url('./fonts/VT323-Regular.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  /* VT323's glyphs occupy less of the em than the original UI fonts.
+   * Enlarge the real font's metrics, preserving each screen's existing CSS size. */
+  size-adjust: 133%;
+}
+/* Only LCD lettering changes. Hardware legends, wordmark and system IME retain their approved typography. */
+.nokia-launcher[data-font="vt323"] .lcd-screen,
+.nokia-launcher[data-font="vt323"] .lcd-screen :where(h1,h2,h3,p,span,strong,small,label,button,input,textarea,a,div,footer,time) {
+  font-family: 'VT323', 'Courier New', monospace !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  text-shadow: none;
+}
+.nokia-launcher .lcd-screen.font-screen[data-testid="screen-font"] { display: grid; grid-template-rows: 32px auto minmax(0,1fr) var(--ui-footer-row); gap: 8px; padding: 12px; }
+.font-choices { overflow-y: auto; min-height: 0; }
+.font-choices .lcd-list-row { display: flex; justify-content: space-between; gap: 8px; }
+.font-sample { margin: 12px 0; font-size: 24px; line-height: 1.2; }

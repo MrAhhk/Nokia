@@ -9,7 +9,6 @@ import {
   ChevronRight, 
   Circle,
   Delete,
-  Globe2,
   House,
   Music2
 } from "lucide-react";
@@ -193,7 +192,7 @@ const LAUNCHER_NUMBER_KEYS = [
 
 const HandsetLegend = ({ end = false }) => (
   <svg viewBox="0 0 70 38" aria-hidden="true" className="physical-handset">
-    <path d="M6 22v-5C6 7 17 5 25 5h20c9 0 19 3 19 12v5" fill="none" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" />
+    <path d="M6 22v-5C6 7 17 5 25 5h20c9 0 19 3 19 12v5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     {end && <><circle cx="35" cy="25" r="9" fill="none" stroke="currentColor" strokeWidth="3"/><path d="M35 20v10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></>}
   </svg>
 );
@@ -302,7 +301,7 @@ const LauncherKeypad = memo(({ onPress, appearance = "nokia" }) => {
         >
           <span className="physical-key__face">
             <svg viewBox="0 0 70 38" aria-hidden="true">
-              <path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+              <path d="M7 19h56" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
           </span>
         </button>
@@ -316,7 +315,7 @@ const LauncherKeypad = memo(({ onPress, appearance = "nokia" }) => {
         >
           <span className="physical-key__face">
             <svg viewBox="0 0 70 38" aria-hidden="true">
-              <path d="M7 19h56" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+              <path d="M7 19h56" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
           </span>
         </button>
@@ -427,9 +426,11 @@ const LauncherKeypad = memo(({ onPress, appearance = "nokia" }) => {
                   )}
                 </strong>
                 {isSidephone ? <SidephoneAccessory number={key.number} letters={key.letters} /> : key.number === "0" ? (
-                  <span className="physical-accessory"><Globe2 /></span>
+                  <span className="physical-accessory"><svg viewBox="0 0 24 26" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><circle cx="12" cy="9" r="6"/><path d="M6 9h12M12 3c-4 4-4 8 0 12 4-4 4-8 0-12M6 19v3h12v-3"/></svg></span>
                 ) : isHash ? (
                   <span className="physical-accessory"><House /><Music2 /></span>
+                ) : key.number === "1" ? (
+                  <span className="physical-accessory"><svg viewBox="0 0 26 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><circle cx="6" cy="7" r="4"/><circle cx="20" cy="7" r="4"/><path d="M6 11h14"/></svg></span>
                 ) : (
                   <small>{key.letters.toLowerCase()}</small>
                 )}

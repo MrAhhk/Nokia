@@ -1,0 +1,358 @@
+/* The approved Dumb Mode language, inside the existing LCD and keypad seams.
+ * Hardware geometry, input grammar and feature state remain owned elsewhere. */
+.nokia-launcher {
+  --ui-display: "Consolas", "Courier New", monospace;
+  --ui-body: "Inter", system-ui, sans-serif;
+  --ui-softkey-size: 15px;
+  --ui-footer-row: calc(17px + 2%);
+  --ui-softkey-hit-height: 32px;
+}
+.nokia-launcher .lcd-screen:is(.lcd-list-screen, .lcd-thread-screen, .lcd-dial-screen, .customization-screen, .clock-screen, .sound-screen, .snake-feature, .tone-setup) {
+  font-family: var(--ui-body);
+  -webkit-font-smoothing: antialiased;
+  padding: 12px;
+}
+.nokia-launcher .lcd-screen :is(.lcd-list-title, .customization-heading, .clock-header strong, .lcd-sound__header strong, .snake-heading strong, .tone-setup__header strong) {
+  font: 900 23px/1.12 var(--ui-display);
+  letter-spacing: -.04em;
+  text-shadow: none;
+}
+
+/* One title/search header. The clock is quiet metadata, not a second hero. */
+.nokia-launcher .lcd-list-screen:not(.customization-screen):not(.lcd-composer-screen) {
+  grid-template-rows: 20px 48px auto minmax(0, 1fr) var(--ui-footer-row);
+  gap: 6px;
+}
+.nokia-launcher .lcd-list-time {
+  justify-content: center;
+  font: 800 clamp(26px, 9cqw, 38px)/1 var(--ui-display);
+  transform: none;
+  text-shadow: none;
+  letter-spacing: 0;
+}
+.nokia-launcher .lcd-list-header {
+  grid-template-columns: minmax(0, 1fr) minmax(100px, .9fr);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ink);
+}
+.nokia-launcher .lcd-list-title { overflow-wrap: anywhere; }
+.nokia-launcher .lcd-screen :is(.lcd-list-title, .customization-heading, .clock-header strong, .lcd-sound__header strong, .snake-heading strong) { font-family: var(--ui-body); font-weight: 800; }
+.nokia-launcher .miniscreen-clock { display: block; text-align: center; font: 800 28px/1.1 var(--ui-display); flex-shrink: 0; }
+.nokia-launcher .camera-header-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 0; }
+.nokia-launcher .camera-header-meta .miniscreen-clock { font-size: 18px; }
+.nokia-launcher .lcd-sound__header { flex-wrap: wrap; }
+.nokia-launcher .lcd-sound__header > .miniscreen-clock { flex-basis: 100%; }
+.nokia-launcher .lcd-list-search {
+  height: auto;
+  min-height: 48px;
+  padding: 8px;
+  border: 1px solid var(--ink);
+  font: 800 15px/1.2 var(--ui-body);
+}
+.nokia-launcher .lcd-list-search span { font: inherit; text-shadow: none; }
+.nokia-launcher .lcd-list { padding: 2px; }
+.nokia-launcher :is(.lcd-list-row, .lcd-contact-row, .lcd-call-row, .lcd-conversation-row) {
+  width: 100%;
+  height: auto;
+  min-height: 52px;
+  flex-shrink: 0;
+  padding: 12px;
+  margin-bottom: 7px;
+  border: 1px solid var(--ink);
+  border-radius: var(--card-radius);
+  font: 600 16px/1.3 var(--ui-body);
+  text-shadow: none;
+}
+.nokia-launcher .lcd-list-row span { font: inherit; text-shadow: none; }
+.nokia-launcher :is(.lcd-list-row, .lcd-contact-row) {
+  border: 0; border-radius: var(--control-radius); margin-bottom: 2px; padding: 7px 8px;
+  min-height: 41px; font-weight: 800;
+}
+.nokia-launcher .lcd-list-row.is-customization { min-height: 41px; border-width: 0; }
+.nokia-launcher .lcd-list-row.is-customization {
+  background: var(--ink); color: var(--lcd); min-height: 48px;
+  font-weight: 900; margin: 3px 0 6px; padding: 9px 10px;
+}
+.nokia-launcher .lcd-list-row.is-customization::after { content: '›'; margin-left: auto; font-size: 24px; line-height: 1; }
+.nokia-launcher .lcd-list-row.is-customization.is-selected { outline: 2px solid var(--ink); outline-offset: 2px; }
+.nokia-launcher .phone-name-screen { font-family: var(--ui-body); grid-template-rows: 32px auto minmax(0, 1fr) var(--ui-footer-row); gap: 8px; padding: 12px; }
+.nokia-launcher .phone-name-screen h2 { margin: 0; }
+.nokia-launcher .phone-name-body { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 8px 2px; }
+.nokia-launcher .phone-name-body label { font: 800 15px/1.3 var(--ui-body); }
+.nokia-launcher .phone-name-body input { min-height: 48px; width: 100%; border: 2px solid var(--ink); background: transparent; color: var(--ink); padding: 10px; font: 800 20px/1.2 var(--ui-body); }
+.nokia-launcher .phone-name-body p { margin: 0; font: 14px/1.4 var(--ui-body); }
+.nokia-wordmark__name { font: inherit; letter-spacing: inherit; text-transform: uppercase; max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nokia-launcher :is(.lcd-contact-name, .lcd-call-name, .lcd-conversation-name) {
+  font: 600 16px/1.3 var(--ui-body);
+  text-shadow: none;
+}
+.nokia-launcher .lcd-contact-number { align-self: flex-start; margin-top: 6px; font: 14px/1.3 var(--ui-display); text-shadow: none; }
+.nokia-launcher :is(.lcd-call-time, .lcd-call-meta, .lcd-conversation-date) { font: 12px/1.3 var(--ui-body); text-shadow: none; }
+.nokia-launcher .lcd-call-top { align-items: flex-start; gap: 8px; }
+.nokia-launcher .lcd-call-time { max-width: 40%; text-align: right; white-space: normal; }
+.nokia-launcher .lcd-call-bottom { margin-top: 8px; gap: 8px; }
+.nokia-launcher .lcd-call-number { font: 13px/1.3 var(--ui-display); text-shadow: none; }
+.nokia-launcher .lcd-call-badge { border: 1px solid currentColor; border-radius: 6px; padding: 3px; }
+.nokia-launcher .lcd-conversation-snippet { margin-top: 6px; font: 14px/1.4 var(--ui-body); text-shadow: none; }
+.nokia-launcher .lcd-conversation-new { font: 600 16px/1.3 var(--ui-body); }
+.nokia-launcher .lcd-list-empty {
+  padding: 18px 14px;
+  border: 1px dashed var(--ink);
+  border-radius: var(--card-radius);
+  font: 15px/1.45 var(--ui-body);
+}
+.nokia-launcher :is(.lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys) {
+  align-items: end;
+  border-top: 1px solid var(--ink);
+  gap: 0;
+  font: 600 14px/1.2 var(--ui-body);
+  text-shadow: none;
+}
+.nokia-launcher :is(.lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys) button {
+  min-height: 48px;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  text-shadow: none;
+}
+.nokia-launcher :is(.lcd-softkeys, .lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys, .camera-softkeys, .lcd-sound__footer, .tone-setup__softkeys) {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0;
+}
+.nokia-launcher :is(.lcd-softkeys, .lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys, .camera-softkeys, .lcd-sound__footer, .tone-setup__softkeys) > :first-child { text-align: left; justify-self: stretch; }
+.nokia-launcher :is(.lcd-softkeys, .lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys, .camera-softkeys, .lcd-sound__footer, .tone-setup__softkeys) > :nth-child(2) { text-align: center; justify-self: stretch; }
+.nokia-launcher :is(.lcd-softkeys, .lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys, .camera-softkeys, .lcd-sound__footer, .tone-setup__softkeys) > :last-child { grid-column: 3; text-align: right; justify-self: stretch; }
+.nokia-launcher .lcd-dial-softkeys > :last-child { grid-column: 3; }
+.nokia-launcher .drawer-app-options { position: absolute; inset: 0; z-index: 4; display: grid; grid-template-rows: 32px auto minmax(0, 1fr) var(--ui-footer-row); gap: 6px; padding: 12px; background-color: var(--lcd); color: var(--ink); font-family: var(--ui-body); }
+.nokia-launcher .drawer-app-options > .miniscreen-clock { font-size: 28px; }
+.nokia-launcher .drawer-app-options h2 { margin: 0; font: 800 23px/1.12 var(--ui-body); letter-spacing: -.04em; overflow-wrap: anywhere; }
+.nokia-launcher .drawer-app-options .lcd-list-header { min-height: 38px; align-items: baseline; }
+.nokia-launcher .drawer-app-options .lcd-list-header > span { font: 600 12px/1.3 var(--ui-body); }
+.nokia-launcher .drawer-options-body { min-height: 0; overflow-y: auto; }
+.nokia-launcher .drawer-options-list { display: grid; gap: 2px; }
+.nokia-launcher .drawer-options-list button { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 9px 8px; border: 0; border-radius: 0; background: transparent; color: inherit; text-align: left; font: 800 17px/1.2 var(--ui-body); }
+.nokia-launcher .drawer-options-list button[data-selected=true] { background: var(--ink); color: var(--lcd); }
+.nokia-launcher .drawer-options-list button:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.nokia-launcher .drawer-app-options p { margin: 12px 0 0; font: 14px/1.4 var(--ui-body); }
+.nokia-launcher .drawer-options-note { opacity: .75; }
+.nokia-launcher .drawer-app-options [role=alert] { border-left: 2px solid var(--ink); padding-left: 8px; }
+.nokia-launcher .drawer-app-options button:disabled { opacity: .4; }
+.nokia-launcher .lcd-setting-switch { flex-basis: 36px; width: 36px; height: 22px; padding: 3px; }
+.nokia-launcher .lcd-setting-switch > span { width: 14px; height: 14px; }
+
+/* Keep message bubbles intrinsically sized; only the thread scrolls. */
+.nokia-launcher .lcd-thread-screen { grid-template-rows: 20px 32px auto minmax(0, 1fr) auto var(--ui-footer-row); gap: 6px; }
+.nokia-launcher .lcd-thread-screen .lcd-list-header { height: auto; min-height: 38px; padding: 4px 0 8px; }
+.nokia-launcher .lcd-thread-screen .lcd-list-title { font-size: 20px; }
+.nokia-launcher .lcd-thread-container { gap: 10px; padding: 4px 2px; }
+.nokia-launcher .lcd-thread-bubble { padding: 10px 12px; border-radius: var(--card-radius); }
+.nokia-launcher .lcd-thread-bubble-body { font: 15px/1.45 var(--ui-body); text-shadow: none; }
+.nokia-launcher .lcd-thread-bubble-time { font: 11px/1.3 var(--ui-body); }
+.nokia-launcher .lcd-thread-composer {
+  padding: 8px 10px;
+  border: 1px solid var(--ink);
+  border-radius: var(--control-radius);
+}
+.nokia-launcher .lcd-thread-composer-header { font: 11px/1.3 var(--ui-body); text-shadow: none; }
+.nokia-launcher .lcd-thread-composer-input { max-height: 64px; min-height: 24px; font: 15px/1.4 var(--ui-body); }
+.nokia-launcher :is(.lcd-thread-composer-text, .lcd-thread-composer-placeholder) { font: inherit; text-shadow: none; }
+.nokia-launcher .lcd-composer-screen { grid-template-rows: 20px 24px auto minmax(0, 1fr) var(--ui-footer-row); gap: 6px; }
+.nokia-launcher :is(.lcd-composer-to, .lcd-composer-body) {
+  padding: 12px;
+  border: 1px solid var(--ink);
+  border-radius: var(--card-radius);
+  font: 15px/1.4 var(--ui-body);
+  text-shadow: none;
+  overflow-wrap: anywhere;
+}
+.nokia-launcher .lcd-nokia-toast { border-radius: var(--control-radius); padding: 10px 12px; font: 14px/1.4 var(--ui-body); text-shadow: none; }
+
+/* A deliberate dial pad readout; the real hardware below still enters digits. */
+.nokia-launcher .lcd-dial-screen { grid-template-rows: 20px 32px 38px minmax(0, 1fr) 1px var(--ui-footer-row); gap: 6px; }
+.nokia-launcher .lcd-dial-label { align-self: center; text-align: left; font: 700 23px/1.1 var(--ui-display); text-shadow: none; }
+.nokia-launcher .lcd-dial-number {
+  align-self: center;
+  padding: 18px 10px;
+  border: 2px solid var(--ink);
+  border-radius: var(--card-radius);
+  font: 500 clamp(24px, 8cqw, 36px)/1.3 var(--ui-display);
+  overflow-wrap: anywhere;
+  text-shadow: none;
+}
+.nokia-launcher .lcd-dial-rule { display: none; }
+.nokia-launcher .lcd-home .lcd-softkeys { font: 800 var(--ui-softkey-size)/1.2 var(--ui-body); text-shadow: none; }
+.nokia-launcher .lcd-home .lcd-softkeys button { text-shadow: none; }
+
+/* Appearance, sound and setup share the same quiet card vocabulary. */
+.nokia-launcher .customization-heading { padding-bottom: 10px; border-bottom: 1px solid var(--ink); }
+.nokia-launcher :is(.customization-description, .customization-message) { font: 14px/1.45 var(--ui-body); }
+.nokia-launcher .customization-choice { min-height: 90px; padding: 12px; border: 2px solid var(--ink); border-radius: var(--card-radius); font: 600 16px/1.3 var(--ui-body); }
+.nokia-launcher .customization-choice.is-focused { background: var(--ink); color: var(--lcd); outline-offset: 2px; }
+.nokia-launcher .customization-screen .lcd-list-softkeys { flex-basis: 48px; }
+.nokia-launcher .lcd-screen.sound-screen { grid-template-rows: auto minmax(0, 1fr) var(--ui-footer-row); gap: 8px; }
+.nokia-launcher .lcd-sound__header { padding: 0 0 10px; border-bottom-width: 1px; gap: 8px; }
+.nokia-launcher .lcd-sound__header small { color: inherit; opacity: .8; font: 13px/1.4 var(--ui-body); }
+.nokia-launcher .lcd-sound__list { padding: 2px; gap: 8px; }
+.nokia-launcher .lcd-sound__row { border: 1px solid var(--ink); border-radius: var(--card-radius); min-height: 64px; padding: 12px; font: 600 15px/1.3 var(--ui-body); gap: 8px; }
+.nokia-launcher :is(.lcd-sound__label, .lcd-sound__value) { font: inherit; text-shadow: none; }
+.nokia-launcher .lcd-sound__footer { border-top-width: 1px; padding: 6px 0; font: 600 14px/1.3 var(--ui-body); }
+.nokia-launcher .lcd-sound__footer span { text-shadow: none; }
+.nokia-launcher .tone-setup__choices { min-height: 48px; }
+.nokia-launcher .tone-setup__choices button { font: 600 15px/1.3 var(--ui-body); text-shadow: none; }
+
+/* Large equal-sized clock units and a finite, framed Snake board. */
+.nokia-launcher .lcd-screen.clock-screen { grid-template-rows: 32px 48px minmax(0, 1fr) 24px var(--ui-footer-row); gap: 6px; }
+.nokia-launcher .clock-header { border-bottom: 1px solid var(--ink); padding-bottom: 8px; }
+.nokia-launcher .clock-header span { font: 12px/1.3 var(--ui-body); text-transform: none; }
+.nokia-launcher .clock-modes { gap: 5px; border: 0; }
+.nokia-launcher .clock-modes button { min-height: 48px; border: 1px solid var(--ink); padding: 4px; font: 600 12px/1.2 var(--ui-body); text-transform: none; text-shadow: none; }
+.nokia-launcher :is(.clock-readout__time, .clock-readout__seconds) { font-family: var(--ui-display); font-size: clamp(26px, 11cqw, 48px); transform: none; text-shadow: none; letter-spacing: -.04em; }
+.nokia-launcher .clock-readout__duration { font: 500 clamp(32px, 11cqw, 52px)/1 var(--ui-display); transform: none; text-shadow: none; }
+.nokia-launcher .clock-readout__adjust { font: 11px/1.3 var(--ui-body); }
+.nokia-launcher .clock-readout__adjust button { min-height: 48px; font: 600 14px/1.2 var(--ui-body); }
+.nokia-launcher .clock-hint { font: 11px/1.2 var(--ui-body); text-transform: none; }
+.nokia-launcher .lcd-screen.snake-feature { grid-template-rows: 20px 36px minmax(0, 1fr) 24px var(--ui-footer-row); gap: 6px; }
+.nokia-launcher .snake-heading { border-bottom: 1px solid var(--ink); padding-bottom: 8px; }
+.nokia-launcher .snake-heading span { font: 12px/1.3 var(--ui-display); }
+.nokia-launcher .snake-board-wrap { border: 1px solid var(--ink); border-radius: var(--card-radius); }
+.nokia-launcher .snake-board { --ink: inherit; }
+.nokia-launcher .snake-overlay { padding: 14px; border-radius: var(--card-radius); }
+.nokia-launcher .snake-overlay strong { font: 700 23px/1.2 var(--ui-display); }
+.nokia-launcher .snake-overlay span { font: 13px/1.4 var(--ui-body); }
+.nokia-launcher .snake-readout { font: 12px/1.3 var(--ui-body); text-shadow: none; }
+
+/* Native camera preview bounds are untouched; gallery/viewer chrome is local. */
+.nokia-launcher .camera-screen:is(.camera-screen--gallery, .camera-screen--viewer) {
+  background-color: var(--lcd);
+  color: var(--ink);
+  grid-template-rows: 48px minmax(0, 1fr) var(--ui-footer-row);
+  padding: 12px;
+  gap: 8px;
+  font-family: var(--ui-body);
+}
+.nokia-launcher .camera-header { border-bottom: 1px solid var(--ink); font-family: var(--ui-body); padding-bottom: 8px; }
+.nokia-launcher .camera-header strong { font: 700 23px/1.1 var(--ui-display); }
+.nokia-launcher .camera-header small { font: 12px/1.3 var(--ui-body); }
+.nokia-launcher .camera-gallery { position: relative; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 3px; }
+.nokia-launcher .camera-gallery__item { aspect-ratio: auto; display: flex; flex-direction: column; text-align: left; }
+.nokia-launcher .camera-gallery__image { display: grid; place-items: center; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: var(--ink); color: var(--lcd); font-size: 32px; }
+.nokia-launcher .camera-gallery__image img { width: 100%; height: 100%; object-fit: cover; }
+.nokia-launcher .camera-gallery__caption { display: flex; justify-content: space-between; padding: 10px; font: 13px/1.3 var(--ui-body); }
+.nokia-launcher .camera-gallery__item.is-selected .camera-gallery__caption { background: var(--ink); color: var(--lcd); }
+.nokia-launcher .camera-softkeys button { min-height: 48px; border: 0; background: transparent; color: inherit; text-align: inherit; font: inherit; }
+.nokia-launcher .camera-softkeys button:disabled { opacity: .4; }
+.nokia-launcher .camera-empty { align-content: center; gap: 10px; min-height: 100%; text-align: center; }
+.nokia-launcher .camera-empty > span { font: 40px/1 var(--ui-display); }
+.nokia-launcher .camera-empty strong { font: 700 19px/1.2 var(--ui-display); }
+.nokia-launcher .camera-empty p { margin: 0; font-weight: 400; }
+.nokia-launcher .camera-empty button { min-height: 48px; padding: 10px; margin-top: 6px; border: 1px solid var(--ink); border-radius: var(--control-radius); background: var(--ink); color: var(--lcd); font: 600 14px/1.2 var(--ui-body); }
+.nokia-launcher .camera-gallery__item { border-color: var(--ink); border-radius: var(--card-radius); background: transparent; color: var(--ink); }
+.nokia-launcher .camera-gallery__item.is-selected { outline: 2px solid var(--ink); outline-offset: -5px; box-shadow: none; }
+.nokia-launcher .camera-empty { padding: 18px; border: 1px dashed var(--ink); border-radius: var(--card-radius); font: 15px/1.4 var(--ui-body); }
+.nokia-launcher .camera-softkeys { border-top: 1px solid var(--ink); align-items: center; font: 600 14px/1.2 var(--ui-body); text-shadow: none; }
+.nokia-launcher .camera-unavailable { position: absolute; inset: 0; display: grid; grid-template-rows: 48px minmax(0, 1fr) 48px; gap: 12px; padding: 12px; background: var(--lcd); color: var(--ink); font-family: var(--ui-body); }
+.nokia-launcher .camera-unavailable > [role="status"] { align-self: center; padding: 16px; border: 2px solid var(--ink); border-radius: var(--card-radius); overflow-y: auto; max-height: 100%; }
+.nokia-launcher .camera-unavailable h2 { margin: 0 0 10px; font: 700 23px/1.1 var(--ui-display); }
+.nokia-launcher .camera-unavailable p { margin: 0; font: 15px/1.45 var(--ui-body); }
+.nokia-launcher .camera-unavailable__actions { display: flex; gap: 8px; }
+.nokia-launcher .camera-unavailable button { flex: 1; min-height: 48px; border: 1px solid var(--ink); border-radius: var(--control-radius); background: transparent; color: inherit; font: 600 15px/1.3 var(--ui-body); }
+.nokia-launcher .camera-unavailable button:first-child { background: var(--ink); color: var(--lcd); }
+.nokia-launcher .browser-native-slot__fallback { padding: 16px; background: var(--lcd); color: var(--ink); font: 15px/1.45 var(--ui-body); }
+.nokia-launcher .week-check-in button { min-height: 48px; border-radius: var(--control-radius); font-size: 14px; }
+
+/* Home is the single visual contract for every physical softkey label.
+ * Reserve the existing footer row; anchor labels to the LCD, not its content padding. */
+.nokia-launcher :is(.lcd-home .lcd-softkeys, .lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys, .camera-softkeys, .lcd-sound__footer, .tone-setup__softkeys) {
+  position: absolute;
+  left: 3.5%; right: 3.5%; bottom: 2%;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end; min-height: var(--ui-softkey-hit-height);
+  margin: 0; padding: 0; gap: 0; border: 0;
+  font: 800 var(--ui-softkey-size)/1.2 var(--ui-body);
+  letter-spacing: -.02em; text-shadow: none;
+}
+.nokia-launcher :is(.lcd-home .lcd-softkeys, .lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys, .camera-softkeys, .lcd-sound__footer, .tone-setup__softkeys) > :is(button, span) {
+  min-width: 0; margin: 0; padding: 0;
+  font: inherit; letter-spacing: inherit; text-shadow: none; white-space: nowrap;
+}
+.nokia-launcher :is(.lcd-home .lcd-softkeys, .lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys, .camera-softkeys, .tone-setup__softkeys) > button {
+  min-height: var(--ui-softkey-hit-height); display: flex; align-items: flex-end;
+  border: 0; border-radius: 0; background: transparent; color: inherit;
+}
+.nokia-launcher :is(.lcd-home .lcd-softkeys, .lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys, .camera-softkeys, .tone-setup__softkeys) > button:first-child { justify-content: flex-start; }
+.nokia-launcher :is(.lcd-home .lcd-softkeys, .lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys, .camera-softkeys, .tone-setup__softkeys) > button:nth-child(2) { justify-content: center; }
+.nokia-launcher :is(.lcd-home .lcd-softkeys, .lcd-list-softkeys, .lcd-dial-softkeys, .clock-softkeys, .snake-softkeys, .camera-softkeys, .tone-setup__softkeys) > button:last-child { justify-content: flex-end; }
+.nokia-launcher .lcd-home .lcd-softkeys button.is-selected { background: var(--ink); color: var(--lcd); }
+.nokia-launcher .lcd-screen.customization-screen { padding-bottom: calc(34px + 2%); }
+.nokia-launcher .lcd-screen.tone-setup { grid-template-rows: auto minmax(0, 1fr) 44px var(--ui-footer-row); }
+
+/* Gallery uses the same clock/title rhythm and finite LCD navigation as lists. */
+.nokia-launcher .camera-screen.camera-screen--gallery { grid-template-rows: 32px auto minmax(0, 1fr) var(--ui-footer-row); gap: 6px; }
+.nokia-launcher .camera-screen--gallery > .miniscreen-clock { font-size: 28px; }
+.nokia-launcher .camera-screen--gallery .camera-header { align-items: baseline; min-height: 38px; padding: 4px 0 8px; }
+.nokia-launcher .camera-header strong { font: 800 23px/1.12 var(--ui-body); letter-spacing: -.04em; }
+.nokia-launcher .camera-gallery { grid-auto-rows: max-content; gap: 8px; padding: 2px; }
+.nokia-launcher .camera-gallery__image { flex: 0 0 auto; }
+.nokia-launcher :is(.camera-gallery, .drawer-options-body) { scrollbar-width: none; }
+.nokia-launcher :is(.camera-gallery, .drawer-options-body)::-webkit-scrollbar { display: none; }
+.nokia-launcher .camera-gallery__item { border: 1px solid var(--ink); border-radius: var(--control-radius); }
+.nokia-launcher .camera-gallery__caption { padding: 7px 8px; font: 600 13px/1.3 var(--ui-body); }
+.nokia-launcher .camera-gallery__item.is-selected { outline: 2px solid var(--ink); outline-offset: -2px; }
+.nokia-launcher .camera-empty { border: 0; border-radius: 0; padding: 12px; }
+.nokia-launcher .camera-empty strong { font: 800 19px/1.2 var(--ui-body); }
+.nokia-launcher .camera-empty p { max-width: 24ch; }
+
+.nokia-launcher .camera-screen.camera-screen--viewer { grid-template-rows: 32px auto minmax(0, 1fr) var(--ui-footer-row); gap: 6px; }
+.nokia-launcher .camera-screen--viewer > .miniscreen-clock { font-size: 28px; }
+.nokia-launcher .camera-viewer-heading { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.nokia-launcher .camera-viewer-heading .camera-header { flex: 1; min-width: 0; }
+.nokia-launcher .camera-viewer-next { min-height: 32px; padding: 4px 8px; border: 1px solid var(--ink); border-radius: var(--control-radius); background: transparent; color: var(--ink); font: 800 13px/1.2 var(--ui-body); }
+.nokia-launcher .camera-gallery__image { position: relative; }
+.nokia-launcher .camera-gallery__image img { position: absolute; inset: 0; }
+.nokia-launcher .camera-gallery__image img[hidden] { display: none; }
+.nokia-launcher .camera-gallery__video { position: absolute; bottom: 6px; right: 6px; padding: 4px 6px; border-radius: 3px; background: var(--ink); color: var(--lcd); font: 800 13px/1 var(--ui-body); }
+.nokia-launcher .camera-native-slot--viewer { border: 0; border-radius: var(--control-radius); background: #080a09; }
+.nokia-launcher .camera-viewer-fallback { width: 100%; height: 100%; object-fit: contain; }
+.nokia-launcher .camera-viewer-error { display: grid; align-content: center; justify-items: center; height: 100%; gap: 10px; padding: 12px; overflow-y: auto; text-align: center; background: var(--lcd); color: var(--ink); }
+.nokia-launcher .camera-viewer-error strong { font: 800 19px/1.2 var(--ui-body); }
+.nokia-launcher .camera-viewer-error p { margin: 0; font: 14px/1.4 var(--ui-body); }
+.nokia-launcher .camera-viewer-error button { min-height: 40px; padding: 8px 12px; border: 1px solid var(--ink); border-radius: var(--control-radius); background: var(--ink); color: var(--lcd); font: 800 14px/1.2 var(--ui-body); }
+
+/* Match Home's actual LCD face, Courier lettering and inverse time strip.
+ * These surfaces retain the shared fixed softkeys and their finite navigation. */
+.nokia-launcher :is(.drawer-app-options, .camera-screen--gallery, .camera-screen--viewer) {
+  --home-lcd-type: "Courier New", "Lucida Console", monospace;
+  -webkit-font-smoothing: none;
+}
+.nokia-launcher .lcd-screen:is(.camera-screen--gallery, .camera-screen--viewer) { border: 1px solid rgba(158, 166, 71, .66); border-radius: 8px; }
+.nokia-launcher :is(.drawer-app-options, .camera-screen--gallery, .camera-screen--viewer) > .miniscreen-clock {
+  justify-self: end; align-self: center; padding: 2px 8px;
+  background: var(--ink); color: var(--lcd);
+  font: 800 22px/1 var(--home-lcd-type); letter-spacing: -.06em;
+}
+.nokia-launcher .drawer-app-options h2,
+.nokia-launcher :is(.camera-screen--gallery, .camera-screen--viewer) .camera-header strong {
+  font: 700 25px/1.08 var(--home-lcd-type); letter-spacing: -.065em;
+}
+.nokia-launcher .drawer-app-options .lcd-list-header { display: flex; justify-content: space-between; gap: 8px; }
+.nokia-launcher .drawer-app-options .lcd-list-header > span,
+.nokia-launcher :is(.camera-screen--gallery, .camera-screen--viewer) .camera-header small {
+  font: 800 13px/1.2 var(--home-lcd-type); letter-spacing: -.04em;
+}
+.nokia-launcher .drawer-options-list button { font: 800 19px/1.2 var(--home-lcd-type); letter-spacing: -.045em; }
+.nokia-launcher .drawer-app-options p { font: 700 13px/1.4 var(--home-lcd-type); }
+.nokia-launcher .camera-gallery__item { border: 0; border-radius: 0; }
+.nokia-launcher .camera-gallery__caption { padding: 6px 5px; font: 800 15px/1.2 var(--home-lcd-type); letter-spacing: -.04em; }
+.nokia-launcher .camera-gallery__image { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
+.nokia-launcher .camera-gallery__item.is-selected { outline: 2px solid var(--ink); outline-offset: 0; }
+.nokia-launcher .camera-gallery__video { border-radius: 0; font-family: var(--home-lcd-type); }
+
+/* Short LCDs retain scrollable content and fixed, reachable softkeys. */
+@media (orientation: landscape), (max-height: 600px) {
+  .nokia-launcher { --ui-footer-row: calc(24px + 2%); }
+  .nokia-launcher .lcd-list-screen:not(.customization-screen):not(.lcd-composer-screen) { grid-template-rows: 18px 32px auto minmax(0, 1fr) var(--ui-footer-row); gap: 3px; }
+  .nokia-launcher .lcd-list-header { padding-bottom: 4px; }
+  .nokia-launcher .lcd-screen:is(.lcd-list-screen, .lcd-thread-screen, .lcd-dial-screen, .clock-screen, .snake-feature, .sound-screen) { padding: 8px; }
+  .nokia-launcher .lcd-screen.clock-screen { grid-template-rows: 28px 48px minmax(0, 1fr) 18px var(--ui-footer-row); gap: 3px; }
+  .nokia-launcher .clock-readout { overflow-y: auto; justify-content: safe center; }
+  .nokia-launcher .customization-choice { min-height: 72px; font-size: 14px; }
+}

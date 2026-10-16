@@ -23,13 +23,11 @@
   pointer-events: none;
   border: 1px solid #060807;
   border-radius: 10cqw;
-  box-shadow: inset 1px 1px 0 1px #747773,
-    inset -1px -1px 0 2px #383c38,
-    inset 1px 1px 1px 3px #383c39,
-    inset 0 0 2px 5px #242825,
-    inset 0 0 2px 8px #171b18,
-    inset 0 0 1px 11px #080b09,
-    inset 0 0 0 12px #333732;
+  box-shadow: inset 0 0 0 1px #050606,
+    inset 1px 1px 0 2px #ffffff32,
+    inset -1px -1px 0 2px #0009,
+    inset 0 0 0 4px var(--deck-color, #414342),
+    inset 0 0 0 5px #080909;
   background: none;
   contain: paint;
   will-change: transform;
@@ -63,7 +61,7 @@
   height: auto;
   min-height: 0;
   /* Transient system bars overlay Home. Their changing inset must not lift keys. */
-  padding: 0 3.7% 1.7cqh;
+  padding: 0 3% .7cqh;
 }
 .lcd-home {
   display: block;
@@ -101,6 +99,7 @@
   justify-content: flex-end;
   align-items: stretch;
   border-top: 2px solid var(--ink);
+  border-radius: 0;
   transform: none;
   font-size: 5.7cqw;
   font-family: "Courier New", "Lucida Console", monospace;
@@ -140,14 +139,14 @@
 }
 .physical-keypad {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 2fr);
+  grid-template-rows: minmax(0, 57fr) minmax(0, 116fr);
   width: 100%;
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  border-radius: 0 0 7cqw 7cqw;
-  background: #030404;
-  border-top: 1px solid #010202;
+  border-radius: 0 0 10cqw 10cqw;
+  background: var(--deck-color, #414342);
+  border-top: 1px solid #181919;
   box-shadow: 0 -1px 0 #343737;
   touch-action: none;
   -webkit-touch-callout: none;
@@ -158,7 +157,7 @@
   position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 28fr) minmax(0, 29fr);
   min-height: 0;
 }
 .physical-soft-left { grid-area: 1 / 1; }
@@ -171,11 +170,11 @@
   min-width: 0;
   min-height: 0;
   margin: 0;
-  padding: 0 .5px 1px;
+  padding: 0;
   border: 0;
   border-radius: 0;
-  color: #deded9;
-  background: linear-gradient(145deg, #020303 0%, #0a0b0b 65%, #363939 100%);
+  color: var(--deck-ink, #d4d5d3);
+  background: transparent;
   cursor: pointer;
   touch-action: none;
   -webkit-touch-callout: none;
@@ -191,44 +190,49 @@
   align-items: center;
   justify-content: center;
   gap: 1.2cqw;
-  border-radius: .6cqw;
-  border-top: 1px solid #464747;
-  border-left: 1px solid #2d2f2f;
-  border-right: 1px solid #090a0a;
-  border-bottom: 1px solid #010202;
-  background-color: #161818;
-  background-image: linear-gradient(110deg, #17191966, #11131355 70%, #07090988), url('../assets/aged-phone-fabric.webp');
-  background-size: cover, 430px 430px;
-  background-position: center, 40% 30%;
-  box-shadow: inset 0 1px 1px #ffffff0c, inset 0 -1px 1px #000b;
+  border-radius: 0;
+  border: 0;
+  background-color: var(--deck-color, #414342);
+  background-image: linear-gradient(110deg, #ffffff08, #00000008);
+  box-shadow: inset 0 1px 0 #ffffff18, inset -2px 0 0 #0007,
+    inset 0 -2px 0 #0008;
   transform: translateY(0);
   will-change: transform;
 }
 .physical-controls .physical-key__face svg {
-  width: 12cqw;
-  height: 6.2cqw;
+  width: 14.5cqw;
+  height: 6.7cqw;
   flex-shrink: 0;
+  position: relative;
+  top: 1.25cqw;
 }
+.physical-soft-left .physical-key__face svg,
+.physical-soft-right .physical-key__face svg { top: 2cqw; }
 .physical-soft-left .physical-key__face,
-.physical-call .physical-key__face { padding-right: 16cqw; }
+.physical-call .physical-key__face { padding-right: 12cqw; }
 .physical-soft-right .physical-key__face,
-.physical-end .physical-key__face { padding-left: 16cqw; }
-.nokia-launcher .physical-call { color: #35d22c; }
-.nokia-launcher .physical-end { color: #f4433f; }
+.physical-end .physical-key__face { padding-left: 12cqw; }
+.physical-controls .physical-key__face {
+  /* The reference has horizontal control seams, no center divider above the D-pad. */
+  background-image: linear-gradient(180deg, #ffffff08, #00000002);
+  box-shadow: inset 0 1px 0 #ffffff18, inset 0 -2px 0 #0008;
+}
+.nokia-launcher .physical-call { color: var(--deck-ink, #d4d5d3); }
+.nokia-launcher .physical-end { color: var(--deck-ink, #d4d5d3); }
 .physical-numbers {
   display: grid;
   min-height: 0;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(4, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 29fr) minmax(0, 29fr) minmax(0, 28fr) minmax(0, 30fr);
   gap: 0;
 }
 .physical-number .physical-key__face { padding: 0 2cqw; }
 .physical-number strong {
-  font: 300 8cqw/1 Arial, sans-serif;
+  font: 300 9.1cqw/1 "Roboto", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   letter-spacing: -.04em;
 }
 .physical-number small {
-  font: 400 3.4cqw/1 Arial, sans-serif;
+  font: 400 3.5cqw/1 Arial, sans-serif;
   letter-spacing: -.025em;
   text-transform: lowercase;
 }
@@ -238,22 +242,22 @@
 .physical-number:nth-child(3n) .physical-key__face { flex-direction: row-reverse; }
 .physical-number:nth-child(3n + 2) .physical-key__face { background-position: center, 73% 61%; }
 .physical-number:nth-child(4n) .physical-key__face { background-position: center, 39% 79%; }
-.physical-number:nth-child(10) .physical-key__face { border-bottom-left-radius: 6cqw; }
+.physical-number:nth-child(10) .physical-key__face { border-bottom-left-radius: 9cqw; }
 .physical-number:nth-child(10) strong { display: flex; }
-.physical-star { width: 8cqw; height: 9cqw; }
-.physical-number:nth-child(12) .physical-key__face { border-bottom-right-radius: 6cqw; }
+.physical-star { width: 6cqw; height: 6.8cqw; }
+.physical-number:nth-child(12) .physical-key__face { border-bottom-right-radius: 9cqw; }
 .physical-dpad {
   position: absolute;
   z-index: 3;
   left: 50%;
-  top: 5%;
-  width: 28.5%;
-  height: 91%;
+  top: 7.018%;
+  width: 27.222%;
+  height: 85.965%;
   transform: translateX(-50%);
-  padding: 2px;
-  border-radius: 32% / 29%;
+  padding: 1px;
+  border-radius: 33% / 31%;
   background: #030404;
-  box-shadow: 0 1px 1px #747777, 0 -1px 1px #373a3a;
+  box-shadow: 0 1px 0 #ffffff25, 0 -1px 0 #0009;
   contain: layout style;
 }
 .physical-dpad__rocker {
@@ -267,19 +271,20 @@
 .physical-dpad__rim {
   width: 100%;
   height: 100%;
-  padding: 10%;
-  border-radius: 31% / 28%;
-  border: 1px solid #b0b1b0;
-  background: linear-gradient(128deg, #b8bcbb 0%, #e1e2de 12%, #858887 40%, #8b8d8d 64%, #c2c4c1 86%, #626565 100%);
-  box-shadow: inset 1px 1px 1px #eeeee9, inset -1px -1px 1px #383b3b;
+  padding: 9%;
+  border-radius: 31% / 29%;
+  border: 1px solid #737673;
+  background: linear-gradient(130deg, #777a76 0%, #50534f 24%, #30332f 65%, #555853 100%);
+  box-shadow: inset 0 2px 0 #ffffff38, inset 0 -2px 0 #000b;
+
 }
 .physical-dpad__cap {
   height: 100%;
   width: 100%;
   border-radius: 29% / 26%;
-  border: 2px solid #030404;
-  background: linear-gradient(120deg, #171a1bd9, #101313c9), url('../assets/aged-phone-fabric.webp') center / 430px 430px;
-  box-shadow: inset 1px 2px 2px #000c, inset -1px -1px 1px #626565;
+  border: 1px solid #090a09;
+  background: linear-gradient(120deg, #ffffff0a, #00000008), var(--deck-color, #414342);
+  box-shadow: 0 0 0 1px #080908, inset 0 2px 0 #ffffff28, inset 0 -2px 0 #0006;
   will-change: transform;
 }
 .nokia-launcher .physical-dpad__hit {
@@ -295,11 +300,11 @@
   user-select: none;
   cursor: pointer;
 }
-.physical-dpad__hit--up { top: 0; left: 20%; width: 60%; height: 27%; }
-.physical-dpad__hit--down { bottom: 0; left: 20%; width: 60%; height: 27%; }
-.physical-dpad__hit--left { top: 24%; left: 0; height: 52%; width: 26%; }
-.physical-dpad__hit--right { top: 24%; right: 0; height: 52%; width: 26%; }
-.physical-dpad__hit--select { top: 27%; left: 26%; width: 48%; height: 46%; border-radius: 18%; }
+.physical-dpad__hit--up { top: 0; left: 0; width: 100%; height: 32%; }
+.physical-dpad__hit--down { bottom: 0; left: 0; width: 100%; height: 32%; }
+.physical-dpad__hit--left { top: 32%; left: 0; height: 36%; width: 26%; }
+.physical-dpad__hit--right { top: 32%; right: 0; height: 36%; width: 26%; }
+.physical-dpad__hit--select { top: 32%; left: 26%; width: 48%; height: 36%; border-radius: 0; }
 .physical-key:active .physical-key__face { transform: translateY(1px); }
 .physical-dpad:has(.physical-dpad__hit--up:active) .physical-dpad__rocker { transform: perspective(220px) rotateX(-5deg); }
 .physical-dpad:has(.physical-dpad__hit--down:active) .physical-dpad__rocker { transform: perspective(220px) rotateX(5deg); }
@@ -313,3 +318,47 @@
   .physical-number strong { font-size: 4.5cqh; }
   .physical-number small { font-size: 2.4cqh; }
 }
+
+/* Recessed glass gasket. The LCD texture, tint and content stay untouched. */
+.nokia-launcher:not([data-appearance="sidephone"]) .lcd-screen:not(.camera-screen):not(.browser-screen) {
+  box-shadow: inset 0 0 28px rgba(21, 25, 5, .26),
+    inset 1px 1px 1px rgba(238, 240, 192, .2),
+    inset -1px -1px 1px rgba(0, 0, 0, .25),
+    0 0 0 1px #090c08, 0 0 0 2px #262a22,
+    0 2px 3px 2px #0009;
+}
+
+/* Continuous generated black glass, with existing geometry.
+ * Transparent screen/brand sections reveal one continuous reflection beneath.
+ * Important declarations only replace the legacy shell's important texture.
+ */
+.nokia-launcher:not([data-appearance="sidephone"]) {
+  background-color: #030405;
+  background-image: url('../assets/hardware/generated-black-glass.webp');
+  background-size: 100% 100%;
+  background-position: center top;
+}
+.nokia-launcher:not([data-appearance="sidephone"]) .nokia-launcher__screen,
+.nokia-launcher:not([data-appearance="sidephone"]) .nokia-wordmark {
+  background: transparent;
+}
+.nokia-launcher.nokia-system-keyboard:not([data-appearance="sidephone"]) {
+  background-color: #030405 !important;
+  background-image: url('../assets/hardware/generated-black-glass.webp') !important;
+  background-size: 100% auto !important;
+  background-position: center bottom !important;
+}
+.nokia-launcher:not([data-appearance="sidephone"]) .nokia-launcher__keypad {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+
+/* Molded tactile marker on 5; decorative only, unchanged input target. */
+.nokia-launcher:not([data-appearance="sidephone"]) .physical-number:nth-child(5) .physical-key__face::before,
+.nokia-launcher:not([data-appearance="sidephone"]) .physical-number:nth-child(5) .physical-key__face::after {
+  content: ""; position: absolute; top: 24%; bottom: 24%; width: 1px;
+  background: #0004; box-shadow: 1px 0 #ffffff18; pointer-events: none;
+}
+.nokia-launcher:not([data-appearance="sidephone"]) .physical-number:nth-child(5) .physical-key__face::before { left: 8%; }
+.nokia-launcher:not([data-appearance="sidephone"]) .physical-number:nth-child(5) .physical-key__face::after { right: 8%; }

@@ -5,20 +5,29 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.graphics.Color;
+import android.os.Handler;
+import android.os.Looper;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
-import android.view.WindowInsets;
-import android.view.WindowInsetsController;
-import android.view.WindowManager;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
+import com.getcapacitor.PluginHandle;
+import com.nokialauncher.billing.BillingRecoveryView;
+import com.nokialauncher.billing.BillingShellReadiness;
 
 public class MainActivity extends BridgeActivity {
-    private boolean rendererRecoveryStarted = false;
+    private final BillingShellReadiness shellReadiness = new BillingShellReadiness();
+    private final Handler shellHandler = new Handler(Looper.getMainLooper());
+    private BillingRecoveryView recoveryView;
+    private final Runnable bootDeadline = () -> {
+        if (!isFinishing() && !isDestroyed() && shellReadiness.deadline()) showNativeRecovery();
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +47,47 @@ public class MainActivity extends BridgeActivity {
         }
         installRecoveringWebViewClient();
         configureImmersiveWindow();
+        boolean bridgePresent = bridge != null && bridge.getWebView() != null;
+        if (shellReadiness.start(BuildConfig.BILLING_ROLLOUT_ENABLED, bridgePresent)) {
+            shellHandler.postDelayed(bootDeadline, BillingShellReadiness.BOOT_DEADLINE_MS);
+        } else if (shellReadiness.isRecovery()) {
+            showNativeRecovery();
+        }
+    }
+
+    /** Called by the packaged-shell PluginMethod on the UI thread, with its native WebView. */
+    public boolean markPackagedShellReady(WebView source) {
+        if (!permitsPackagedShell(source) || !shellReadiness.ready(source.getUrl(), true)) return false;
+        shellHandler.removeCallbacks(bootDeadline);
+        return true;
+    }
+
+    /** Main-thread authority check for every native command from the current packaged Home. */
+    public boolean permitsPackagedShell(WebView source) {
+        if (Looper.myLooper() != Looper.getMainLooper() || isFinishing() || isDestroyed()) return false;
+        boolean sameWebView = source != null && bridge != null && bridge.getWebView() == source;
+        return shellReadiness.permits(sameWebView ? source.getUrl() : null, sameWebView);
+    }
+
+    private void showNativeRecovery() {
+        shellHandler.removeCallbacks(bootDeadline);
+        if (recoveryView != null || isFinishing() || isDestroyed()) return;
+        // Existing instance only: this lookup must never initialize a plugin, SDK or storage.
+        PluginHandle plugin = bridge == null ? null : bridge.getPlugin("LauncherApps");
+        if (plugin != null && plugin.getInstance() instanceof LauncherAppsPlugin) {
+            ((LauncherAppsPlugin) plugin.getInstance()).enterNativeRecovery();
+        }
+        recoveryView = new BillingRecoveryView(this);
+        // Replace this Activity's content only. A call/settings Activity above Home stays above it.
+        setContentView(recoveryView);
+    }
+
+    @Override
+    public void onDestroy() {
+        shellHandler.removeCallbacks(bootDeadline);
+        shellReadiness.destroy();
+        recoveryView = null;
+        super.onDestroy();
     }
 
     @Override
@@ -59,41 +109,10 @@ public class MainActivity extends BridgeActivity {
      * continuous instead of leaving black system-bar bands above and below it.
      */
     private void configureImmersiveWindow() {
-        // Apply fullscreen at the window level as well as through insets. This
-        // prevents the status-bar height from remaining as a top content inset
-        // when the Capacitor bridge/splash theme is recreated.
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        getWindow().setStatusBarColor(Color.TRANSPARENT);
-        getWindow().setNavigationBarColor(Color.TRANSPARENT);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            // AndroidX WindowCompat also retains this stable-layout flag on
-            // Android 11-14. Keep the Home viewport stable when system bars
-            // become visible; the bars overlay the handset instead of moving
-            // its keypad. Child insets and the IME's own window policy remain intact.
-            View decorView = getWindow().getDecorView();
-            decorView.setSystemUiVisibility(
-                decorView.getSystemUiVisibility() | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            );
-            getWindow().setDecorFitsSystemWindows(false);
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                getWindow().setStatusBarContrastEnforced(false);
-                getWindow().setNavigationBarContrastEnforced(false);
-            }
-            WindowInsetsController controller = getWindow().getInsetsController();
-            if (controller != null) {
-                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
-                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-            }
-        } else {
-            getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            );
-        }
+        WindowCompat.enableEdgeToEdge(getWindow());
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        controller.hide(WindowInsetsCompat.Type.systemBars());
+        controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
     }
 
     @Override
@@ -107,10 +126,10 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void dispatchHomeRequest() {
-        if (rendererRecoveryStarted || bridge == null || bridge.getWebView() == null) return;
+        if (shellReadiness.isRecovery() || bridge == null || bridge.getWebView() == null) return;
         WebView webView = bridge.getWebView();
         webView.post(() -> {
-            if (rendererRecoveryStarted || bridge == null || bridge.getWebView() != webView) return;
+            if (shellReadiness.isRecovery() || bridge == null || bridge.getWebView() != webView) return;
             webView.evaluateJavascript(
                 "window.dispatchEvent(new Event('nokia-home-request'));",
                 null
@@ -124,18 +143,12 @@ public class MainActivity extends BridgeActivity {
         bridge.setWebViewClient(new BridgeWebViewClient(bridge) {
             @Override
             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
-                if (rendererRecoveryStarted) return true;
-                rendererRecoveryStarted = true;
-
                 ViewParent parent = view.getParent();
                 if (parent instanceof ViewGroup) {
                     ((ViewGroup) parent).removeView(view);
                 }
-
-                View decorView = getWindow().getDecorView();
-                decorView.post(() -> {
-                    if (!isFinishing() && !isDestroyed()) recreate();
-                });
+                view.destroy();
+                if (shellReadiness.rendererGone()) showNativeRecovery();
                 return true;
             }
         });

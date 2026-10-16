@@ -9,6 +9,9 @@ import {
 } from "./keyGrammar";
 
 describe("unified Nokia key grammar", () => {
+  it('routes the camera green key to its gallery action', () => {
+    expect(resolveContextualIntent(KEY_INTENTS.GREEN, 'camera')).toBe(KEY_INTENTS.SEND);
+  });
   it("dispatches semantic intents by stable priority", () => {
     const calls = [];
     const handled = dispatchKey(

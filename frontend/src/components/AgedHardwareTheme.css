@@ -17,7 +17,9 @@
   --aged-texture-y: 34%;
 }
 
-.nokia-launcher .lcd-screen:not(.camera-screen) {
+.nokia-launcher .lcd-screen:not(.camera-screen),
+.nokia-launcher .lcd-screen.camera-screen--gallery,
+.nokia-launcher .lcd-screen.camera-screen--viewer {
   border-color: rgba(158, 166, 71, 0.66);
   background-color: var(--lcd);
   background-image:
@@ -45,7 +47,7 @@
   z-index: 1;
 }
 
-[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button {
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:not(.physical-key):not(.physical-dpad__hit) {
   border-color: rgba(0, 0, 0, 0.88);
   color: var(--aged-key-label, #d8d8d2);
   background-color: var(--aged-key, #121516);
@@ -59,30 +61,30 @@
 }
 
 /* Neighboring keys sample different areas of the one permanently baked image. */
-[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(3n + 1) {
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:not(.physical-key):not(.physical-dpad__hit):nth-child(3n + 1) {
   --aged-texture-x: 24%;
   --aged-texture-y: 28%;
 }
 
-[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(3n + 2) {
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:not(.physical-key):not(.physical-dpad__hit):nth-child(3n + 2) {
   --aged-texture-x: 73%;
   --aged-texture-y: 61%;
 }
 
-[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:nth-child(4n) {
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:not(.physical-key):not(.physical-dpad__hit):nth-child(4n) {
   --aged-texture-x: 39%;
   --aged-texture-y: 79%;
 }
 
-[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button[data-testid="keypad-btn-send"] {
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:not(.physical-key):not(.physical-dpad__hit)[data-testid="keypad-btn-send"] {
   color: #42b835;
 }
 
-[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button[data-testid="keypad-btn-end"] {
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:not(.physical-key):not(.physical-dpad__hit)[data-testid="keypad-btn-end"] {
   color: #e33b38;
 }
 
-[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:active {
+[data-testid="nokia-system-keyboard"] [data-testid="keypad"] button:not(.physical-key):not(.physical-dpad__hit):active {
   background-image: url("../assets/aged-phone-fabric.webp");
   box-shadow:
     inset 0 2px 4px rgba(0, 0, 0, 0.82),

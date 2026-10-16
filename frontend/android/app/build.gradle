@@ -1,5 +1,56 @@
 apply plugin: 'com.android.application'
 
+// Public SDK configuration only. Service-account credentials never belong in the app.
+def billingProperties = new Properties()
+def billingPropertiesFile = rootProject.file('billing.properties')
+if (billingPropertiesFile.exists()) {
+    billingPropertiesFile.withInputStream { billingProperties.load(it) }
+}
+def billingString = { String name ->
+    def value = billingProperties.getProperty(name, '')
+    if (!(value ==~ /[A-Za-z0-9_.:$-]*/)) {
+        throw new GradleException("Invalid public billing configuration: ${name}")
+    }
+    return '"' + value + '"'
+}
+def billingRollout = billingProperties.getProperty('rolloutEnabled', 'false')
+if (!(billingRollout in ['true', 'false'])) {
+    throw new GradleException('Invalid public billing configuration: rolloutEnabled')
+}
+
+// A disabled rollout remains buildable without provider setup. An enabled release
+// must not ship a paywall whose native provider can never initialize.
+def registerBillingVerification = { String taskName, boolean requiresBilling -> tasks.register(taskName) {
+    group = 'verification'
+    description = 'Reject an enabled production billing rollout with invalid public configuration.'
+    doLast {
+        if (!requiresBilling) return
+        def readBilling = { String key -> billingProperties.getProperty(key, '') }
+        def purchaseIdValid = { String value -> value.length() <= 128 && value ==~ /[A-Za-z0-9_.:$-]+/ }
+        def invalid = []
+        if (!(readBilling('publicSdkKey') ==~ /goog_[A-Za-z0-9]+/)) invalid.add('publicSdkKey')
+        ['subscriptionProductId', 'monthlyBasePlanId', 'yearlyBasePlanId', 'lifetimeProductId'].each { key ->
+            if (!purchaseIdValid(readBilling(key))) invalid.add(key)
+        }
+        def offering = readBilling('offeringId')
+        if (!(offering.length() <= 200 && offering ==~ /[A-Za-z0-9_.:$-]+/)) invalid.add('offeringId')
+        if (readBilling('monthlyBasePlanId') == readBilling('yearlyBasePlanId')) invalid.add('distinct base plans')
+        if (readBilling('subscriptionProductId') == readBilling('lifetimeProductId')) invalid.add('distinct products')
+        if (!invalid.isEmpty()) {
+            // Report field names only; do not echo configuration values or credentials.
+            throw new GradleException('Enabled release billing configuration is invalid: ' + invalid.join(', '))
+        }
+    }
+} }
+def verifyBillingReleaseConfiguration = registerBillingVerification('verifyBillingReleaseConfiguration', billingRollout == 'true')
+def verifyInternalBillingConfiguration = registerBillingVerification('verifyInternalBillingConfiguration', true)
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
+    dependsOn verifyBillingReleaseConfiguration
+}
+tasks.matching { it.name == 'preInternalBillingBuild' }.configureEach {
+    dependsOn verifyInternalBillingConfiguration
+}
+
 def releaseProperties = new Properties()
 def releasePropertiesFile = rootProject.file('keystore.properties')
 if (releasePropertiesFile.exists()) {
@@ -9,16 +60,29 @@ if (releasePropertiesFile.exists()) {
 android {
     namespace "com.nokialauncher"
     compileSdk rootProject.ext.compileSdkVersion
+    buildFeatures { buildConfig true }
+    // Explicit opt-in for offline billing UI instrumentation; default tests stay debug.
+    testBuildType project.findProperty('nokiaTestBuildType') ?: 'debug'
     compileOptions {
         coreLibraryDesugaringEnabled true
+    }
+    if (project.hasProperty('nokiaOptimizedDeviceTest')) {
+        sourceSets.androidTest.java.setSrcDirs(['src/optimizedSmoke/java'])
     }
     defaultConfig {
         applicationId "com.nokialauncher"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10
-        versionName "1.2.6"
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        versionCode 17
+        versionName "1.2.8"
+        testInstrumentationRunner project.hasProperty('nokiaOptimizedDeviceTest') ? 'com.nokialauncher.OptimizedSmokeRunner' : 'androidx.test.runner.AndroidJUnitRunner'
+        buildConfigField 'String', 'BILLING_PUBLIC_KEY', billingString('publicSdkKey')
+        buildConfigField 'String', 'BILLING_SUBSCRIPTION_PRODUCT', billingString('subscriptionProductId')
+        buildConfigField 'String', 'BILLING_MONTHLY_PLAN', billingString('monthlyBasePlanId')
+        buildConfigField 'String', 'BILLING_YEARLY_PLAN', billingString('yearlyBasePlanId')
+        buildConfigField 'String', 'BILLING_LIFETIME_PRODUCT', billingString('lifetimeProductId')
+        buildConfigField 'String', 'BILLING_OFFERING', billingString('offeringId')
+        buildConfigField 'boolean', 'BILLING_ROLLOUT_ENABLED', billingRollout
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -37,6 +101,40 @@ android {
     }
 
     buildTypes {
+        uiSmoke {
+            // Offline full-launcher UI verification in a separate package.
+            // Disabled billing is policy, not a synthetic paid entitlement.
+            initWith debug
+            applicationIdSuffix '.uismoke'
+            matchingFallbacks = ['debug']
+            buildConfigField 'boolean', 'BILLING_ROLLOUT_ENABLED', 'false'
+            buildConfigField 'String', 'BILLING_PUBLIC_KEY', '""'
+            buildConfigField 'String', 'BILLING_SUBSCRIPTION_PRODUCT', '""'
+            buildConfigField 'String', 'BILLING_MONTHLY_PLAN', '""'
+            buildConfigField 'String', 'BILLING_YEARLY_PLAN', '""'
+            buildConfigField 'String', 'BILLING_LIFETIME_PRODUCT', '""'
+            buildConfigField 'String', 'BILLING_OFFERING', '""'
+            // Opt-in verification of the same optimizer, in an isolated offline package.
+            if (project.hasProperty('nokiaOptimizedDeviceTest')) {
+                minifyEnabled true
+                shrinkResources true
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            }
+        }
+        billingSmoke {
+            // Isolated, offline UI/guard verification. Never contains provider credentials
+            // or enables a charge, and never replaces the Play/previous startup-test app.
+            initWith debug
+            applicationIdSuffix '.billingsmoke'
+            matchingFallbacks = ['debug']
+            buildConfigField 'boolean', 'BILLING_ROLLOUT_ENABLED', 'true'
+            buildConfigField 'String', 'BILLING_PUBLIC_KEY', '""'
+            buildConfigField 'String', 'BILLING_SUBSCRIPTION_PRODUCT', '""'
+            buildConfigField 'String', 'BILLING_MONTHLY_PLAN', '""'
+            buildConfigField 'String', 'BILLING_YEARLY_PLAN', '""'
+            buildConfigField 'String', 'BILLING_LIFETIME_PRODUCT', '""'
+            buildConfigField 'String', 'BILLING_OFFERING', '""'
+        }
         debug {
             // Optional isolated device test; preserves an installed Play-signed app and its data.
             if (project.hasProperty('nokiaStartupDeviceTest')) {
@@ -47,8 +145,16 @@ android {
             if (releasePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        internalBilling {
+            // Same Play app/catalog for licensed acceptance. Upload ONLY to Internal testing.
+            // Production release continues to obey the explicit rollout setting.
+            initWith release
+            matchingFallbacks = ['release']
+            buildConfigField 'boolean', 'BILLING_ROLLOUT_ENABLED', 'true'
         }
     }
 }
@@ -60,6 +166,10 @@ repositories {
 }
 
 dependencies {
+    // Direct native owner; do not add a second Capacitor purchases SDK/BillingClient.
+    implementation 'com.revenuecat.purchases:purchases:10.24.0'
+    // Strict streaming cache parser; actual JVM tests exercise the same implementation.
+    implementation 'com.google.code.gson:gson:2.11.0'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
     implementation 'com.google.zxing:core:3.5.4'
     implementation fileTree(include: ['*.jar'], dir: 'libs')
@@ -75,8 +185,12 @@ dependencies {
     implementation "com.google.android.play:integrity:1.6.0"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
-    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
-    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    // Real JSONObject parsing for public RevenueCat DTO tests instead of Android JVM stubs.
+    testImplementation 'org.json:json:20260719'
+    if (!project.hasProperty('nokiaOptimizedDeviceTest')) {
+        androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+        androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    }
     implementation project(':capacitor-cordova-android-plugins')
 }
 

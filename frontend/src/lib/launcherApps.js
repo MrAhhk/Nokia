@@ -1,7 +1,118 @@
+import { validateBillingView, validateBillingRefreshReason, validateBillingRecoveryInput, validateBillingPurchaseInput, validateBillingOperationAcknowledgement } from '@/features/billing/billingContract';
+
 const getLauncherAppsPlugin = () => {
   return window.Capacitor?.Plugins?.LauncherApps ?? null;
 };
 export const isNativeLauncher = () => Boolean(window.Capacitor?.isNativePlatform?.());
+export const syncKeyboardColor = async color => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin?.syncKeyboardColor) return { success: !isNativeLauncher() };
+  return plugin.syncKeyboardColor({ color });
+};
+
+// Billing never manufactures access when its native owner is unavailable.
+const billingCall = async (method, input) => {
+  const plugin = getLauncherAppsPlugin();
+  if (!isNativeLauncher() || typeof plugin?.[method] !== 'function') throw new Error('billing_unavailable');
+  return plugin[method](input);
+};
+const billingView = value => {
+  const result = validateBillingView(value);
+  if (!result.ok) throw new Error('billing_invalid_view');
+  return result.value;
+};
+const billingField = (input, key) => {
+  if (!input || ![Object.prototype, null].includes(Object.getPrototypeOf(input)) ||
+      Reflect.ownKeys(input).length !== 1) throw new Error('billing_invalid_input');
+  const descriptor = Object.getOwnPropertyDescriptor(input, key);
+  if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, 'value')) throw new Error('billing_invalid_input');
+  return descriptor.value;
+};
+export const getBillingBootstrapPolicy = async () => {
+  if (!isNativeLauncher()) return Object.freeze({ enabled: false });
+  const value = await billingCall('getBillingBootstrapPolicy');
+  if (!value || ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
+      Reflect.ownKeys(value).length !== 1) throw new Error('billing_invalid_policy');
+  const field = Object.getOwnPropertyDescriptor(value, 'enabled');
+  if (!field || !Object.prototype.hasOwnProperty.call(field, 'value') || typeof field.value !== 'boolean') throw new Error('billing_invalid_policy');
+  return Object.freeze({ enabled: field.value });
+};
+export const initializeBilling = async input => {
+  const captureJson = billingField(input, 'captureJson');
+  if (captureJson !== null && (typeof captureJson !== 'string' || captureJson.length > 1024 || /[^\x00-\x7f]/.test(captureJson))) throw new Error('billing_invalid_capture');
+  return billingView(await billingCall('initializeBilling', { captureJson }));
+};
+// Explicit plan presentation refresh; native SDK offerings may be cache-backed.
+export const refreshBillingCatalog = async () => billingView(await billingCall('refreshBillingCatalog'));
+export const getBillingSnapshot = async () => billingView(await billingCall('getBillingSnapshot'));
+// Committed packaged Home DOM only. No provider startup or access decision.
+export const billingShellReady = async () => {
+  if (billingField(await billingCall('billingShellReady'), 'ready') !== true) throw new Error('billing_shell_not_ready');
+  return Object.freeze({ ready: true });
+};
+// User-triggered only; never called from startup or an idle refresh.
+const billingAcknowledgement = value => {
+  const result = validateBillingOperationAcknowledgement(value);
+  if (!result.ok) throw new Error('billing_invalid_acknowledgement');
+  return result.value;
+};
+export const restoreBillingPurchases = async () => billingAcknowledgement(await billingCall('restoreBillingPurchases'));
+export const purchaseBillingPlan = async input => {
+  const result = validateBillingPurchaseInput(input);
+  if (!result.ok || (result.value.plan === 'lifetime' && !result.value.acceptedImmediateCharge)) {
+    throw new Error('billing_invalid_purchase');
+  }
+  return billingAcknowledgement(await billingCall('purchaseBillingPlan', result.value));
+};
+// Requesting reconciliation never proves completion or permits another charge.
+export const reconcileBillingPurchase = async () => {
+  if (billingField(await billingCall('reconcileBillingPurchase'), 'requested') !== true) {
+    throw new Error('billing_reconciliation_unavailable');
+  }
+  return Object.freeze({ requested: true });
+};
+export const openBillingManagement = async () => {
+  const opened = await billingCall('openBillingManagement');
+  if (billingField(opened, 'opened') !== true) throw new Error('billing_management_unavailable');
+  return Object.freeze({ opened: true });
+};
+export const getBillingSupportSummary = async () => {
+  const text = billingField(await billingCall('getBillingSupportSummary'), 'text');
+  if (typeof text !== 'string' || !text || text.length > 2048 || !/^[\x20-\x7e\n]+$/.test(text)) {
+    throw new Error('billing_invalid_support_summary');
+  }
+  return Object.freeze({ text });
+};
+export const refreshBilling = async input => {
+  const reason = billingField(input, 'reason');
+  if (!validateBillingRefreshReason(reason).ok) throw new Error('billing_invalid_reason');
+  return billingView(await billingCall('refreshBilling', { reason }));
+};
+export const openBillingRecovery = async input => {
+  const result = validateBillingRecoveryInput(input);
+  if (!result.ok) throw new Error('billing_invalid_recovery');
+  const opened = await billingCall('openBillingRecovery', result.value);
+  if (billingField(opened, 'opened') !== true) throw new Error('billing_recovery_unavailable');
+  return Object.freeze({ opened: true });
+};
+// Callers await ready before initializing, and can dispose before registration resolves.
+export const subscribeToBillingUpdates = callback => {
+  let disposed = false;
+  let handle;
+  const remove = item => { try { Promise.resolve(item?.remove?.()).catch(() => {}); } catch (_) {} };
+  const ready = Promise.resolve().then(() => {
+    const plugin = getLauncherAppsPlugin();
+    if (!isNativeLauncher() || typeof plugin?.addListener !== 'function') throw new Error('billing_unavailable');
+    return plugin.addListener('billingStateChanged', event => {
+      const validated = validateBillingView(event);
+      if (!disposed && validated.ok) callback(validated.value);
+    });
+  }).then(item => {
+    if (!item || typeof item.remove !== 'function') throw new Error('billing_invalid_listener');
+    if (disposed) remove(item); else handle = item;
+  });
+  return { ready, remove: () => { disposed = true; remove(handle); handle = null; } };
+};
 
 // Dumb mode never simulates a successful lock when the native implementation is absent.
 const dumbModeCall = (method, input) => {
@@ -33,7 +144,17 @@ export const pasteFriendPairingText = async () => {
   if (isNativeLauncher()) return (await dumbModeCall("pasteFriendPairingText")).text;
   return navigator.clipboard.readText();
 };
-export const openDumbModeAccessibilitySettings = () => dumbModeCall("showAccessibilitySettings");
+const accessibilityResult = result => {
+  if (result?.needsDisclosure) window.dispatchEvent(new Event('nokia-accessibility-disclosure-request'));
+  return result;
+};
+export const subscribeToAccessibilityDisclosureRequests = listener => {
+  window.addEventListener('nokia-accessibility-disclosure-request', listener);
+  return () => window.removeEventListener('nokia-accessibility-disclosure-request', listener);
+};
+export const openDumbModeAccessibilitySettings = () => dumbModeCall("showAccessibilitySettings").then(accessibilityResult);
+// Call only from the affirmative disclosure button in onboarding or Home.
+export const acceptAccessibilityDisclosure = (version) => dumbModeCall("showAccessibilitySettings", { acceptedDisclosureVersion: version });
 export const pasteDumbModeCode = async () => {
   if (isNativeLauncher()) return (await dumbModeCall("pasteDumbModeCode")).code;
   return navigator.clipboard.readText();
@@ -178,6 +299,12 @@ export const getInstalledApps = async () => {
     });
 
   return installedAppsRequest;
+};
+
+export const openAppRemovalSettings = async (app) => {
+  const plugin = getLauncherAppsPlugin();
+  if (!app?.packageName || typeof plugin?.openAppRemovalSettings !== 'function') throw new Error('app_removal_unavailable');
+  return plugin.openAppRemovalSettings({ packageName: app.packageName });
 };
 
 export const launchInstalledApp = async (app) => {
@@ -402,13 +529,13 @@ export const toggleFlashlight = async () => {
 export const lockScreen = async () => {
   const launcherApps = getLauncherAppsPlugin();
   if (!launcherApps?.lockScreen) return { locked: false, supported: false };
-  return launcherApps.lockScreen();
+  return accessibilityResult(await launcherApps.lockScreen());
 };
 
 export const openRecentApps = async () => {
   const launcherApps = getLauncherAppsPlugin();
   if (!launcherApps?.openRecentApps) return { opened: false, supported: false };
-  return launcherApps.openRecentApps();
+  return accessibilityResult(await launcherApps.openRecentApps());
 };
 
 export const showCameraMedia = (media) =>
@@ -467,6 +594,12 @@ export const getSystemToneAccess = async () => {
     return { supported: false, granted: false };
   }
   return launcherApps.getSystemToneAccess();
+};
+
+export const syncKeyboardSoundSettings = async (settings) => {
+  const plugin = getLauncherAppsPlugin();
+  if (!plugin?.syncKeyboardSoundSettings) return { success: true, supported: false };
+  return plugin.syncKeyboardSoundSettings({ keypadTone: settings.keypadTone, volume: settings.volume, vibrate: settings.vibrate });
 };
 
 export const requestSystemToneAccess = async () => {
@@ -837,6 +970,7 @@ export const subscribeToSmsUpdates = (callback) => subscribeNativeEvent("smsRece
 });
 
 export const subscribeToDumbModeUpdates = (callback) => subscribeNativeEvent("dumbModeChanged", callback);
+export const subscribeToSystemSettingReturns = callback => subscribeNativeEvent("systemSettingReturned", callback);
 export const subscribeToFriendAuthenticatorUpdates = callback => subscribeNativeEvent("friendAuthenticatorChanged", callback);
 
 export const subscribeToInstalledAppsUpdates = (callback) => subscribeNativeEvent("installedAppsChanged", () => {

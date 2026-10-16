@@ -19,3 +19,12 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# WebView resolves the named JavaScript methods at runtime, outside Java call graphs.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+# Capacitor's own consumer rules retain Plugin classes and annotated callbacks.
+# Preserve runtime annotations used to discover these commands and permissions.
+-keepattributes RuntimeVisibleAnnotations,RuntimeInvisibleAnnotations,AnnotationDefault
+-keepattributes SourceFile,LineNumberTable

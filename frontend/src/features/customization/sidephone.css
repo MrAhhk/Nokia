@@ -127,11 +127,7 @@
 .nokia-launcher[data-appearance="sidephone"] .physical-dpad:has(.physical-dpad__hit--select:active) .physical-dpad__cap { transform: translate(-50%,calc(-50% + 1px)); }
 .nokia-launcher[data-appearance="sidephone"] .physical-key:focus-visible .physical-key__face,
 .nokia-launcher[data-appearance="sidephone"] .physical-dpad__hit:focus-visible { outline: 2px solid #dedede; outline-offset: -3px; }
-.nokia-launcher[data-appearance="sidephone"] .lcd-home .lcd-identity,
-.nokia-launcher[data-appearance="sidephone"] .lcd-carrier,
-.nokia-launcher[data-appearance="sidephone"] .lcd-date { font-family: Arial, sans-serif; letter-spacing: -.04em; text-shadow: none; }
-.nokia-launcher[data-appearance="sidephone"] .lcd-carrier { font-size: 10cqw; }
-.nokia-launcher[data-appearance="sidephone"] .lcd-date { font-size: 5.8cqw; }
+/* LCD typography/layout is shared with Nokia Original; only casing and colors differ. */
 
 @media (orientation: landscape) {
   .nokia-launcher[data-appearance="sidephone"] .physical-number strong { font-size: 4.7cqh; }
@@ -141,9 +137,4 @@
   .nokia-launcher[data-appearance="sidephone"] .physical-number .sidephone-shift { font-size: 4cqh; }
   .nokia-launcher[data-appearance="sidephone"] .physical-controls .physical-key__face svg,
   .nokia-launcher[data-appearance="sidephone"] .physical-controls .physical-key__face .sidephone-handset { width: 4.5cqh; height: 4.5cqh; }
-  .nokia-launcher[data-appearance="sidephone"] .lcd-carrier { font-size: 7.5cqh; }
-  .nokia-launcher[data-appearance="sidephone"] .lcd-date { font-size: 4.5cqh; margin-top: .8cqh; }
-  .nokia-launcher[data-appearance="sidephone"] .lcd-home .lcd-time { font-size: 2.8cqh; }
-  .nokia-launcher[data-appearance="sidephone"] .lcd-home .lcd-shortcut__icon { width: 5cqh; height: 5cqh; }
-  .nokia-launcher[data-appearance="sidephone"] .lcd-home .lcd-softkeys { font-size: 3.2cqh; }
 }

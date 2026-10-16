@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import MiniscreenClock from './MiniscreenClock';
 import {
   BatteryCharging,
   Bell,
@@ -37,6 +38,51 @@ const getAppDisplayName = (app) =>
   app?.title ||
   app?.packageName ||
   "";
+
+function DrawerAppOptions({ app, currentTime, onOpen, onDelete, onClose }) {
+  const [selected, setSelected] = useState('cancel');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const pending = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const remove = async () => {
+    if (pending.current || !onDelete) return;
+    pending.current = true;
+    setBusy(true); setError('');
+    try {
+      const result = await onDelete(app);
+      if (result?.opened === false) throw Error('unavailable');
+      if (alive.current) onClose();
+    } catch {
+      if (alive.current) setError('Cannot open app settings. Try again.');
+    } finally {
+      pending.current = false;
+      if (alive.current) setBusy(false);
+    }
+  };
+  const open = () => { if (!pending.current) { onOpen?.(app); onClose(); } };
+  const select = () => {
+    if (selected === 'open') open();
+    else if (selected === 'delete') void remove();
+    else onClose();
+  };
+  return <section className="lcd-screen drawer-app-options" data-testid="drawer-options" role="dialog" aria-modal="true" aria-labelledby="drawer-options-title">
+    <MiniscreenClock currentTime={currentTime} />
+    <header className="lcd-list-header"><h2 id="drawer-options-title">{getAppDisplayName(app)}</h2><span>Options</span></header>
+    <div className="drawer-options-body">
+      <div className="drawer-options-list" aria-label="App actions">
+        <button type="button" data-app-options-choice data-selected={selected === 'open'} onFocus={() => setSelected('open')} disabled={busy} onClick={open}>Open app</button>
+        <button type="button" data-app-options-choice data-selected={selected === 'delete'} onFocus={() => setSelected('delete')} disabled={busy || !onDelete} onClick={remove}>Delete app</button>
+        <button type="button" data-app-options-choice data-selected={selected === 'cancel'} autoFocus data-app-options-cancel onFocus={() => setSelected('cancel')} onClick={onClose}>Cancel</button>
+      </div>
+      <p className="drawer-options-note">Delete opens Android app settings. You confirm Uninstall there.</p>
+      {busy && <p role="status">Opening app settings…</p>}
+      {error && <p role="alert">{error}</p>}
+    </div>
+    <footer className="lcd-list-softkeys"><button type="button" data-app-options-delete disabled={busy || !onDelete} onClick={remove}>Delete</button><button type="button" disabled={busy} onClick={select}>Select</button><button type="button" onClick={onClose}>Back</button></footer>
+  </section>;
+}
 
 const formatMessageDate = (timestamp) => {
   if (!timestamp) return "";
@@ -160,6 +206,7 @@ const Screen = ({
   menuItems,
   selectedIndex,
   selectedHomeTarget,
+  homeNotice,
   currentTime,
   searchActive,
   searchQuery,
@@ -167,6 +214,7 @@ const Screen = ({
   onClockClick,
   onAppClick,
   onAppLongPress,
+  onDeleteApp,
   onOpenMenu,
   onOpenSettings,
   onSettingClick,
@@ -206,6 +254,7 @@ const Screen = ({
   const composerInputRef = useRef(null);
   const touchStartRef = useRef({ x: 0, y: 0 });
   const [toastMessage, setToastMessage] = useState("");
+  const [drawerApp, setDrawerApp] = useState(null);
   const prevThreadLenRef = useRef(0);
   const prevViewForScrollRef = useRef(currentView);
   const deleteLongPressTimerRef = useRef(null);
@@ -213,6 +262,7 @@ const Screen = ({
   const toastTimerRef = useRef(null);
   useLayoutEffect(() => {
     setToastMessage("");
+    setDrawerApp(null);
     return () => {
     clearTimeout(toastTimerRef.current);
     clearTimeout(deleteLongPressTimerRef.current);
@@ -431,6 +481,7 @@ const Screen = ({
     return (
       <div className="lcd-screen lcd-dial-screen" data-testid="screen-dial">
         <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
+        <MiniscreenClock currentTime={currentTime} />
         <div className="lcd-dial-label">{isCalling ? "Calling..." : "Enter number"}</div>
         <div className="lcd-dial-number" aria-live="polite">{dialNumber}</div>
         <div className="lcd-dial-rule" aria-hidden="true" />
@@ -459,14 +510,14 @@ const Screen = ({
       <div className="lcd-screen lcd-home" data-testid="screen-home">
         <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
 
-        <div className="lcd-identity">
+        {homeNotice || <div className="lcd-identity">
           <div className="lcd-carrier" aria-label={deviceStatus?.carrierName || "MobiFone"}>
             {deviceStatus?.carrierName || "MobiFone"}
           </div>
           <div className="lcd-date" aria-label={formattedDate}>
             {formattedDate}
           </div>
-        </div>
+        </div>}
 
         <button
           type="button"
@@ -677,6 +728,7 @@ const Screen = ({
                 isSelected={isSelected}
                 testId={isSettings ? `settings-item-${item.id}` : `app-list-item-${item.id}`}
                 onClick={() => isSettings ? onSettingClick(item) : onAppClick(item)}
+                onLongPress={currentView === "menu" && item.packageName ? () => setDrawerApp(item) : undefined}
               />
             );
           })}
@@ -728,6 +780,7 @@ const Screen = ({
         )}
 
         {toastMessage && <div className="lcd-nokia-toast">{toastMessage}</div>}
+        {drawerApp && <DrawerAppOptions app={drawerApp} currentTime={currentTime} onOpen={onAppClick} onDelete={onDeleteApp} onClose={() => setDrawerApp(null)} />}
       </div>
     );
   }
@@ -739,6 +792,7 @@ const Screen = ({
     return (
       <div className="lcd-screen lcd-thread-screen" data-testid="screen-message-thread">
         <LcdStatus status={deviceStatus} onNotificationsClick={onNotificationModeCycle} onNotificationsLongPress={onNotificationStatusClick} onSirenToggle={onSirenToggle} onStatusClick={onStatusIconClick} />
+        <MiniscreenClock currentTime={currentTime} />
         <div className="lcd-list-header">
           <div className="lcd-list-title">{threadRecipient}</div>
           <div className="lcd-composer-counter">{threadList.length} msgs</div>
@@ -1009,15 +1063,25 @@ const HomeShortcut = memo(({ item, isSelected, onClick, onLongPress }) => {
 
 HomeShortcut.displayName = "HomeShortcut";
 
-const ListRow = memo(({ item, isSelected, onClick, testId }) => {
+const ListRow = memo(({ item, isSelected, onClick, onLongPress, testId }) => {
   const itemName = getAppDisplayName(item) || "Unknown item";
+  const timer = useRef(null); const held = useRef(false);
+  const cancelHold = () => { clearTimeout(timer.current); timer.current = null; };
+  useEffect(() => cancelHold, [onLongPress]);
 
   return (
     <button
       type="button"
       data-selected-app-row={isSelected ? "true" : undefined}
       data-testid={testId}
-      onClick={onClick}
+      onClick={event => { if (held.current) { held.current = false; event.preventDefault(); } else onClick?.(); }}
+      onPointerDown={event => {
+        if (!onLongPress || (event.button != null && event.button !== 0)) return;
+        cancelHold(); held.current = false;
+        timer.current = setTimeout(() => { timer.current = null; held.current = true; onLongPress(); }, 500);
+      }}
+      onPointerUp={cancelHold} onPointerLeave={cancelHold} onPointerCancel={cancelHold}
+      onContextMenu={event => { if (onLongPress) { event.preventDefault(); cancelHold(); held.current = true; onLongPress(); } }}
       role={typeof item.switchOn === "boolean" ? "switch" : undefined}
       aria-checked={typeof item.switchOn === "boolean" ? item.switchOn : undefined}
       aria-label={typeof item.switchOn === "boolean" ? item.switchLabel : undefined}
@@ -1032,6 +1096,9 @@ const ListRow = memo(({ item, isSelected, onClick, testId }) => {
 ListRow.displayName = "ListRow";
 
 const areScreenPropsEqual = (previous, next) => {
+  // Every LCD now exposes the current clock. Stable rows/callbacks must not
+  // freeze it; seconds within the same displayed minute need no repaint.
+  if (Math.floor(previous.currentTime?.getTime() / 60000) !== Math.floor(next.currentTime?.getTime() / 60000)) return false;
   // A callback closes over navigation/default-app state even if the visible
   // rows are unchanged. Keeping an older callback can send taps to stale state.
   if (Object.keys({ ...previous, ...next }).some((key) =>

@@ -2,8 +2,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import SoundFeature from "./SoundFeature";
 import { playRingtone } from "./nokiaAudioEngine";
-import { applySystemTone, getSystemToneAccess, requestSystemToneAccess } from "@/lib/launcherApps";
-import { _resetSoundSettingsCache } from "./soundStorage";
+import { applySystemTone, getSystemToneAccess, requestSystemToneAccess, syncKeyboardSoundSettings } from "@/lib/launcherApps";
+import { _resetSoundSettingsCache, loadSoundSettings } from "./soundStorage";
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -21,6 +21,7 @@ jest.mock("@/lib/launcherApps", () => ({
   getSystemToneAccess: jest.fn().mockResolvedValue({ supported: true, granted: false }),
   requestSystemToneAccess: jest.fn().mockResolvedValue({ opened: true }),
   applySystemTone: jest.fn().mockResolvedValue({ success: true }),
+  syncKeyboardSoundSettings: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 beforeEach(() => {
@@ -29,6 +30,50 @@ beforeEach(() => {
   getSystemToneAccess.mockResolvedValue({ supported: true, granted: false });
   requestSystemToneAccess.mockResolvedValue({ opened: true });
   applySystemTone.mockResolvedValue({ success: true });
+  syncKeyboardSoundSettings.mockResolvedValue({ success: true });
+});
+
+test("keyboard toggle persists Off and restores its tone without requiring phone-tone permission", async () => {
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  await act(async () => root.render(<SoundFeature />));
+  const toggle = container.querySelector('[data-testid="sound-row-keypadTone"]');
+  await act(async () => toggle.click());
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
+  _resetSoundSettingsCache();
+  expect(loadSoundSettings().keypadTone).toBe("off");
+  expect(syncKeyboardSoundSettings).toHaveBeenLastCalledWith(expect.objectContaining({ keypadTone: "off" }));
+  expect(requestSystemToneAccess).not.toHaveBeenCalled();
+  await act(async () => toggle.click());
+  expect(loadSoundSettings().keypadTone).toBe("dtmf");
+  await act(async () => root.unmount());
+});
+
+test("failed native keyboard persistence keeps the switch On", async () => {
+  syncKeyboardSoundSettings.mockResolvedValue({ success: false });
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  await act(async () => root.render(<SoundFeature />));
+  const toggle = container.querySelector('[data-testid="sound-row-keypadTone"]');
+  await act(async () => toggle.click());
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(loadSoundSettings().keypadTone).toBe("dtmf");
+  expect(container.textContent).toContain("Keyboard settings unavailable");
+  await act(async () => root.unmount());
+});
+
+test("phone toggle applies silence and restores the previous packaged tone", async () => {
+  getSystemToneAccess.mockResolvedValue({ supported: true, granted: true });
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  await act(async () => root.render(<SoundFeature />));
+  const toggle = container.querySelector('[data-testid="sound-row-ringtone"]');
+  await act(async () => toggle.click());
+  expect(applySystemTone).toHaveBeenLastCalledWith("ringtone", "off", "Off");
+  expect(loadSoundSettings().ringtone).toBe("off");
+  await act(async () => toggle.click());
+  expect(applySystemTone).toHaveBeenLastCalledWith("ringtone", "./sounds/modern/nokia_tune_series30.mp3", "Nokia 3310 Remaster");
+  await act(async () => root.unmount());
 });
 
 test("sound previews respect the saved vibration-off preference", async () => {
@@ -38,8 +83,9 @@ test("sound previews respect the saved vibration-off preference", async () => {
   const root = createRoot(container);
   await act(async () => root.render(<SoundFeature onExit={() => {}} />));
 
-  act(() => container.querySelector('[data-testid="sound-row-vibrate"]').click());
-  act(() => container.querySelector('[data-testid="sound-row-ringtone"]').click());
+  await act(async () => container.querySelector('[data-testid="sound-row-customize"]').click());
+  await act(async () => container.querySelector('[data-testid="sound-row-vibrate"]').click());
+  await act(async () => container.querySelector('[data-testid="sound-row-ringtone"]').click());
 
   expect(playRingtone).toHaveBeenLastCalledWith(expect.any(String), 4, false, false);
 
@@ -55,6 +101,7 @@ test("requests system-tone access only from an explicit apply action", async () 
   await act(async () => root.render(<SoundFeature onExit={() => {}} />));
 
   expect(requestSystemToneAccess).not.toHaveBeenCalled();
+  await act(async () => container.querySelector('[data-testid="sound-row-customize"]').click());
   await act(async () => container.querySelector('[data-testid="sound-row-apply_ringtone"]').click());
 
   expect(getSystemToneAccess).toHaveBeenCalled();
@@ -73,6 +120,7 @@ test("applies the selected packaged ringtone after access is granted", async () 
   const root = createRoot(container);
   await act(async () => root.render(<SoundFeature onExit={() => {}} />));
 
+  await act(async () => container.querySelector('[data-testid="sound-row-customize"]').click());
   await act(async () => container.querySelector('[data-testid="sound-row-apply_ringtone"]').click());
 
   expect(requestSystemToneAccess).not.toHaveBeenCalled();
@@ -94,6 +142,7 @@ test("can apply the selected message alert as the phone notification sound", asy
   const root = createRoot(container);
   await act(async () => root.render(<SoundFeature onExit={() => {}} />));
 
+  await act(async () => container.querySelector('[data-testid="sound-row-customize"]').click());
   const notificationAction = container.querySelector('[data-testid="sound-row-apply_notification"]');
   expect(notificationAction).not.toBeNull();
   await act(async () => notificationAction.click());

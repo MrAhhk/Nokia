@@ -13,6 +13,7 @@
 /.gradle/
 
 # misc
+/android/billing.properties
 .DS_Store
 .env.local
 .env.development.local

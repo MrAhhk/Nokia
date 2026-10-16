@@ -2,20 +2,62 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import NokiaLauncher from "./NokiaLauncher";
 import * as launcherApps from "@/lib/launcherApps";
+import { BillingContext } from '@/features/billing/BillingContext';
+import billingFixture from '@/features/billing/__fixtures__/billing-v1.json';
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
-const mountLauncher = async () => {
+const mountLauncher = async (billing = null, apps = []) => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await act(async () => root.render(<NokiaLauncher apps={[]} />));
+  await act(async () => root.render(<BillingContext.Provider value={billing}><NokiaLauncher apps={apps} /></BillingContext.Provider>));
   return { container, root };
 };
 
 const click = (container, selector) => act(() => container.querySelector(selector).click());
 
 describe("contextual physical-key grammar", () => {
+  test("drawer options capture D-pad Select and Back without opening the selected app", async () => {
+    const app = { id: "org.example.app", name: "Example", packageName: "org.example.app" };
+    const launch = jest.spyOn(launcherApps, "launchInstalledApp").mockResolvedValue({ launched: true });
+    const remove = jest.spyOn(launcherApps, "openAppRemovalSettings").mockResolvedValue({ opened: true });
+    const { container, root } = await mountLauncher(null, [app]);
+    try {
+      click(container, '[aria-label="Up"]');
+      expect(container.querySelector('[data-testid="screen-menu"]')).not.toBeNull();
+      const openOptions = () => act(() => container.querySelector('[data-testid="app-list-item-org.example.app"]')
+        .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true })));
+      openOptions();
+      expect(document.activeElement.textContent).toBe("Cancel");
+      click(container, '[aria-label="Up"]');
+      expect(document.activeElement.textContent).toBe("Delete app");
+      await act(async () => container.querySelector('[data-testid="keypad-btn-select"]').click());
+      expect(remove).toHaveBeenCalledWith(app);
+      expect(launch).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="drawer-options"]')).toBeNull();
+      expect(container.querySelector('[data-testid="screen-menu"]')).not.toBeNull();
+      openOptions();
+      click(container, '[aria-label="Settings or Back"]');
+      expect(container.querySelector('[data-testid="drawer-options"]')).toBeNull();
+      expect(container.querySelector('[data-testid="screen-menu"]')).not.toBeNull();
+      expect(remove).toHaveBeenCalledTimes(1);
+      expect(launch).not.toHaveBeenCalled();
+    } finally { act(() => root.unmount()); }
+  });
+  test('enabled billing management opens in the existing frame and physical Back returns to Settings', async () => {
+    const { container, root } = await mountLauncher({ billingView: { ...billingFixture,
+      access: { full: true, sources: ['storeLifetime'] } }, onBillingView: jest.fn() });
+    click(container, '[aria-label="Settings or Back"]');
+    await act(async () => container.querySelector('[data-testid="settings-item-billing"]').click());
+    expect(container.textContent).toContain('Lifetime purchase');
+    expect(container.querySelectorAll('[data-testid="nokia-launcher"]')).toHaveLength(1);
+    expect(container.querySelector('[aria-label="Google Play subscriptions address"]').value).toBe('https://play.google.com/store/account/subscriptions');
+    click(container, '[aria-label="Settings or Back"]');
+    expect(container.querySelector('[data-testid="screen-settings"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="settings-item-billing"]')).not.toBeNull();
+    act(() => root.unmount());
+  });
   beforeEach(() => {
     delete window.Capacitor;
     window.localStorage.clear();
@@ -44,6 +86,7 @@ describe("contextual physical-key grammar", () => {
 
     click(container, '[aria-label="Settings or Back"]');
     expect(container.querySelector('[data-testid="screen-settings"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="settings-item-billing"]')).toBeNull();
 
     click(container, '[data-testid="keypad-btn-2"]');
     expect(container.querySelector(".lcd-list-search")?.textContent).toContain("a");

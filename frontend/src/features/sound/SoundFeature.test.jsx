@@ -55,6 +55,8 @@ describe("SoundFeature", () => {
 
     expect(container.textContent).toContain("Sound");
     expect(container.textContent).toContain("Ringtone");
+    expect(container.querySelectorAll('[role="switch"]')).toHaveLength(4);
+    await act(async () => container.querySelector('[data-testid="sound-row-customize"]').click());
     expect(container.textContent).toContain("Ringing volume");
     expect(container.textContent).toContain("Keypad tones");
     expect(container.textContent).toContain("Message alert");
@@ -67,7 +69,7 @@ describe("SoundFeature", () => {
     expect(volumeRow.classList.contains("is-selected")).toBe(true);
 
     // Press RIGHT to change volume
-    act(() => featureRef.current.handleKey("RIGHT"));
+    await act(async () => featureRef.current.handleKey("RIGHT"));
     expect(volumeRow.textContent).toContain("Level 5");
 
     // Move UP back to Ringtone
@@ -76,16 +78,18 @@ describe("SoundFeature", () => {
     expect(ringtoneRow.classList.contains("is-selected")).toBe(true);
 
     // Press RIGHT to cycle ringtone
-    act(() => featureRef.current.handleKey("RIGHT"));
+    await act(async () => featureRef.current.handleKey("RIGHT"));
     expect(ringtoneRow.textContent).toContain("Nokia tune");
 
     // Click row directly
-    act(() => {
+    await act(async () => {
       ringtoneRow.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     expect(ringtoneRow.textContent).toContain("Ring ring");
 
     // Press the white Back key to exit this surface.
+    act(() => featureRef.current.handleKey("BACK"));
+    expect(onExit).not.toHaveBeenCalled();
     act(() => featureRef.current.handleKey("BACK"));
     expect(onExit).toHaveBeenCalledTimes(1);
   });

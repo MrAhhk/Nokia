@@ -2,9 +2,24 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import fs from "fs";
 import NokiaSystemKeyboard from "./NokiaSystemKeyboard";
-import { preloadKeypadAudio } from "@/features/sound/nokiaAudioEngine";
+import { preloadKeypadAudio, playKeypadTone } from "@/features/sound/nokiaAudioEngine";
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
+
+test('IME refreshes saved keyboard color on each native reset without remount', () => {
+  window.NokiaIMEBridge = { getKeyboardColor: jest.fn(() => 'white') };
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  act(() => root.render(<NokiaSystemKeyboard />));
+  expect(container.firstChild.dataset.keyboardColor).toBe('white');
+  window.NokiaIMEBridge.getKeyboardColor.mockReturnValue('blue');
+  act(() => window.resetNokiaKeyboard());
+  expect(container.firstChild.dataset.keyboardColor).toBe('blue');
+  window.NokiaIMEBridge.getKeyboardColor.mockReturnValue('invalid');
+  act(() => window.resetNokiaKeyboard());
+  expect(container.firstChild.dataset.keyboardColor).toBe('black');
+  act(() => root.unmount()); delete window.NokiaIMEBridge;
+});
 
 jest.mock("@/features/sound/nokiaAudioEngine", () => ({
   pauseAudioEngine: jest.fn(),
@@ -14,7 +29,22 @@ jest.mock("@/features/sound/nokiaAudioEngine", () => ({
 
 jest.mock("@/features/sound/soundStorage", () => ({
   loadSoundSettings: () => ({ keypadTone: false, volume: 0, vibrate: false }),
+  sanitizeSoundSettings: jest.requireActual("@/features/sound/soundStorage").sanitizeSoundSettings,
 }));
+
+test("IME uses live shared keyboard sound preferences after launcher toggles Off", () => {
+  window.NokiaIMEBridge = { getSoundSettings: jest.fn(() => '{"keypadTone":"off","volume":4,"vibrate":false}'), sendDpadKey: jest.fn() };
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  act(() => root.render(<NokiaSystemKeyboard />));
+  act(() => container.querySelector('button[aria-label="Up"]').click());
+  expect(playKeypadTone).toHaveBeenLastCalledWith("UP", "off", 4, false);
+  window.NokiaIMEBridge.getSoundSettings.mockReturnValue('{"keypadTone":"dtmf","volume":4,"vibrate":false}');
+  act(() => container.querySelector('button[aria-label="Down"]').click());
+  expect(playKeypadTone).toHaveBeenLastCalledWith("DOWN", "dtmf", 4, false);
+  act(() => root.unmount());
+  delete window.NokiaIMEBridge;
+});
 
 test("system IME reuses the physical Nokia keypad below the Nokia wordmark", () => {
   const container = document.createElement("div");
@@ -117,8 +147,13 @@ test("IME keeps homescreen number legend scale when its short window is classifi
     __filename.replace("NokiaSystemKeyboard.test.jsx", "NokiaSystemKeyboard.css"),
     "utf8"
   );
-  expect(css).toMatch(/@media \(orientation: landscape\)[\s\S]*\.nokia-system-keyboard \.physical-number strong\s*\{[^}]*font-size:\s*8cqw/);
-  expect(css).toMatch(/@media \(orientation: landscape\)[\s\S]*\.nokia-system-keyboard \.physical-number small\s*\{[^}]*font-size:\s*3\.4cqw/);
+  const homeCss = fs.readFileSync(__filename.replace("NokiaSystemKeyboard.test.jsx", "ReferenceHardware.css"), "utf8");
+  for (const legend of ["strong", "small"]) {
+    const homeSize = homeCss.match(new RegExp(`\\.physical-number ${legend}\\s*\\{[^}]*font:\\s*\\d+\\s+([\\d.]+cqw)`))?.[1];
+    expect(homeSize).toBeTruthy();
+    const imeSize = css.match(new RegExp(`@media \\(orientation: landscape\\)[\\s\\S]*\\.nokia-system-keyboard \\.physical-number ${legend}\\s*\\{[^}]*font-size:\\s*([\\d.]+cqw)`))?.[1];
+    expect(imeSize).toBe(homeSize);
+  }
 });
 
 test("swiping down from the Nokia band dismisses the IME without adding a key delay", () => {
@@ -160,10 +195,10 @@ test("physical hash key keeps the IME case-mode cycle", () => {
   container.remove();
 });
 
-test("IME shell preserves the green call legend over shared aged-key styling", () => {
+test("IME call legend uses the reference deck ink for every colorway", () => {
   const css = fs.readFileSync(__filename.replace(".test.jsx", ".css"), "utf8");
   expect(css).toContain('[data-testid="keypad"] button.physical-call');
-  expect(css).toContain("color: #35d22c");
+  expect(css).toContain("color: var(--deck-ink, #d4d5d3)");
 });
 
 test("IME shell keeps shared D-pad hit zones visually transparent", () => {

@@ -41,6 +41,7 @@ public final class DumbModeController {
     private volatile Set<String> enforced = Collections.emptySet();
     private volatile String state = "LOADING";
     private volatile boolean active;
+    private final DumbModeLaunchGate paymentLaunchGate = new DumbModeLaunchGate();
     private boolean storageUnavailableBlock;
     private volatile JSObject published = new JSObject();
     private long revision;
@@ -97,8 +98,11 @@ public final class DumbModeController {
                 }
                 state = active ? "ACTIVE" : "OFF";
                 refreshApps();
+                paymentLaunchGate.commit(active ? DumbModeLaunchGate.State.ACTIVE : DumbModeLaunchGate.State.OFF, () -> {});
             } catch (Exception failure) {
-                state = "ERROR"; error = "storage_unavailable"; storageUnavailableBlock = true;
+                paymentLaunchGate.commit(DumbModeLaunchGate.State.ERROR, () -> {
+                    state = "ERROR"; error = "storage_unavailable"; storageUnavailableBlock = true;
+                });
                 // Unreadable encrypted state cannot prove OFF. Conservatively protect all known
                 // nonessential apps once on this worker, never by scanning foreground events.
                 try { for (App app : scan()) blocked.add(app.id); }
@@ -114,6 +118,9 @@ public final class DumbModeController {
         synchronized (this) { owners.remove(owner); if (setupOwner == owner) clearSetup(); }
     }
     public JSObject snapshot() { return published; }
+    /** Global native authority; published JS/per-app exceptions cannot authorize payments. */
+    public boolean allowsPaymentLaunch() { return paymentLaunchGate.allowsPaymentLaunch(); }
+    public boolean runPaymentLaunchIfAllowed(Runnable entry) { return paymentLaunchGate.runPaymentLaunchIfAllowed(entry); }
     public boolean isBlocked(String packageName) { return enforced.contains(packageName); }
     public String launchError(String packageName) {
         if ("LOADING".equals(state)) return "dumb_mode_loading";
@@ -161,12 +168,21 @@ public final class DumbModeController {
         Number expected = call.getData().opt("expectedRevision") instanceof Number ? (Number) call.getData().opt("expectedRevision") : null;
         if (expected == null || expected.doubleValue() != revision) throw new ModeFailure("stale_revision");
     }
+    private void requirePaid(Object owner, String command) throws ModeFailure {
+        if (!(owner instanceof com.nokialauncher.billing.BillingCommandPolicy.Authority)
+                || !((com.nokialauncher.billing.BillingCommandPolicy.Authority) owner).permits(command))
+            throw new ModeFailure("billing_access_required");
+    }
     public void getState(PluginCall call) { run(call, () -> { publish(false); call.resolve(snapshot()); }); }
     public void friendOperation(String action, PluginCall call, Object owner) { run(call, () -> {
+        requirePaid(owner, action);
         synchronized (this) { if (!owners.contains(owner)) throw new ModeFailure("plugin_destroyed"); }
         ready(); long before = friends.revision();
         try {
-            JSObject result = friends.operation(action, call.getData(), active);
+            boolean newPairingAllowed = !"getHeldFriendCode".equals(action)
+                    || ((com.nokialauncher.billing.BillingCommandPolicy.Authority) owner).permits("beginFriendPairing");
+            JSObject result = friends.operation(action, call.getData(), active, newPairingAllowed,
+                    () -> ((com.nokialauncher.billing.BillingCommandPolicy.Authority) owner).permits(action));
             if (friends.revision() != before) { publish(false); publishFriends(); }
             call.resolve(result);
         } catch (Exception failure) {
@@ -178,12 +194,14 @@ public final class DumbModeController {
         JSObject result = friends.snapshot();
         for (Listener listener : listeners) main.post(() -> { if (listeners.contains(listener)) listener.friendsChanged(result); });
     }
-    public void getApps(PluginCall call) { run(call, () -> {
+    public void getApps(PluginCall call, Object owner) { run(call, () -> {
+        requirePaid(owner, "getDumbModeApps");
         ready(); List<App> apps = scan(); JSONArray rows = new JSONArray();
         for (App app : apps) rows.put(app.json(active ? blocked.contains(app.id) : DumbModePolicy.defaultBlocked(app.category)));
         JSObject result = new JSObject(); result.put("apps", rows); result.put("snapshot", snapshot()); call.resolve(result);
     }); }
     public void prepare(PluginCall call, Object owner) { run(call, () -> {
+        requirePaid(owner, "prepareDumbMode");
         ready(); checkRevision(call); if (active) throw new ModeFailure("already_active");
         JSONArray selected = call.getData().optJSONArray("selectedIds");
         if (selected == null) throw new ModeFailure("invalid_selection");
@@ -193,6 +211,7 @@ public final class DumbModeController {
         Set<String> chosenFriends = friends.validateFriends(call.getData().optJSONArray("selectedFriendIds"));
         synchronized (this) {
             if (!owners.contains(owner)) throw new ModeFailure("plugin_destroyed");
+            requirePaid(owner, "prepareDumbMode");
             clearSetup(); pendingSeen = new HashSet<>(allowed); setupOwner = owner; setupId = UUID.randomUUID().toString();
             pendingSelected = chosen; pendingFriends = chosenFriends;
             JSObject result = new JSObject(); result.put("setupId", setupId); result.put("selectedFriendIds", new JSONArray(chosenFriends));
@@ -203,6 +222,7 @@ public final class DumbModeController {
         throw new ModeFailure("static_setup_unavailable");
     }); }
     public void activate(PluginCall call, Object owner) { run(call, () -> {
+        requirePaid(owner, "activateDumbMode");
         ready(); checkRevision(call);
         final String id;
         final Set<String> selected, known, chosenFriends;
@@ -221,10 +241,23 @@ public final class DumbModeController {
         // holds the monitor needed by Activity destruction on the main thread.
         synchronized (this) { requireSetup(id, owner); clearSetup(); }
         JSONObject mode = modeJson(true, revision + 1, next, categories.keySet(), null, id, "friend_totp", chosenFriends);
-        friends.saveMode(mode);
-        sessionId = id; unlockMethod = "friend_totp"; selectedFriends = chosenFriends;
-        active = true; revision++; blocked = next; seen = new HashSet<>(categories.keySet()); verifier = null;
-        state = "ACTIVE"; error = null; publish(); call.resolve(snapshot());
+        requirePaid(owner, "activateDumbMode");
+        paymentLaunchGate.reserveActivation(); // Deny before the serialized worker starts persistence.
+        try { friends.saveMode(mode); }
+        catch (Exception failure) {
+            // A writer can persist then throw. Never release ambiguous activation back to OFF.
+            paymentLaunchGate.commit(DumbModeLaunchGate.State.ERROR, () -> {
+                state = "ERROR"; error = "storage_unavailable"; storageUnavailableBlock = true;
+                blocked = next;
+            });
+            publish(); throw failure;
+        }
+        paymentLaunchGate.commit(DumbModeLaunchGate.State.ACTIVE, () -> {
+            sessionId = id; unlockMethod = "friend_totp"; selectedFriends = chosenFriends;
+            active = true; revision++; blocked = next; seen = new HashSet<>(categories.keySet()); verifier = null;
+            state = "ACTIVE"; error = null;
+        });
+        publish(); call.resolve(snapshot());
     }); }
     public void cancel(PluginCall call, Object owner) { run(call, () -> {
         synchronized (this) { requireSetup(call.getString("setupId"), owner); clearSetup(); }
@@ -243,9 +276,12 @@ public final class DumbModeController {
                 throw new ModeFailure("incorrect_code");
             save(false, revision + 1, Collections.emptySet(), Collections.emptySet(), null);
         }
-        active = false; revision++; blocked = new HashSet<>(); seen = new HashSet<>(); verifier = null;
-        selectedFriends = new HashSet<>(); unlockMethod = "friend_totp"; sessionId = null;
-        state = "OFF"; error = null; publish(); call.resolve(snapshot());
+        paymentLaunchGate.commit(DumbModeLaunchGate.State.OFF, () -> {
+            active = false; revision++; blocked = new HashSet<>(); seen = new HashSet<>(); verifier = null;
+            selectedFriends = new HashSet<>(); unlockMethod = "friend_totp"; sessionId = null;
+            state = "OFF"; error = null;
+        });
+        publish(); call.resolve(snapshot());
     }); }
     private synchronized void requireSetup(String id, Object owner) throws ModeFailure {
         if (!owners.contains(owner) || setupId == null || !setupId.equals(id) || setupOwner != owner) throw new ModeFailure("setup_expired");

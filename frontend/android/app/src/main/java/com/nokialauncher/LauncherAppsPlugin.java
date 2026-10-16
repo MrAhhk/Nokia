@@ -79,7 +79,295 @@ import org.json.JSONArray;
     }
 )
 @SuppressWarnings({"unused", "SpellCheckingInspection", "deprecation"})
-public class LauncherAppsPlugin extends Plugin {
+public class LauncherAppsPlugin extends Plugin implements com.nokialauncher.billing.BillingCommandPolicy.Authority {
+    private final AccessibilityConsent accessibilityConsent = new AccessibilityConsent();
+    private com.nokialauncher.billing.BillingRuntime billingRuntime;
+    private com.nokialauncher.billing.BillingRuntime.Handle billingUiHandle;
+    private boolean billingUiForeground = true;
+    private final com.nokialauncher.billing.BillingManagementReturn billingManagementReturn = new com.nokialauncher.billing.BillingManagementReturn();
+    private com.nokialauncher.billing.BillingRuntime.Request billingManagementRefresh;
+    private final Map<PluginCall, BillingCallLease> billingCalls = new ConcurrentHashMap<>();
+    private final Set<PluginCall> billingActiveCalls = Collections.newSetFromMap(new ConcurrentHashMap<PluginCall, Boolean>());
+
+    /** UI lifetime only. The application billing owner continues after this lease closes. */
+    private static final class BillingCallLease implements AutoCloseable {
+        final java.util.concurrent.atomic.AtomicReference<AutoCloseable> handle = new java.util.concurrent.atomic.AtomicReference<>();
+        final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
+        void bind(AutoCloseable value) {
+            handle.set(value);
+            if (closed.get()) closeHandle(handle.getAndSet(null));
+        }
+        public void close() { closed.set(true); closeHandle(handle.getAndSet(null)); }
+        private static void closeHandle(AutoCloseable value) {
+            if (value != null) try { value.close(); } catch (Exception ignored) { }
+        }
+    }
+
+    private void withBillingHome(PluginCall call, Runnable action) {
+        withBillingHome(call, action, false);
+    }
+
+    private void withBillingHome(PluginCall call, Runnable action, boolean recovery) {
+        synchronized (billingActiveCalls) {
+            if (destroyed) { call.reject("plugin_destroyed"); return; }
+            // Reserve two UI dispatches for provider-independent Android escape actions.
+            if (billingActiveCalls.size() >= (recovery ? 16 : 14)) { call.reject("billing_busy"); return; }
+            billingActiveCalls.add(call); providerCalls.add(call);
+        }
+        boolean posted = packageHandler.post(() -> {
+            try {
+                if (destroyed) { call.reject("plugin_destroyed"); return; }
+                if (!billingHomeEligible()) {
+                    call.reject("billing_host_not_allowed"); return;
+                }
+                action.run();
+            } catch (RuntimeException unavailable) {
+                BillingCallLease lease = billingCalls.remove(call);
+                if (lease != null) lease.close();
+                call.reject("billing_unavailable");
+            } finally {
+                if (!billingCalls.containsKey(call)) { billingActiveCalls.remove(call); providerCalls.remove(call); }
+            }
+        });
+        if (!posted) { billingActiveCalls.remove(call); providerCalls.remove(call); call.reject("plugin_destroyed"); }
+    }
+
+    private com.nokialauncher.billing.BillingRuntime requireBillingRuntime() {
+        if (!BuildConfig.BILLING_ROLLOUT_ENABLED) throw new IllegalStateException("billing_disabled");
+        if (billingRuntime == null) billingRuntime = com.nokialauncher.billing.BillingRuntime.get(
+                getContext(), com.nokialauncher.billing.BillingProviderConfig.fromBuild());
+        bindBillingHome();
+        bindBillingUi();
+        return billingRuntime;
+    }
+
+    private void bindBillingUi() {
+        if (!billingUiForeground || destroyed || billingRuntime == null || billingUiHandle != null || !billingHomeEligible()) return;
+        billingUiHandle = billingRuntime.subscribe(state -> {
+            if (!destroyed && billingUiForeground && state.snapshot != null) {
+                retireRevokedResources(state.snapshot);
+                notifyListeners("billingStateChanged", billingJson(state.snapshot));
+            }
+        });
+    }
+
+    private boolean billingHomeEligible() {
+        return getActivity() instanceof MainActivity && !getActivity().isFinishing() && !getActivity().isDestroyed()
+                && getBridge() != null && getBridge().getWebView() != null
+                && ((MainActivity) getActivity()).permitsPackagedShell(getBridge().getWebView());
+    }
+    /** Main-thread lifecycle only: discover an existing process owner, never configure it. */
+    private void bindBillingHome() {
+        if (!BuildConfig.BILLING_ROLLOUT_ENABLED || !billingUiForeground || destroyed) return;
+        if (billingRuntime == null) billingRuntime = com.nokialauncher.billing.BillingRuntime.existing();
+        if (billingRuntime == null) return;
+        if (billingHomeEligible()) billingRuntime.bindHome(getActivity());
+        else unbindBillingHome();
+    }
+    private void unbindBillingHome() {
+        if (billingRuntime != null && getActivity() != null) billingRuntime.unbindHome(getActivity());
+    }
+
+    private static JSObject billingJson(com.nokialauncher.billing.BillingSnapshot snapshot) {
+        try { return JSObject.fromJSONObject(new org.json.JSONObject(snapshot.toMap())); }
+        catch (org.json.JSONException invalid) { throw new IllegalStateException("billing_contract_error", invalid); }
+    }
+
+    private BillingCallLease beginBillingCall(PluginCall call) {
+        if (billingCalls.size() >= 16) throw new java.util.concurrent.RejectedExecutionException("Billing call limit");
+        BillingCallLease lease = new BillingCallLease(); billingCalls.put(call, lease); providerCalls.add(call); return lease;
+    }
+
+    private void finishBillingCall(PluginCall call, com.nokialauncher.billing.BillingSnapshot snapshot) {
+        retireRevokedResources(snapshot);
+        BillingCallLease lease = billingCalls.remove(call);
+        if (lease == null) return;
+        lease.close();
+        billingActiveCalls.remove(call);
+        if (providerCalls.remove(call) && !destroyed) {
+            try { call.resolve(billingJson(snapshot)); }
+            catch (RuntimeException invalid) { call.reject("billing_contract_error"); }
+        }
+    }
+
+    private void acknowledgeBillingCall(PluginCall call, String operationId) {
+        BillingCallLease lease = billingCalls.remove(call);
+        if (lease == null) return;
+        lease.close();
+        billingActiveCalls.remove(call);
+        if (providerCalls.remove(call) && !destroyed) {
+            if (operationId == null) { call.reject("billing_operation_rejected"); return; }
+            JSObject result = new JSObject(); result.put("operationId", operationId); call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void getBillingBootstrapPolicy(PluginCall call) {
+        withBillingHome(call, () -> {
+            JSObject policy = new JSObject(); policy.put("enabled", BuildConfig.BILLING_ROLLOUT_ENABLED); call.resolve(policy);
+        });
+    }
+
+    @PluginMethod
+    public void initializeBilling(PluginCall call) {
+        withBillingHome(call, () -> {
+            if (call.getData().length() != 1 || !call.getData().has("captureJson")) { call.reject("invalid_billing_input"); return; }
+            Object input = call.getData().opt("captureJson");
+            if (input != org.json.JSONObject.NULL && !(input instanceof String)) { call.reject("invalid_billing_input"); return; }
+            String capture = input instanceof String ? (String) input : null;
+            if (capture != null && (capture.length() > 1024 || capture.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 1024)) {
+                call.reject("invalid_billing_input"); return;
+            }
+            com.nokialauncher.billing.BillingRuntime runtime = requireBillingRuntime();
+            BillingCallLease lease = beginBillingCall(call);
+            runtime.start(capture);
+            lease.bind(runtime.subscribe(state -> {
+                if (state.localDecisionSealed && state.snapshot != null) finishBillingCall(call, state.snapshot);
+                else if (state.phase == com.nokialauncher.billing.BillingRuntime.Phase.RECOVERY) {
+                    BillingCallLease failed = billingCalls.remove(call);
+                    if (failed != null) failed.close();
+                    billingActiveCalls.remove(call);
+                    if (providerCalls.remove(call) && !destroyed) call.reject("billing_bootstrap_recovery");
+                }
+            }));
+        });
+    }
+
+    @PluginMethod
+    public void getBillingSnapshot(PluginCall call) {
+        withBillingHome(call, () -> {
+            com.nokialauncher.billing.BillingSnapshot snapshot = requireBillingRuntime().snapshot();
+            if (snapshot == null) call.reject("billing_not_ready"); else {
+                retireRevokedResources(snapshot);
+                call.resolve(billingJson(snapshot));
+            }
+        });
+    }
+
+    @PluginMethod
+    public void refreshBilling(PluginCall call) {
+        withBillingHome(call, () -> {
+            String reason = call.getString("reason");
+            if (call.getData().length() != 1 || !("user".equals(reason) || "checkout".equals(reason)
+                    || "manage-return".equals(reason) || "expiry".equals(reason))) { call.reject("invalid_billing_input"); return; }
+            com.nokialauncher.billing.BillingRuntime runtime = requireBillingRuntime();
+            BillingCallLease lease = beginBillingCall(call);
+            try { lease.bind(runtime.refresh(snapshot -> finishBillingCall(call, snapshot))); }
+            catch (RuntimeException unavailable) {
+                billingCalls.remove(call); providerCalls.remove(call); lease.close(); call.reject("billing_not_ready");
+            }
+        });
+    }
+
+    @PluginMethod
+    public void refreshBillingCatalog(PluginCall call) {
+        withBillingHome(call, () -> {
+            if (call.getData().length() != 0) { call.reject("invalid_billing_input"); return; }
+            com.nokialauncher.billing.BillingRuntime runtime = requireBillingRuntime();
+            BillingCallLease lease = beginBillingCall(call);
+            lease.bind(runtime.refreshCatalog(snapshot -> finishBillingCall(call, snapshot)));
+        });
+    }
+
+    @PluginMethod
+    public void restoreBillingPurchases(PluginCall call) {
+        withBillingHome(call, () -> {
+            if (call.getData().length() != 0) { call.reject("invalid_billing_input"); return; }
+            com.nokialauncher.billing.BillingRuntime runtime = requireBillingRuntime();
+            BillingCallLease lease = beginBillingCall(call);
+            lease.bind(runtime.restore(snapshot -> {}, id -> acknowledgeBillingCall(call, id)));
+        });
+    }
+    /** One healthy packaged DOM signal; never initializes SDK or grants access. */
+    @PluginMethod
+    public void billingShellReady(PluginCall call) {
+        final android.webkit.WebView source = getBridge() == null ? null : getBridge().getWebView();
+        withBillingHome(call, () -> {
+            if (call.getData().length() != 0) { call.reject("invalid_billing_input"); return; }
+            if (!(getActivity() instanceof MainActivity)
+                    || !((MainActivity) getActivity()).markPackagedShellReady(source)) {
+                call.reject("billing_shell_not_ready"); return;
+            }
+            JSObject result = new JSObject(); result.put("ready", true); call.resolve(result);
+        }, true);
+    }
+
+    @PluginMethod
+    public void purchaseBillingPlan(PluginCall call) {
+        withBillingHome(call, () -> {
+            if (call.getData().length() != 3) { call.reject("invalid_billing_input"); return; }
+            Map<String, Object> fields = new java.util.HashMap<>();
+            java.util.Iterator<String> keys = call.getData().keys();
+            while (keys.hasNext()) { String key = keys.next(); fields.put(key, call.getData().opt(key)); }
+            com.nokialauncher.billing.BillingPurchaseInput input;
+            try { input = com.nokialauncher.billing.BillingPurchaseInput.parse(fields); }
+            catch (IllegalArgumentException invalid) { call.reject("invalid_billing_input"); return; }
+            com.nokialauncher.billing.BillingRuntime runtime = requireBillingRuntime();
+            BillingCallLease lease = beginBillingCall(call);
+            lease.bind(runtime.purchase(input.plan, input.catalogRevision, input.acceptedImmediateCharge,
+                    snapshot -> {}, id -> acknowledgeBillingCall(call, id)));
+        });
+    }
+
+    /** No-charge recovery request. The acknowledgement does not claim a receipt or rights. */
+    @PluginMethod
+    public void reconcileBillingPurchase(PluginCall call) {
+        withBillingHome(call, () -> {
+            if (call.getData().length() != 0) { call.reject("invalid_billing_input"); return; }
+            requireBillingRuntime().reconcilePurchase();
+            JSObject result = new JSObject(); result.put("requested", true); call.resolve(result);
+        });
+    }
+
+    /** Explicit bounded diagnostics, available without configuring billing. */
+    @PluginMethod
+    public void getBillingSupportSummary(PluginCall call) {
+        withBillingHome(call, () -> {
+            if (call.getData().length() != 0) { call.reject("invalid_billing_input"); return; }
+            String text = billingRuntime == null
+                    ? com.nokialauncher.billing.BillingSupportSummary.create(BuildConfig.VERSION_NAME, null, null, "NOT_STARTED")
+                    : billingRuntime.supportSummary(BuildConfig.VERSION_NAME);
+            JSObject result = new JSObject(); result.put("text", text); call.resolve(result);
+        }, true);
+    }
+
+    /** Fixed official general destination; no JS URL, product, payment or cancellation input. */
+    @PluginMethod
+    public void openBillingManagement(PluginCall call) {
+        withBillingHome(call, () -> {
+            if (call.getData().length() != 0) { call.reject("invalid_billing_input"); return; }
+            Uri destination = Uri.parse("https://play.google.com/store/account/subscriptions");
+            billingManagementReturn.clear();
+            if (billingManagementRefresh != null) { billingManagementRefresh.close(); billingManagementRefresh = null; }
+            Intent play = new Intent(Intent.ACTION_VIEW, destination).setPackage("com.android.vending");
+            try { getActivity().startActivity(play); }
+            catch (RuntimeException playUnavailable) {
+                try { getActivity().startActivity(new Intent(Intent.ACTION_VIEW, destination)); }
+                catch (RuntimeException browserUnavailable) { call.reject("billing_management_unavailable"); return; }
+            }
+            billingManagementReturn.opened(android.os.SystemClock.elapsedRealtime());
+            JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
+        }, true);
+    }
+
+    /** Independent of provider availability, local migration and the rollout flag. */
+    @PluginMethod
+    public void openBillingRecovery(PluginCall call) {
+        withBillingHome(call, () -> {
+            String action = call.getString("action"); String intentAction;
+            if (call.getData().length() != 1) { call.reject("invalid_billing_input"); return; }
+            if ("home-settings".equals(action)) intentAction = Settings.ACTION_HOME_SETTINGS;
+            else if ("system-settings".equals(action)) intentAction = Settings.ACTION_SETTINGS;
+            else if ("dialer".equals(action)) intentAction = Intent.ACTION_DIAL;
+            else if ("ime-settings".equals(action)) intentAction = Settings.ACTION_INPUT_METHOD_SETTINGS;
+            else { call.reject("invalid_billing_input"); return; }
+            Intent intent = new Intent(intentAction);
+            if (intent.resolveActivity(getContext().getPackageManager()) == null && "home-settings".equals(action))
+                intent = new Intent(Settings.ACTION_SETTINGS);
+            if (intent.resolveActivity(getContext().getPackageManager()) == null) { call.reject("billing_recovery_unavailable"); return; }
+            getActivity().startActivity(intent); JSObject result = new JSObject(); result.put("opened", true); call.resolve(result);
+        }, true);
+    }
     private BuiltInCameraController cameraController;
     private BuiltInBrowserController browserController;
     private boolean flashlightOn = false;
@@ -103,6 +391,8 @@ public class LauncherAppsPlugin extends Plugin {
         };
 
     private volatile boolean destroyed;
+    private volatile boolean pendingHomeSettingsReturn;
+    private volatile boolean leftForHomeSettings;
     private android.content.pm.LauncherApps packageService;
     private android.content.pm.LauncherApps.Callback packageCallback;
     private final Handler packageHandler = new Handler(Looper.getMainLooper());
@@ -393,6 +683,13 @@ public class LauncherAppsPlugin extends Plugin {
 
     @Override
     protected void handleOnPause() {
+        paidHomeAuthority = false;
+        billingUiForeground = false;
+        unbindBillingHome();
+        billingManagementReturn.pause();
+        if (billingManagementRefresh != null) { billingManagementRefresh.close(); billingManagementRefresh = null; }
+        if (billingUiHandle != null) { billingUiHandle.close(); billingUiHandle = null; }
+        if (pendingHomeSettingsReturn) leftForHomeSettings = true;
         pairingScanGeneration++;
         pendingPairingScanId = null;
         if (pairingQr != null) pairingQr.pauseForBackground();
@@ -403,6 +700,23 @@ public class LauncherAppsPlugin extends Plugin {
     @Override
     protected void handleOnResume() {
         if (destroyed) return;
+        billingUiForeground = true;
+        if (BuildConfig.BILLING_ROLLOUT_ENABLED) paidHomeAuthority = billingHomeEligible();
+        bindBillingHome();
+        // Consume even without an SDK. Lifecycle never creates/configures a provider.
+        if (billingManagementReturn.bindAndResume(android.os.SystemClock.elapsedRealtime(), this::bindBillingUi)
+                && billingRuntime != null && billingRuntime.read().sdkAvailable) {
+            if (billingManagementRefresh != null) billingManagementRefresh.close();
+            try { billingManagementRefresh = billingRuntime.refresh(snapshot -> {}); }
+            catch (RuntimeException unavailable) { billingManagementRefresh = null; }
+        }
+        if (pendingHomeSettingsReturn && leftForHomeSettings) {
+            pendingHomeSettingsReturn = false;
+            leftForHomeSettings = false;
+            JSObject event = new JSObject();
+            event.put("setting", "default-launcher");
+            notifyListeners("systemSettingReturned", event);
+        }
         if (dumbMode != null) dumbMode.availabilityChanged();
         registerCallLogObserver();
         if (browserController != null) browserController.resumeFromBackground();
@@ -412,11 +726,24 @@ public class LauncherAppsPlugin extends Plugin {
     @Override
     protected void handleOnDestroy() {
         destroyed = true;
+        paidHomeAuthority = false;
+        billingUiForeground = false;
+        unbindBillingHome();
+        billingManagementReturn.clear();
+        if (billingManagementRefresh != null) { billingManagementRefresh.close(); billingManagementRefresh = null; }
+        if (billingUiHandle != null) { billingUiHandle.close(); billingUiHandle = null; }
+        for (BillingCallLease lease : billingCalls.values()) lease.close();
+        billingCalls.clear();
+        billingActiveCalls.clear();
+        pendingHomeSettingsReturn = false;
+        leftForHomeSettings = false;
         pairingScanGeneration++;
         pendingPairingScanId = null;
         if (pairingQr != null) { pairingQr.destroy(); pairingQr = null; }
         if (dumbMode != null) dumbMode.detach(dumbModeListener, this);
         packageHandler.removeCallbacksAndMessages(null);
+        for (PluginCall pending : paidDispatchCalls) pending.reject("plugin_destroyed");
+        paidDispatchCalls.clear();
         if (packageService != null && packageCallback != null) {
             try { packageService.unregisterCallback(packageCallback); } catch (RuntimeException ignored) {}
         }
@@ -443,6 +770,92 @@ public class LauncherAppsPlugin extends Plugin {
         }
     }
 
+    private volatile boolean paidHomeAuthority;
+    private volatile boolean paidHostRetired;
+    private boolean paidResourcesDirty;
+
+    /** Main-thread publication barrier: initiate owner stop/save before JS can replace Home.
+     * Recording Finalize still owns asynchronous media persistence; no payment or lock reset. */
+    private void retireRevokedResources(com.nokialauncher.billing.BillingSnapshot snapshot) {
+        if (!BuildConfig.BILLING_ROLLOUT_ENABLED || !paidResourcesDirty || snapshot == null) return;
+        com.nokialauncher.billing.BillingRuntime runtime = com.nokialauncher.billing.BillingRuntime.existing();
+        com.nokialauncher.billing.BillingRuntime.State state = runtime == null ? null : runtime.read();
+        if (snapshot.access.full && state != null && state.snapshot != null
+                && state.snapshot.access.full && state.writersMayStart()) return;
+        paidResourcesDirty = false;
+        pairingScanGeneration++;
+        pendingPairingScanId = null;
+        try { if (pairingQr != null) pairingQr.pauseForBackground(); } catch (RuntimeException ignored) { }
+        try { if (cameraController != null) cameraController.pauseForBackground(); } catch (RuntimeException ignored) { }
+        try { if (browserController != null) browserController.stop(); } catch (RuntimeException ignored) { }
+    }
+    private final Set<PluginCall> paidDispatchCalls = Collections.newSetFromMap(new ConcurrentHashMap<PluginCall, Boolean>());
+
+    /** MainActivity terminal fallback only. No construction, initialization or provider work.
+     * Recording finalization/catalog saving remains in the existing camera owner. Each
+     * independent cleanup is best effort so one owner cannot prevent the system escape UI.
+     */
+    public void enterNativeRecovery() {
+        if (Looper.myLooper() != Looper.getMainLooper()) return;
+        paidHostRetired = true;
+        paidHomeAuthority = false;
+        billingUiForeground = false;
+        try { unbindBillingHome(); } catch (RuntimeException ignored) { }
+        try { if (billingUiHandle != null) { billingUiHandle.close(); billingUiHandle = null; } }
+        catch (RuntimeException ignored) { }
+        pairingScanGeneration++;
+        pendingPairingScanId = null;
+        try { if (pairingQr != null) pairingQr.pauseForBackground(); } catch (RuntimeException ignored) { }
+        try { if (cameraController != null) cameraController.pauseForBackground(); } catch (RuntimeException ignored) { }
+        try { if (browserController != null) browserController.stop(); } catch (RuntimeException ignored) { }
+    }
+
+    private void withPaidCommand(PluginCall call, String command, Runnable action) {
+        if (paidHostRetired) { call.reject("billing_host_not_allowed"); return; }
+        if (!BuildConfig.BILLING_ROLLOUT_ENABLED) { action.run(); return; }
+        synchronized (paidDispatchCalls) {
+            if (destroyed) { call.reject("plugin_destroyed"); return; }
+            if (paidDispatchCalls.size() >= 16) { call.reject("provider_busy"); return; }
+            paidDispatchCalls.add(call);
+        }
+        boolean posted = packageHandler.post(() -> {
+            try {
+                paidHomeAuthority = !destroyed && billingHomeEligible();
+                if (!requirePaidCommand(call, command)) return;
+                paidResourcesDirty = true;
+                action.run();
+            } catch (RuntimeException unavailable) { call.reject("provider_operation_failed"); }
+            finally { paidDispatchCalls.remove(call); }
+        });
+        if (!posted) { paidDispatchCalls.remove(call); call.reject("plugin_destroyed"); }
+    }
+
+    /** No get/start/subscribe/configure, SDK, storage or network on a command/key. */
+    @Override public boolean permits(String command) {
+        com.nokialauncher.billing.BillingCommandPolicy.Command classified =
+                com.nokialauncher.billing.BillingCommandPolicy.command(command);
+        if (paidHostRetired && classified != null
+                && classified.category == com.nokialauncher.billing.BillingCommandPolicy.Category.PAID_FEATURE) return false;
+        return com.nokialauncher.billing.BillingCommandPolicy.permits(
+                BuildConfig.BILLING_ROLLOUT_ENABLED,
+                classified, () -> {
+            boolean home = !destroyed && !paidHostRetired && getActivity() instanceof MainActivity
+                    && !getActivity().isFinishing() && !getActivity().isDestroyed();
+            // WebView URL belongs to main; worker entries use the authenticated native
+            // dispatch and recheck live Activity identity/lifecycle plus the latest rights.
+            home = home && (Looper.myLooper() == Looper.getMainLooper()
+                    ? billingHomeEligible() : paidHomeAuthority);
+            com.nokialauncher.billing.BillingRuntime existing = com.nokialauncher.billing.BillingRuntime.existing();
+            com.nokialauncher.billing.BillingRuntime.State state = existing == null ? null : existing.read();
+            return com.nokialauncher.billing.BillingCommandPolicy.Access.fromRuntime(home, state);
+        });
+    }
+
+    private boolean requirePaidCommand(PluginCall call, String command) {
+        if (permits(command)) return true;
+        call.reject("billing_access_required"); return false;
+    }
+
     private void executeProviderTask(PluginCall call, Runnable task) {
         if (destroyed || providerExecutor.isShutdown()) {
             call.reject("plugin_destroyed");
@@ -456,6 +869,7 @@ public class LauncherAppsPlugin extends Plugin {
                         call.reject("provider_query_cancelled");
                         return;
                     }
+                    if (!requirePaidCommand(call, call.getMethodName())) return;
                     task.run();
                 } catch (RuntimeException failure) {
                     call.reject("provider_operation_failed");
@@ -475,7 +889,7 @@ public class LauncherAppsPlugin extends Plugin {
                 JSObject event = new JSObject();
                 event.put("control", control);
                 notifyListeners("cameraControl", event);
-            });
+            }, () -> permits("startCamera"));
         }
         return cameraController;
     }
@@ -489,29 +903,69 @@ public class LauncherAppsPlugin extends Plugin {
                 event.put("title", title);
                 event.put("progress", progress);
                 notifyListeners("browserState", event);
-            });
+            }, () -> permits("startBrowser"));
         }
         return browserController;
     }
 
     @PluginMethod public void getDumbModeState(PluginCall call) { dumbMode.getState(call); }
-    @PluginMethod public void getDumbModeApps(PluginCall call) { dumbMode.getApps(call); }
-    @PluginMethod public void prepareDumbMode(PluginCall call) { dumbMode.prepare(call, this); }
-    @PluginMethod public void shareDumbModeCode(PluginCall call) { dumbMode.share(call, this, getActivity()); }
-    @PluginMethod public void activateDumbMode(PluginCall call) { dumbMode.activate(call, this); }
+    @PluginMethod public void getDumbModeApps(PluginCall call) {
+        withPaidCommand(call, "getDumbModeApps", () -> paidGetDumbModeApps(call));
+    }
+
+    private void paidGetDumbModeApps(PluginCall call) { dumbMode.getApps(call, this); }
+    @PluginMethod public void prepareDumbMode(PluginCall call) {
+        withPaidCommand(call, "prepareDumbMode", () -> paidPrepareDumbMode(call));
+    }
+
+    private void paidPrepareDumbMode(PluginCall call) { dumbMode.prepare(call, this); }
+    @PluginMethod public void shareDumbModeCode(PluginCall call) {
+        withPaidCommand(call, "shareDumbModeCode", () -> paidShareDumbModeCode(call));
+    }
+
+    private void paidShareDumbModeCode(PluginCall call) { dumbMode.share(call, this, getActivity()); }
+    @PluginMethod public void activateDumbMode(PluginCall call) {
+        withPaidCommand(call, "activateDumbMode", () -> paidActivateDumbMode(call));
+    }
+
+    private void paidActivateDumbMode(PluginCall call) { dumbMode.activate(call, this); }
     @PluginMethod public void cancelDumbModeSetup(PluginCall call) { dumbMode.cancel(call, this); }
     @PluginMethod public void unlockDumbMode(PluginCall call) { dumbMode.unlock(call); }
     @PluginMethod public void getFriendAuthenticatorState(PluginCall call) { dumbMode.friendOperation("getFriendAuthenticatorState", call, this); }
-    @PluginMethod public void beginFriendPairing(PluginCall call) { dumbMode.friendOperation("beginFriendPairing", call, this); }
-    @PluginMethod public void acceptFriendPairing(PluginCall call) { dumbMode.friendOperation("acceptFriendPairing", call, this); }
-    @PluginMethod public void inspectFriendPairing(PluginCall call) { dumbMode.friendOperation("inspectFriendPairing", call, this); }
-    @PluginMethod public void completeFriendPairing(PluginCall call) { dumbMode.friendOperation("completeFriendPairing", call, this); }
-    @PluginMethod public void acknowledgeFriendPairing(PluginCall call) { dumbMode.friendOperation("acknowledgeFriendPairing", call, this); }
+    @PluginMethod public void beginFriendPairing(PluginCall call) {
+        withPaidCommand(call, "beginFriendPairing", () -> paidBeginFriendPairing(call));
+    }
+
+    private void paidBeginFriendPairing(PluginCall call) { dumbMode.friendOperation("beginFriendPairing", call, this); }
+    @PluginMethod public void acceptFriendPairing(PluginCall call) {
+        withPaidCommand(call, "acceptFriendPairing", () -> paidAcceptFriendPairing(call));
+    }
+
+    private void paidAcceptFriendPairing(PluginCall call) { dumbMode.friendOperation("acceptFriendPairing", call, this); }
+    @PluginMethod public void inspectFriendPairing(PluginCall call) {
+        withPaidCommand(call, "inspectFriendPairing", () -> paidInspectFriendPairing(call));
+    }
+
+    private void paidInspectFriendPairing(PluginCall call) { dumbMode.friendOperation("inspectFriendPairing", call, this); }
+    @PluginMethod public void completeFriendPairing(PluginCall call) {
+        withPaidCommand(call, "completeFriendPairing", () -> paidCompleteFriendPairing(call));
+    }
+
+    private void paidCompleteFriendPairing(PluginCall call) { dumbMode.friendOperation("completeFriendPairing", call, this); }
+    @PluginMethod public void acknowledgeFriendPairing(PluginCall call) {
+        withPaidCommand(call, "acknowledgeFriendPairing", () -> paidAcknowledgeFriendPairing(call));
+    }
+
+    private void paidAcknowledgeFriendPairing(PluginCall call) { dumbMode.friendOperation("acknowledgeFriendPairing", call, this); }
     @PluginMethod public void cancelFriendPairing(PluginCall call) { dumbMode.friendOperation("cancelFriendPairing", call, this); }
     @PluginMethod public void removeFriendPairing(PluginCall call) { dumbMode.friendOperation("removeFriendPairing", call, this); }
     @PluginMethod public void getHeldFriendCode(PluginCall call) { dumbMode.friendOperation("getHeldFriendCode", call, this); }
 
     @PluginMethod public void getFriendPairingQr(PluginCall call) {
+        withPaidCommand(call, "getFriendPairingQr", () -> paidGetFriendPairingQr(call));
+    }
+
+    private void paidGetFriendPairingQr(PluginCall call) {
         try {
             com.nokialauncher.dumbmode.PairingProtocol.validatePublicPayload(call.getString("payload"));
             if (destroyed || getActivity() == null) { call.reject("plugin_destroyed"); return; }
@@ -519,10 +973,14 @@ public class LauncherAppsPlugin extends Plugin {
         } catch (Exception invalid) { call.reject("invalid_pairing_payload"); }
     }
     private com.nokialauncher.dumbmode.PairingQrController pairingQrController() {
-        if (pairingQr == null) pairingQr = new com.nokialauncher.dumbmode.PairingQrController(getActivity());
+        if (pairingQr == null) pairingQr = new com.nokialauncher.dumbmode.PairingQrController(getActivity(), () -> permits("startFriendPairingScan"));
         return pairingQr;
     }
     @PluginMethod public void startFriendPairingScan(PluginCall call) {
+        withPaidCommand(call, "startFriendPairingScan", () -> paidStartFriendPairingScan(call));
+    }
+
+    private void paidStartFriendPairingScan(PluginCall call) {
         if (destroyed || getActivity() == null) { call.reject("plugin_destroyed"); return; }
         pendingPairingScanId = call.getString("scanId");
         if (pendingPairingScanId == null || pendingPairingScanId.length() > 100) { call.reject("invalid_scan_id"); return; }
@@ -535,6 +993,7 @@ public class LauncherAppsPlugin extends Plugin {
         pairingQrController().start(call);
     }
     @PermissionCallback private void friendPairingCameraPermissionCallback(PluginCall call) {
+        if (!requirePaidCommand(call, "startFriendPairingScan")) return;
         if (destroyed || getActivity() == null || call.getData().optLong("scanGeneration", -1) != pairingScanGeneration
                 || !java.util.Objects.equals(pendingPairingScanId, call.getString("scanId"))) {
             call.reject("pairing_scan_cancelled"); return;
@@ -549,12 +1008,17 @@ public class LauncherAppsPlugin extends Plugin {
         if (pairingQr != null) pairingQr.stop(call); else call.resolve();
     }
     @PluginMethod public void shareFriendPairingText(PluginCall call) {
+        withPaidCommand(call, "shareFriendPairingText", () -> paidShareFriendPairingText(call));
+    }
+
+    private void paidShareFriendPairingText(PluginCall call) {
         final String payload = call.getString("payload");
         try { com.nokialauncher.dumbmode.PairingProtocol.validatePublicPayload(payload); }
         catch (Exception invalid) { call.reject("invalid_pairing_payload"); return; }
         android.app.Activity activity = getActivity();
         if (activity == null || destroyed) { call.reject("activity_unavailable"); return; }
         activity.runOnUiThread(() -> {
+            if (!requirePaidCommand(call, "shareFriendPairingText")) return;
             if (destroyed || activity.isFinishing()) { call.reject("activity_unavailable"); return; }
             try {
                 Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, payload);
@@ -563,9 +1027,14 @@ public class LauncherAppsPlugin extends Plugin {
         });
     }
     @PluginMethod public void pasteFriendPairingText(PluginCall call) {
+        withPaidCommand(call, "pasteFriendPairingText", () -> paidPasteFriendPairingText(call));
+    }
+
+    private void paidPasteFriendPairingText(PluginCall call) {
         android.app.Activity activity = getActivity();
         if (activity == null || destroyed) { call.reject("clipboard_unavailable"); return; }
         activity.runOnUiThread(() -> {
+            if (!requirePaidCommand(call, "pasteFriendPairingText")) return;
             try {
                 android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
                 android.content.ClipData clip = clipboard != null ? clipboard.getPrimaryClip() : null;
@@ -580,6 +1049,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void getInstalledApps(PluginCall call) {
+        withPaidCommand(call, "getInstalledApps", () -> paidGetInstalledApps(call));
+    }
+
+    private void paidGetInstalledApps(PluginCall call) {
         executeProviderTask(call, () -> loadInstalledApps(call));
     }
 
@@ -641,6 +1114,32 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void launchApp(PluginCall call) {
+        withPaidCommand(call, "launchApp", () -> paidLaunchApp(call));
+    }
+
+    @PluginMethod
+    public void openAppRemovalSettings(PluginCall call) {
+        withPaidCommand(call, "openAppRemovalSettings", () -> {
+            String packageName = call.getString("packageName");
+            if (packageName == null || !packageName.matches("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+")) {
+                call.reject("invalid_package"); return;
+            }
+            try {
+                getContext().getPackageManager().getApplicationInfo(packageName, 0);
+                // Android owns uninstall confirmation and system-app restrictions.
+                // Opening details needs no REQUEST_DELETE_PACKAGES privilege.
+                Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", packageName, null));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(intent);
+                call.resolve();
+            } catch (PackageManager.NameNotFoundException | RuntimeException failure) {
+                call.reject("app_removal_unavailable", failure);
+            }
+        });
+    }
+
+    private void paidLaunchApp(PluginCall call) {
         String packageName = call.getString("packageName");
         String restriction = com.nokialauncher.dumbmode.DumbModeController.get(getContext()).launchError(packageName);
         if (restriction != null) { call.reject(restriction, restriction); return; }
@@ -679,6 +1178,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void openAppReview(PluginCall call) {
+        withPaidCommand(call, "openAppReview", () -> paidOpenAppReview(call));
+    }
+
+    private void paidOpenAppReview(PluginCall call) {
         android.app.Activity activity = getActivity();
         if (activity == null) { call.reject("activity_unavailable"); return; }
         activity.runOnUiThread(() -> {
@@ -698,6 +1201,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void shareApp(PluginCall call) {
+        withPaidCommand(call, "shareApp", () -> paidShareApp(call));
+    }
+
+    private void paidShareApp(PluginCall call) {
         android.app.Activity activity = getActivity();
         if (activity == null) { call.reject("activity_unavailable"); return; }
         activity.runOnUiThread(() -> {
@@ -780,6 +1287,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void getContacts(PluginCall call) {
+        withPaidCommand(call, "getContacts", () -> paidGetContacts(call));
+    }
+
+    private void paidGetContacts(PluginCall call) {
         if (getPermissionState("contacts") != PermissionState.GRANTED) {
             requestPermissionForAlias("contacts", call, "contactsPermissionCallback");
             return;
@@ -866,6 +1377,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void getRecentCalls(PluginCall call) {
+        withPaidCommand(call, "getRecentCalls", () -> paidGetRecentCalls(call));
+    }
+
+    private void paidGetRecentCalls(PluginCall call) {
         if (getPermissionState("callLog") != PermissionState.GRANTED) {
             requestPermissionForAlias("callLog", call, "callLogPermissionCallback");
             return;
@@ -1009,6 +1524,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void deleteRecentCall(PluginCall call) {
+        withPaidCommand(call, "deleteRecentCall", () -> paidDeleteRecentCall(call));
+    }
+
+    private void paidDeleteRecentCall(PluginCall call) {
         String id = call.getString("id");
         if (id == null || id.trim().isEmpty()) {
             call.reject("Missing call id");
@@ -1108,6 +1627,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void simulateIncomingSms(PluginCall call) {
+        withPaidCommand(call, "simulateIncomingSms", () -> paidSimulateIncomingSms(call));
+    }
+
+    private void paidSimulateIncomingSms(PluginCall call) {
         String address = call.getString("address", "198");
         String body = call.getString("body", "Test Instant Message");
         long date = System.currentTimeMillis();
@@ -1123,6 +1646,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void getConversations(PluginCall call) {
+        withPaidCommand(call, "getConversations", () -> paidGetConversations(call));
+    }
+
+    private void paidGetConversations(PluginCall call) {
         if (getPermissionState("sms") != PermissionState.GRANTED) {
             requestPermissionForAlias("sms", call, "conversationsPermissionCallback");
             return;
@@ -1236,6 +1763,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void getThreadMessages(PluginCall call) {
+        withPaidCommand(call, "getThreadMessages", () -> paidGetThreadMessages(call));
+    }
+
+    private void paidGetThreadMessages(PluginCall call) {
         if (getPermissionState("sms") != PermissionState.GRANTED) {
             requestPermissionForAlias("sms", call, "threadPermissionCallback");
             return;
@@ -1452,6 +1983,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void markConversationRead(PluginCall call) {
+        withPaidCommand(call, "markConversationRead", () -> paidMarkConversationRead(call));
+    }
+
+    private void paidMarkConversationRead(PluginCall call) {
         executeProviderTask(call, () -> {
             try {
                 Context context = getContext();
@@ -1498,6 +2033,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void sendSms(PluginCall call) {
+        withPaidCommand(call, "sendSms", () -> paidSendSms(call));
+    }
+
+    private void paidSendSms(PluginCall call) {
         String address = call.getString("address", "");
         String body = call.getString("body", "");
         if (address == null || address.trim().isEmpty()) {
@@ -1564,6 +2103,7 @@ public class LauncherAppsPlugin extends Plugin {
                 }
 
                 if (smsSender == null) { call.reject("sms_sender_unavailable"); return; }
+                if (!requirePaidCommand(call, "sendSms")) return;
                 smsSender.send(smsManager, targetNumber, body, call);
             } catch (Exception e) {
                 call.reject("sms_send_failed");
@@ -1585,6 +2125,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void getNotificationConversations(PluginCall call) {
+        withPaidCommand(call, "getNotificationConversations", () -> paidGetNotificationConversations(call));
+    }
+
+    private void paidGetNotificationConversations(PluginCall call) {
         try {
             Context context = getContext();
             if (context != null) {
@@ -1622,6 +2166,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void replyNotificationMessage(PluginCall call) {
+        withPaidCommand(call, "replyNotificationMessage", () -> paidReplyNotificationMessage(call));
+    }
+
+    private void paidReplyNotificationMessage(PluginCall call) {
         String key = call.getString("notificationKey", "");
         String body = call.getString("body", "");
         if (key == null || key.trim().isEmpty()) {
@@ -1650,6 +2198,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void deleteConversation(PluginCall call) {
+        withPaidCommand(call, "deleteConversation", () -> paidDeleteConversation(call));
+    }
+
+    private void paidDeleteConversation(PluginCall call) {
         String threadId = call.getString("threadId", "");
         String address = call.getString("address", "");
         String notificationKey = call.getString("notificationKey", "");
@@ -1686,6 +2238,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void deleteMessage(PluginCall call) {
+        withPaidCommand(call, "deleteMessage", () -> paidDeleteMessage(call));
+    }
+
+    private void paidDeleteMessage(PluginCall call) {
         String messageId = call.getString("id", "");
         String notificationKey = call.getString("notificationKey", "");
         executeProviderTask(call, () -> {
@@ -1731,6 +2287,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void simulateIncomingNotification(PluginCall call) {
+        withPaidCommand(call, "simulateIncomingNotification", () -> paidSimulateIncomingNotification(call));
+    }
+
+    private void paidSimulateIncomingNotification(PluginCall call) {
         String pkg = call.getString("package", "com.whatsapp");
         String sender = call.getString("sender", "Sarah");
         String body = call.getString("body", "Hey, do you have the project doc?");
@@ -1788,6 +2348,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void openDefaultMaps(PluginCall call) {
+        withPaidCommand(call, "openDefaultMaps", () -> paidOpenDefaultMaps(call));
+    }
+
+    private void paidOpenDefaultMaps(PluginCall call) {
         try {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q="));
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -1807,6 +2371,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void selectDefaultApp(PluginCall call) {
+        withPaidCommand(call, "selectDefaultApp", () -> paidSelectDefaultApp(call));
+    }
+
+    private void paidSelectDefaultApp(PluginCall call) {
         String type = call.getString("type", "");
         Context context = getContext();
         if (context == null) {
@@ -1981,7 +2549,7 @@ public class LauncherAppsPlugin extends Plugin {
             return;
         }
 
-        try {
+        accessibilityConsent.request(getActivity(), call, () -> { try {
             Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
@@ -1993,6 +2561,7 @@ public class LauncherAppsPlugin extends Plugin {
             result.put("error", e.getMessage());
             call.resolve(result);
         }
+        });
     }
 
     @PluginMethod
@@ -2020,7 +2589,7 @@ public class LauncherAppsPlugin extends Plugin {
             }
         }
 
-        try {
+        accessibilityConsent.request(getActivity(), call, () -> { try {
             Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(intent);
@@ -2032,6 +2601,7 @@ public class LauncherAppsPlugin extends Plugin {
             result.put("error", e.getMessage());
             call.resolve(result);
         }
+        });
     }
 
     private String getNotificationMode(AudioManager audio) {
@@ -2116,6 +2686,42 @@ public class LauncherAppsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void syncKeyboardColor(PluginCall call) {
+        String color = call.getString("color", "black");
+        if (!java.util.Arrays.asList("red", "orange", "yellow", "green", "blue", "indigo", "violet", "white", "black").contains(color)) {
+            call.reject("Invalid keyboard color");
+            return;
+        }
+        executeProviderTask(call, () -> {
+            boolean saved = getContext().getSharedPreferences("nokia_keyboard_appearance", Context.MODE_PRIVATE)
+                .edit().putString("color", color).commit();
+            JSObject result = new JSObject();
+            result.put("success", saved);
+            call.resolve(result);
+        });
+    }
+
+    @PluginMethod
+    public void syncKeyboardSoundSettings(PluginCall call) {
+        String tone = call.getString("keypadTone", "dtmf");
+        if (!("dtmf".equals(tone) || "click".equals(tone) || "beep".equals(tone) || "off".equals(tone))) {
+            call.reject("Invalid keyboard tone");
+            return;
+        }
+        final String selectedTone = tone;
+        final int volume = Math.max(1, Math.min(5, call.getInt("volume", 4)));
+        final boolean vibrate = call.getBoolean("vibrate", true);
+        executeProviderTask(call, () -> {
+            boolean saved = getContext().getSharedPreferences("nokia_keyboard_sound", Context.MODE_PRIVATE)
+                .edit().putString("keypadTone", selectedTone).putInt("volume", volume)
+                .putBoolean("vibrate", vibrate).commit();
+            JSObject result = new JSObject();
+            result.put("success", saved);
+            call.resolve(result);
+        });
+    }
+
+    @PluginMethod
     public void toggleFlashlight(PluginCall call) {
         if (getPermissionState("camera") != PermissionState.GRANTED) {
             requestPermissionForAlias("camera", call, "flashlightPermissionCallback");
@@ -2190,6 +2796,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void applySystemTone(PluginCall call) {
+        withPaidCommand(call, "applySystemTone", () -> paidApplySystemTone(call));
+    }
+
+    private void paidApplySystemTone(PluginCall call) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             JSObject result = new JSObject();
             result.put("success", false);
@@ -2213,6 +2823,23 @@ public class LauncherAppsPlugin extends Plugin {
         final String rawTitle = rawTitleStr != null ? rawTitleStr : "Nokia Launcher tone";
         if (!("ringtone".equals(toneType) || "notification".equals(toneType) || "alarm".equals(toneType))) {
             call.reject("toneType must be ringtone, notification, or alarm");
+            return;
+        }
+
+        if ("off".equals(rawAssetPath)) {
+            executeProviderTask(call, () -> {
+                try {
+                    int type = "ringtone".equals(toneType) ? android.media.RingtoneManager.TYPE_RINGTONE
+                        : "notification".equals(toneType) ? android.media.RingtoneManager.TYPE_NOTIFICATION
+                        : android.media.RingtoneManager.TYPE_ALARM;
+                    android.media.RingtoneManager.setActualDefaultRingtoneUri(getContext(), type, null);
+                    JSObject result = new JSObject();
+                    result.put("success", android.media.RingtoneManager.getActualDefaultRingtoneUri(getContext(), type) == null);
+                    call.resolve(result);
+                } catch (Exception error) {
+                    call.reject("Unable to silence default tone", error);
+                }
+            });
             return;
         }
 
@@ -2284,6 +2911,7 @@ public class LauncherAppsPlugin extends Plugin {
                 ready.put(android.provider.MediaStore.Audio.Media.IS_PENDING, 0);
                 getContext().getContentResolver().update(insertedUri, ready, null, null);
             }
+            if (!permits("applySystemTone")) throw new IllegalStateException("billing_access_required");
             android.media.RingtoneManager.setActualDefaultRingtoneUri(
                 getContext(), ringtoneType, insertedUri);
 
@@ -2401,6 +3029,7 @@ public class LauncherAppsPlugin extends Plugin {
     public void openSystemSetting(PluginCall call) {
         String rawSetting = call.getString("setting");
         String setting = rawSetting != null ? rawSetting : "settings";
+        boolean homeSetting = "default-launcher".equals(setting) || "home".equals(setting);
         Intent intent;
 
         switch (setting) {
@@ -2458,6 +3087,10 @@ public class LauncherAppsPlugin extends Plugin {
                 return;
             }
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (homeSetting) {
+                leftForHomeSettings = false;
+                pendingHomeSettingsReturn = true;
+            }
             getContext().startActivity(intent);
             call.resolve();
         } catch (Exception primaryError) {
@@ -2471,6 +3104,8 @@ public class LauncherAppsPlugin extends Plugin {
                         return;
                     } catch (Exception ignored) { }
                 }
+                pendingHomeSettingsReturn = false;
+                leftForHomeSettings = false;
                 call.reject("Home app settings are unavailable: " + primaryError.getMessage(), primaryError);
                 return;
             }
@@ -2495,6 +3130,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void openWebUrl(PluginCall call) {
+        withPaidCommand(call, "openWebUrl", () -> paidOpenWebUrl(call));
+    }
+
+    private void paidOpenWebUrl(PluginCall call) {
         String url = call.getString("url");
         if (url == null || url.trim().isEmpty()) {
             call.reject("url is required");
@@ -2531,6 +3170,25 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void showAccessibilitySettings(PluginCall call) {
+        if (call.getData().has("acceptedDisclosureVersion")) {
+            Object version = call.getData().opt("acceptedDisclosureVersion");
+            if (!(version instanceof Integer) || ((Integer) version) != AccessibilityConsent.VERSION || call.getData().length() != 1) {
+                call.reject("invalid_accessibility_disclosure"); return;
+            }
+            if (getActivity() == null) { call.reject("accessibility_host_unavailable"); return; }
+            getActivity().runOnUiThread(() -> {
+                if (getActivity() == null || getActivity().isFinishing() || getActivity().isDestroyed()) {
+                    call.reject("accessibility_host_unavailable"); return;
+                }
+                AccessibilityConsent.accept(getContext());
+                openConsentedAccessibilitySettings(call);
+            });
+            return;
+        }
+        accessibilityConsent.request(getActivity(), call, () -> openConsentedAccessibilitySettings(call));
+    }
+
+    private void openConsentedAccessibilitySettings(PluginCall call) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
                 Intent details = new Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS");
@@ -2590,22 +3248,38 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void startBrowser(PluginCall call) {
+        withPaidCommand(call, "startBrowser", () -> paidStartBrowser(call));
+    }
+
+    private void paidStartBrowser(PluginCall call) {
         if (cameraController != null) cameraController.pauseForBackground();
         browserController().startBrowser(call);
     }
 
     @PluginMethod
     public void navigateBrowser(PluginCall call) {
+        withPaidCommand(call, "navigateBrowser", () -> paidNavigateBrowser(call));
+    }
+
+    private void paidNavigateBrowser(PluginCall call) {
         browserController().navigate(call);
     }
 
     @PluginMethod
     public void controlBrowser(PluginCall call) {
+        withPaidCommand(call, "controlBrowser", () -> paidControlBrowser(call));
+    }
+
+    private void paidControlBrowser(PluginCall call) {
         browserController().control(call);
     }
 
     @PluginMethod
     public void updateBrowserSurfaceBounds(PluginCall call) {
+        withPaidCommand(call, "updateBrowserSurfaceBounds", () -> paidUpdateBrowserSurfaceBounds(call));
+    }
+
+    private void paidUpdateBrowserSurfaceBounds(PluginCall call) {
         browserController().updateSurfaceBounds(call);
     }
 
@@ -2616,6 +3290,10 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void startCamera(PluginCall call) {
+        withPaidCommand(call, "startCamera", () -> paidStartCamera(call));
+    }
+
+    private void paidStartCamera(PluginCall call) {
         if (browserController != null) browserController.stop();
         if (getPermissionState("camera") != PermissionState.GRANTED) {
             requestPermissionForAlias("camera", call, "cameraPermissionCallback");
@@ -2626,6 +3304,7 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PermissionCallback
     private void cameraPermissionCallback(PluginCall call) {
+        if (!requirePaidCommand(call, "startCamera")) return;
         if (getPermissionState("camera") == PermissionState.GRANTED) {
             cameraController().startCamera(call);
         } else {
@@ -2635,36 +3314,64 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void updateCameraSurfaceBounds(PluginCall call) {
+        withPaidCommand(call, "updateCameraSurfaceBounds", () -> paidUpdateCameraSurfaceBounds(call));
+    }
+
+    private void paidUpdateCameraSurfaceBounds(PluginCall call) {
         cameraController().updateSurfaceBounds(call);
     }
 
     @PluginMethod
     public void setCameraLens(PluginCall call) {
+        withPaidCommand(call, "setCameraLens", () -> paidSetCameraLens(call));
+    }
+
+    private void paidSetCameraLens(PluginCall call) {
         cameraController().setLens(call);
     }
 
     @PluginMethod
     public void setCameraFlash(PluginCall call) {
+        withPaidCommand(call, "setCameraFlash", () -> paidSetCameraFlash(call));
+    }
+
+    private void paidSetCameraFlash(PluginCall call) {
         cameraController().setFlash(call);
     }
 
     @PluginMethod
     public void setCameraMode(PluginCall call) {
+        withPaidCommand(call, "setCameraMode", () -> paidSetCameraMode(call));
+    }
+
+    private void paidSetCameraMode(PluginCall call) {
         cameraController().setMode(call);
     }
 
     @PluginMethod
     public void setCameraGrid(PluginCall call) {
+        withPaidCommand(call, "setCameraGrid", () -> paidSetCameraGrid(call));
+    }
+
+    private void paidSetCameraGrid(PluginCall call) {
         cameraController().setGrid(call);
     }
 
     @PluginMethod
     public void capturePhoto(PluginCall call) {
+        withPaidCommand(call, "capturePhoto", () -> paidCapturePhoto(call));
+    }
+
+    private void paidCapturePhoto(PluginCall call) {
         cameraController().capturePhoto(call);
     }
 
     @PluginMethod
     public void startVideo(PluginCall call) {
+        withPaidCommand(call, "startVideo", () -> paidStartVideo(call));
+    }
+
+    private void paidStartVideo(PluginCall call) {
         if (getPermissionState("microphone") != PermissionState.GRANTED) {
             requestPermissionForAlias("microphone", call, "microphonePermissionCallback");
             return;
@@ -2674,6 +3381,7 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PermissionCallback
     private void microphonePermissionCallback(PluginCall call) {
+        if (!requirePaidCommand(call, "startVideo")) return;
         boolean granted = getPermissionState("microphone") == PermissionState.GRANTED;
         cameraController().startVideo(call, granted);
     }
@@ -2690,16 +3398,28 @@ public class LauncherAppsPlugin extends Plugin {
 
     @PluginMethod
     public void listCameraMedia(PluginCall call) {
+        withPaidCommand(call, "listCameraMedia", () -> paidListCameraMedia(call));
+    }
+
+    private void paidListCameraMedia(PluginCall call) {
         cameraController().listMedia(call);
     }
 
     @PluginMethod
     public void showCameraMedia(PluginCall call) {
+        withPaidCommand(call, "showCameraMedia", () -> paidShowCameraMedia(call));
+    }
+
+    private void paidShowCameraMedia(PluginCall call) {
         cameraController().showMedia(call);
     }
 
     @PluginMethod
     public void controlCameraMedia(PluginCall call) {
+        withPaidCommand(call, "controlCameraMedia", () -> paidControlCameraMedia(call));
+    }
+
+    private void paidControlCameraMedia(PluginCall call) {
         cameraController().controlMedia(call);
     }
 

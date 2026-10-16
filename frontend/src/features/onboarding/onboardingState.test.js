@@ -19,3 +19,14 @@ test("unavailable storage never crashes startup", () => {
   expect(loadOnboarding(storage)).toEqual({ completed: false, index: 0 });
   expect(saveOnboarding(storage, { completed: true })).toBe(false);
 });
+
+test.each([0, 1, 2, 3, 4])("legacy unfinished page %s migrates without losing progress", index => {
+  localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ index }));
+  expect(TOUR_STEPS[loadOnboarding(localStorage).index].id).toBe(index < 2 ? 'navigation' : 'setup');
+});
+test("stable IDs win over stale numeric indexes and completed legacy locks stay completed", () => {
+  localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ schema: 2, index: 99, stepId: 'dumb-mode' }));
+  expect(TOUR_STEPS[loadOnboarding(localStorage).index].id).toBe('dumb-mode');
+  localStorage.setItem(ONBOARDING_KEY, JSON.stringify({ completed: true, index: 4 }));
+  expect(loadOnboarding(localStorage).completed).toBe(true);
+});

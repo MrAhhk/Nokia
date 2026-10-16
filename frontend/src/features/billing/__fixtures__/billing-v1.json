@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "controllerEpoch": "synthetic-process-v1",
+  "sequence": 0,
+  "legacy": { "status": "ineligible", "persisted": true },
+  "access": { "full": false, "sources": [] },
+  "capabilities": { "checkout": true, "restore": true, "manage": false, "existingFriendRecovery": true, "nativeRecovery": true },
+  "operation": { "id": null, "state": "idle", "plan": null },
+  "unresolvedPurchase": null,
+  "store": { "verification": "unverified", "fetchedAtMs": null, "lifetimeActive": false, "subscriptionActive": false, "expiresAtMs": null, "renewState": "unknown", "plan": null, "billingProblem": false, "pausedUntilMs": null },
+  "issue": "none",
+  "catalog": [
+    { "key": "monthly", "title": "Synthetic monthly", "priceText": "TEST 1.99", "periodText": "TEST month", "available": true, "catalogRevision": "synthetic-catalog-v1" },
+    { "key": "yearly", "title": "Synthetic yearly", "priceText": "TEST 4.99", "periodText": "TEST year", "available": true, "catalogRevision": "synthetic-catalog-v1" },
+    { "key": "lifetime", "title": "Synthetic lifetime", "priceText": "TEST 5.55", "periodText": "", "available": true, "catalogRevision": "synthetic-catalog-v1" }
+  ]
+}

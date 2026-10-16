@@ -24,28 +24,48 @@ public class FriendAuthenticatorTest {
         return new ContextWrapper(base){@Override public File getNoBackupFilesDir(){return directory;}};
     }
     private FriendAuthenticatorController controller(Context context)throws Exception {FriendAuthenticatorController value=new FriendAuthenticatorController(context);value.load();return value;}
+    // Existing protocol scenarios assume full billing authority; recovery-only
+    // and authority revocation are exercised explicitly below.
+    private JSObject operate(FriendAuthenticatorController controller,String action,JSONObject input,boolean active)throws Exception {
+        return controller.operation(action,input,active,true,()->true);
+    }
     private JSONObject args(FriendAuthenticatorController controller)throws Exception{return new JSONObject().put("expectedRevision",controller.revision());}
     private String pair(FriendAuthenticatorController owner,FriendAuthenticatorController holder,String label)throws Exception {
-        JSObject begin=owner.operation("beginFriendPairing",args(owner).put("label",label),false);String id=begin.getString("pendingId");
-        JSObject accept=holder.operation("acceptFriendPairing",args(holder).put("label","Owner").put("invitation",begin.getString("invitation")),false);
-        JSObject inspect=owner.operation("inspectFriendPairing",new JSONObject().put("pendingId",id).put("response",accept.getString("response")),false);
+        JSObject begin=operate(owner,"beginFriendPairing",args(owner).put("label",label),false);String id=begin.getString("pendingId");
+        JSObject accept=operate(holder,"acceptFriendPairing",args(holder).put("label","Owner").put("invitation",begin.getString("invitation")),false);
+        JSObject inspect=operate(owner,"inspectFriendPairing",new JSONObject().put("pendingId",id).put("response",accept.getString("response")),false);
         assertEquals(accept.getString("fingerprint"),inspect.getString("fingerprint"));
-        JSObject code=holder.operation("getHeldFriendCode",new JSONObject().put("pairingId",id),false);
-        JSObject complete=owner.operation("completeFriendPairing",args(owner).put("pendingId",id).put("response",accept.getString("response")).put("fingerprintAcknowledged",true).put("code",code.getString("code")),false);
-        holder.operation("acknowledgeFriendPairing",args(holder).put("pendingId",id).put("receipt",complete.getString("receipt")),false);
+        JSObject code=operate(holder,"getHeldFriendCode",new JSONObject().put("pairingId",id),false);
+        JSObject complete=operate(owner,"completeFriendPairing",args(owner).put("pendingId",id).put("response",accept.getString("response")).put("fingerprintAcknowledged",true).put("code",code.getString("code")),false);
+        operate(holder,"acknowledgeFriendPairing",args(holder).put("pendingId",id).put("receipt",complete.getString("receipt")),false);
         assertTrue(owner.snapshot().getJSONArray("owners").getJSONObject(owner.snapshot().getJSONArray("owners").length()-1).getBoolean("confirmed"));
         return id;
     }
     private void fails(String code,Throwing operation)throws Exception {try{operation.run();fail("Expected "+code);}catch(IllegalArgumentException expected){assertEquals(code,expected.getMessage());}}
     private interface Throwing {void run()throws Exception;}
+    @Test public void revokedAuthorityPreventsCommitAndConfirmedCodesSurviveRecovery()throws Exception {
+        FriendAuthenticatorController owner=controller(isolated()),holder=controller(isolated());
+        String before=owner.snapshot().toString();long revision=owner.revision();
+        fails("billing_access_required",()->owner.operation("beginFriendPairing",args(owner).put("label","Denied"),false,true,()->false));
+        assertEquals(revision,owner.revision());assertEquals(before,owner.snapshot().toString());
+        JSObject begin=operate(owner,"beginFriendPairing",args(owner).put("label","Friend"),false);
+        String id=begin.getString("pendingId");
+        operate(holder,"acceptFriendPairing",args(holder).put("label","Owner").put("invitation",begin.getString("invitation")),false);
+        fails("billing_access_required",()->holder.operation("getHeldFriendCode",new JSONObject().put("pairingId",id),false,false,()->true));
+        // A separate completed pairing proves that established offline obligations
+        // remain available after billing access ends.
+        FriendAuthenticatorController secondOwner=controller(isolated()),secondHolder=controller(isolated());
+        String confirmed=pair(secondOwner,secondHolder,"Confirmed");
+        assertEquals(8,secondHolder.operation("getHeldFriendCode",new JSONObject().put("pairingId",confirmed),true,false,()->true).getString("code").length());
+    }
     @Test public void pairingRolesPersistenceReplayAndCooldown()throws Exception {
         Context ownerContext=isolated();FriendAuthenticatorController owner=controller(ownerContext),holder=controller(isolated()),other=controller(isolated());
         String first=pair(owner,holder,"First"),second=pair(owner,other,"Second");
-        fails("code_unavailable",()->owner.operation("getHeldFriendCode",new JSONObject().put("pairingId",first),false));
+        fails("code_unavailable",()->operate(owner,"getHeldFriendCode",new JSONObject().put("pairingId",first),false));
         assertEquals(2,owner.validateFriends(new JSONArray().put(first).put(second)).size());
-        fails("already_active",()->owner.operation("removeFriendPairing",args(owner).put("pairingId",first),true));
+        fails("already_active",()->operate(owner,"removeFriendPairing",args(owner).put("pairingId",first),true));
         JSONObject off=new JSONObject().put("version",2).put("active",false).put("revision",2);
-        String replay=holder.operation("getHeldFriendCode",new JSONObject().put("pairingId",first),true).getString("code");
+        String replay=operate(holder,"getHeldFriendCode",new JSONObject().put("pairingId",first),true).getString("code");
         fails("incorrect_or_expired_code",()->owner.unlock(first,replay,new HashSet<>(Arrays.asList(first,second)),off));
         // Owner confirmation consumed the current period. Verify acceptance of next period without waiting.
         FriendAuthenticatorStore storage=new FriendAuthenticatorStore(ownerContext);JSONObject persisted=storage.read();JSONArray records=persisted.getJSONArray("records");
@@ -62,24 +82,24 @@ public class FriendAuthenticatorTest {
         FriendAuthenticatorController restartedAgain=controller(ownerContext);
         fails("verification_cooldown",()->restartedAgain.unlock(second,valid,Collections.singleton(second),off));
         // Holding another person's codes is allowed while the holder's own session is active.
-        holder.operation("removeFriendPairing",args(holder).put("pairingId",first),true);
+        operate(holder,"removeFriendPairing",args(holder).put("pairingId",first),true);
         assertEquals(0,holder.snapshot().getJSONArray("holders").length());
     }
     @Test public void publicProtocolRejectsTamperingAndResumesPending()throws Exception {
         Context ownerContext=isolated();FriendAuthenticatorController owner=controller(ownerContext),holder=controller(isolated());
-        JSObject begin=owner.operation("beginFriendPairing",args(owner).put("label","Friend"),false);String id=begin.getString("pendingId");String invitation=begin.getString("invitation");
+        JSObject begin=operate(owner,"beginFriendPairing",args(owner).put("label","Friend"),false);String id=begin.getString("pendingId");String invitation=begin.getString("invitation");
         PairingProtocol.validatePublicPayload(invitation);
-        fails("self_pairing",()->owner.operation("acceptFriendPairing",args(owner).put("label","Me").put("invitation",invitation),false));
+        fails("self_pairing",()->operate(owner,"acceptFriendPairing",args(owner).put("label","Me").put("invitation",invitation),false));
         String tainted=new JSONObject(invitation).put("secret","do not export").toString();
         fails("invalid_pairing_message",()->PairingProtocol.validatePublicPayload(tainted));
-        JSObject accept=holder.operation("acceptFriendPairing",args(holder).put("label","Person").put("invitation",invitation),false);
-        fails("duplicate_pairing",()->holder.operation("acceptFriendPairing",args(holder).put("label","Person").put("invitation",invitation),false));
+        JSObject accept=operate(holder,"acceptFriendPairing",args(holder).put("label","Person").put("invitation",invitation),false);
+        fails("duplicate_pairing",()->operate(holder,"acceptFriendPairing",args(holder).put("label","Person").put("invitation",invitation),false));
         String response=accept.getString("response");
         assertEquals(invitation,controller(ownerContext).snapshot().getJSONArray("pending").getJSONObject(0).getString("invitation"));
         String badResponse=new JSONObject(response).put("inviteHash",PairingProtocol.nonce()).toString();
-        fails("transcript_mismatch",()->owner.operation("inspectFriendPairing",new JSONObject().put("pendingId",id).put("response",badResponse),false));
-        String code=holder.operation("getHeldFriendCode",new JSONObject().put("pairingId",id),false).getString("code");
-        fails("fingerprint_required",()->owner.operation("completeFriendPairing",args(owner).put("pendingId",id).put("response",response).put("code",code),false));
+        fails("transcript_mismatch",()->operate(owner,"inspectFriendPairing",new JSONObject().put("pendingId",id).put("response",badResponse),false));
+        String code=operate(holder,"getHeldFriendCode",new JSONObject().put("pairingId",id),false).getString("code");
+        fails("fingerprint_required",()->operate(owner,"completeFriendPairing",args(owner).put("pendingId",id).put("response",response).put("code",code),false));
         String pub=owner.snapshot().toString();assertFalse(pub.contains("privateKey"));assertFalse(pub.contains("secret"));assertFalse(pub.contains("confirmationKey"));
     }
     @Test public void atomicFailedUnlockRetainsActiveModeAndReplayLedger()throws Exception {
@@ -102,8 +122,8 @@ public class FriendAuthenticatorTest {
         Context leftContext=isolated();FriendAuthenticatorController left=controller(leftContext),right=controller(isolated());
         String first=pair(left,right,"Right"),reverse=pair(right,left,"Left");
         assertNotEquals(first,reverse);
-        assertEquals(8,left.operation("getHeldFriendCode",new JSONObject().put("pairingId",reverse),true).getString("code").length());
-        assertEquals(8,right.operation("getHeldFriendCode",new JSONObject().put("pairingId",first),true).getString("code").length());
+        assertEquals(8,operate(left,"getHeldFriendCode",new JSONObject().put("pairingId",reverse),true).getString("code").length());
+        assertEquals(8,operate(right,"getHeldFriendCode",new JSONObject().put("pairingId",first),true).getString("code").length());
         FriendAuthenticatorStore store=new FriendAuthenticatorStore(leftContext);JSONObject damaged=store.read();
         damaged.getJSONArray("records").getJSONObject(0).put("lastAccepted",-9);store.write(damaged);
         fails("storage_unavailable",()->controller(leftContext));
@@ -146,3 +166,4 @@ public class FriendAuthenticatorTest {
         }
     }
 }
+

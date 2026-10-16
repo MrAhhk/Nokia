@@ -17,6 +17,7 @@ import java.util.ArrayDeque;
 public class NokiaAccessibilityService extends AccessibilityService {
 
     private static volatile NokiaAccessibilityService activeInstance;
+    private static volatile NokiaAccessibilityService connectedInstance;
     private com.nokialauncher.dumbmode.DumbModeController dumbMode;
     private String lastBlockedPackage;
     private long lastRedirectAt;
@@ -24,14 +25,15 @@ public class NokiaAccessibilityService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
-        activeInstance = this;
+        connectedInstance = this;
         dumbMode = com.nokialauncher.dumbmode.DumbModeController.get(this);
+        activeInstance = AccessibilityConsent.hasConsent(this) ? this : null;
         dumbMode.availabilityChanged();
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        if (event == null || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        if (activeInstance != this || event == null || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                 || dumbMode == null || event.getPackageName() == null) return;
         String packageName = event.getPackageName().toString();
         if (!dumbMode.isBlocked(packageName)) {
@@ -51,7 +53,16 @@ public class NokiaAccessibilityService extends AccessibilityService {
     }
 
     @Override
+    public boolean onUnbind(android.content.Intent intent) {
+        if (activeInstance == this) activeInstance = null;
+        if (connectedInstance == this) connectedInstance = null;
+        if (dumbMode != null) dumbMode.availabilityChanged();
+        return super.onUnbind(intent);
+    }
+
+    @Override
     public void onDestroy() {
+        if (connectedInstance == this) connectedInstance = null;
         if (activeInstance == this) {
             activeInstance = null;
         }
@@ -63,16 +74,25 @@ public class NokiaAccessibilityService extends AccessibilityService {
         return activeInstance != null;
     }
 
+    static void refreshConsent() {
+        NokiaAccessibilityService service = connectedInstance;
+        if (service == null) return;
+        activeInstance = AccessibilityConsent.hasConsent(service) ? service : null;
+        if (service.dumbMode != null) service.dumbMode.availabilityChanged();
+    }
+
     public static boolean openRecentApps() {
-        if (activeInstance != null) {
-            return activeInstance.performGlobalAction(GLOBAL_ACTION_RECENTS);
+        NokiaAccessibilityService service = activeInstance;
+        if (service != null) {
+            return service.performGlobalAction(GLOBAL_ACTION_RECENTS);
         }
         return false;
     }
 
     public static boolean lockScreen() {
-        if (activeInstance != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            return activeInstance.performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN);
+        NokiaAccessibilityService service = activeInstance;
+        if (service != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            return service.performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN);
         }
         return false;
     }
@@ -83,7 +103,8 @@ public class NokiaAccessibilityService extends AccessibilityService {
      * accessibility focus tree that touch-first apps commonly expose.
      */
     public static boolean navigate(String direction) {
-        return activeInstance != null && activeInstance.navigateInternal(direction);
+        NokiaAccessibilityService service = activeInstance;
+        return service != null && service.navigateInternal(direction);
     }
 
     private boolean navigateInternal(String direction) {

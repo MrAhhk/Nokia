@@ -1,6 +1,10 @@
 import LauncherApp from "@/LauncherApp";
 import "@/App.css";
 import NokiaSystemKeyboard from "@/components/NokiaSystemKeyboard";
+import BillingBootstrap from "@/features/billing/BillingBootstrap";
+import About from "@/pages/About";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfService from "@/pages/TermsOfService";
 
 function App() {
   const isKeyboardView = typeof window !== "undefined" && 
@@ -13,9 +17,16 @@ function App() {
     return <NokiaSystemKeyboard />;
   }
 
+  // These static documents must not mount the launcher's app-cache writers.
+  const path = window.location.pathname;
+  if (path === '/privacy') return <PrivacyPolicy />;
+  if (path === '/terms') return <TermsOfService />;
+  if (path === '/about') return <About />;
+  if (path !== '/') return <main className="app-loading-shell">Page unavailable.</main>;
+
   // Home is the launcher critical path. Loading it eagerly avoids a blank
   // fallback during the first resume after Android has reclaimed WebView.
-  return <LauncherApp />;
+  return <BillingBootstrap><LauncherApp /></BillingBootstrap>;
 }
 
 export default App;

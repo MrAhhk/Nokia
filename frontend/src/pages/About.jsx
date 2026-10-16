@@ -107,12 +107,15 @@ const About = () => {
         <section className="mb-12 space-y-5 text-white/80 leading-relaxed">
           <h2 className="text-2xl font-bold text-white">Privacy and permissions</h2>
           <p>Nokia Launcher is designed around local device behavior. Installed-app information is used to build the app drawer and launch applications. Camera and microphone access support photo and video capture. Phone permission supports direct calls. Notification, audio, network, and battery access support the launcher functions that visibly depend on them.</p>
+          <p>Optional Android Accessibility Service accesses the foreground app and its interface content for Nokia-key navigation, scrolling and selection, Back, Recent Apps and screen lock. During Dumb Mode it detects selected blocked apps and returns Home, even when Nokia Launcher is not on screen. This Accessibility data is processed locally and is not stored as a screen history or sent to the developer or billing providers. A separate in-app disclosure asks for your agreement before activation; you can decline or disable the service in Android Settings.</p>
+          <p>Built-in communication tools use the permissions associated with contacts, SMS, direct calls and recent calls. Optional notification access supports status indicators, supported conversations and replies. Feature availability depends on Android permissions and platform requirements.</p>
+          <p>Where billing is enabled, Google Play and RevenueCat process transaction information to validate and restore Monthly, Yearly or Lifetime access. These purchases are separate from Accessibility access. See the Privacy Policy for data handling, providers and your choices.</p>
           <p>Permissions should remain understandable, proportionate, and connected to a feature the user deliberately invokes. The product is not designed around advertising profiles, behavioral tracking, or selling attention.</p>
         </section>
 
         <section className="mb-12 space-y-5 text-white/80 leading-relaxed">
-          <h2 className="text-2xl font-bold text-white">What v0 means</h2>
-          <p>Version 0 establishes the foundation: the visual language, the launcher and keypad relationship, the focused home screen, the finite app drawer, direct settings, system status, deliberate search, direct dialing, and a built-in camera that belongs to the same calm system.</p>
+          <h2 className="text-2xl font-bold text-white">The product foundation</h2>
+          <p>The foundation is the visual language, the launcher and keypad relationship, the focused home screen, the finite app drawer, direct settings, system status, deliberate search, direct dialing, and a built-in camera that belongs to the same calm system.</p>
           <p>Future features should not make this foundation busier. They should deepen reliability, accessibility, privacy, and usefulness. A new capability belongs only when it helps someone perform a real task, remains finite and easy to exit, and can be expressed with less noise rather than more.</p>
         </section>
 

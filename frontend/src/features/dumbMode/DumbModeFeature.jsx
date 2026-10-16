@@ -28,13 +28,13 @@ const messageFor = error => {
   if (message.includes('dumb_mode_unavailable')) return 'Dumb Mode is available in the Android app. Open it on your Android phone to continue.';
   return 'Unable to update Dumb Mode. Check Android permissions and try again.';
 };
-const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot }, ref) => {
+const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot, recoveryOnly = false }, ref) => {
   const hasParentSnapshot = Boolean(dumbModeSnapshot && Number.isFinite(dumbModeSnapshot.revision));
   const [snapshot, setSnapshot] = useState(() => dumbModeSnapshot || { state: 'LOADING', active: false, blockedIds: [], mandatoryIds: [] });
   const [apps, setApps] = useState([]), [selected, setSelected] = useState([]);
   const [inventoryLoaded, setInventoryLoaded] = useState(false);
   const [guideIndex, setGuideIndex] = useState(0);
-  const [step, setStep] = useState(() => guideSeen() ? 'overview' : 'guide'), [setup, setSetup] = useState(null);
+  const [step, setStep] = useState(() => recoveryOnly || guideSeen() ? 'overview' : 'guide'), [setup, setSetup] = useState(null);
   const [saved, setSaved] = useState(false), [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [code, setCode] = useState(''), [preview, setPreview] = useState(''), [caseMode, setCaseMode] = useState(CASE_MODES.LOWER);
@@ -69,7 +69,7 @@ const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot },
     Promise.resolve(friendApi.subscribeToFriendAuthenticatorUpdates(applyFriends)).then(cleanup => { if (alive.current) friendUnsubscribe = cleanup; else cleanup?.(); }).catch(failure => { if (alive.current) setError(friendErrorMessage(failure)); });
     const valid = () => alive.current && !stopped;
     const stateRequest = hasParentSnapshot ? Promise.resolve(dumbModeSnapshot) : getDumbModeState();
-    Promise.all([stateRequest, getDumbModeApps()]).then(([state, result]) => {
+    Promise.all([stateRequest, recoveryOnly ? Promise.resolve({ apps: [] }) : getDumbModeApps()]).then(([state, result]) => {
       if (!valid()) return;
       if (!receivedEvent) applySnapshot(result.snapshot || state); setApps(result.apps || []);
       setSelected((result.apps || []).filter(app => app.selected || app.mandatory).map(app => app.id));
@@ -109,7 +109,7 @@ const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot },
     catch (failure) { if (alive.current && generation.current === epoch) setError(snapshot.unlockMethod === 'friend_totp' || /friend|pair|cooldown|storage|stale/.test(String(failure?.message)) ? friendErrorMessage(failure) : messageFor(failure)); }
     finally { working.current = false; if (alive.current && generation.current === epoch) setBusy(false); }
   };
-  const finishGuide = () => { try { localStorage.setItem(GUIDE_KEY, 'done'); } catch {} setStep('overview'); };
+  const finishGuide = () => { if (!recoveryOnly) { try { localStorage.setItem(GUIDE_KEY, 'done'); } catch {} } setStep('overview'); };
   const nextGuide = () => { if (guideIndex < GUIDE_STEPS.length - 1) setGuideIndex(index => index + 1); else finishGuide(); };
   const back = () => {
     if (step === 'guide') { if (guideIndex > 0) setGuideIndex(index => index - 1); else finishGuide(); return; }
@@ -118,6 +118,7 @@ const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot },
     setStep(step === 'review' ? 'friends' : step === 'friends' ? 'choose' : 'overview');
   };
   const prepare = () => run(async valid => {
+    if (recoveryOnly) return;
     composer.current?.reset();
     const result = await prepareDumbMode({ selectedIds: selected, selectedFriendIds: selectedFriends, expectedRevision: snapshot.revision });
     if (!valid()) { await cancelDumbModeSetup({ setupId: result.setupId }); return; }
@@ -159,7 +160,7 @@ const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot },
     return true;
   } }));
   const mandatory = app => app.mandatory || snapshot.mandatoryIds?.includes(app.id);
-  const choose = () => { setError(''); queryRef.current = ''; setQuery(''); setOnlySelected(false); setStep('choose'); };
+  const choose = () => { if (recoveryOnly) return; setError(''); queryRef.current = ''; setQuery(''); setOnlySelected(false); setStep('choose'); };
   const toggleGroup = items => {
     const optional = items.filter(app => !mandatory(app));
     const allSelected = optional.every(app => selected.includes(app.id));
@@ -170,6 +171,7 @@ const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot },
   const interrupted = snapshot.active && !snapshot.enforcementAvailable;
   const titles = { overview: 'Dumb Mode', choose: 'Choose apps', friends: 'Choose friends', review: 'Review Dumb Mode', unlockFriends: 'Choose a friend', unlock: 'Turn off Dumb Mode', permission: 'Accessibility', blocked: 'Blocked apps' };
   const activate = () => run(async valid => {
+    if (recoveryOnly) return;
     const value = await activateDumbMode({ setupId: setup.setupId, expectedRevision: setup.snapshot?.revision ?? snapshot.revision });
     if (!valid()) return;
     pending.current = null; setSetup(null); applySnapshot(value); setStep('overview');
@@ -183,7 +185,7 @@ const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot },
     });
   };
   const refresh = () => run(async () => { await openDumbModeAccessibilitySettings(); });
-  if (step === 'friendOwners' || step === 'friendHolders') return <FriendAuthenticatorScreens ref={friendPanel} role={step === 'friendOwners' ? 'owner' : 'holder'} state={friends} active={snapshot.active} onRefresh={applyFriends} onBack={() => setStep('overview')} />;
+  if (step === 'friendOwners' || step === 'friendHolders') return <FriendAuthenticatorScreens ref={friendPanel} role={step === 'friendOwners' ? 'owner' : 'holder'} state={friends} active={snapshot.active} recoveryOnly={recoveryOnly} onRefresh={applyFriends} onBack={() => setStep('overview')} />;
   if (step === 'guide') return <div ref={panel} className="dm-guide-host">
     <OnboardingGuide steps={GUIDE_STEPS} headingText="DUMB MODE" regionLabel="Dumb Mode guide"
       tour={{ index: guideIndex, step: GUIDE_STEPS[guideIndex] }}
@@ -198,8 +200,18 @@ const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot },
       {error && <p className="dm-alert" role="alert">{error}</p>}
       {snapshot.state === 'LOADING' ? <p className="dm-loading" role="status">Loading…</p> : <>
         {step === 'overview' && <>
-          <button className="dm-menu-row" disabled={busy || !friendsLoaded} onClick={() => setStep('friendOwners')}><span>Friends who can unlock me</span><span>{(friends.owners || []).filter(friend => friend.confirmed === true).length} <b aria-hidden="true">›</b></span></button>
-          <button className="dm-menu-row" disabled={busy || !friendsLoaded} onClick={() => setStep('friendHolders')}><span>Codes I hold for friends</span><span>{(friends.holders || []).filter(friend => friend.confirmed === true).length} <b aria-hidden="true">›</b></span></button>
+          {interrupted && <p className="dm-alert" role="status">Blocking is paused. Restore the settings below.</p>}
+          <nav className="dm-destinations" aria-label="Dumb Mode and friend codes">
+            <button className="dm-destination dm-destination--codes" aria-label="Codes I hold for friends" disabled={busy || !friendsLoaded} onClick={() => setStep('friendHolders')}>
+              <span className="dm-destination-icon" aria-hidden="true">••••<br />••••</span>
+              <span><strong>Codes for friends</strong><small>Help a friend unlock their phone</small></span><b aria-hidden="true">›</b>
+            </button>
+            <button className="dm-destination" aria-label="Friends who can unlock me" disabled={busy || !friendsLoaded} onClick={() => setStep('friendOwners')}>
+              <span className="dm-lock" aria-hidden="true" /><span><strong>My trusted friends</strong><small>{(friends.owners || []).filter(friend => friend.confirmed === true).length} paired · They help unlock my phone</small></span><b aria-hidden="true">›</b>
+            </button>
+          </nav>
+          <details className="dm-session-info">
+            <summary>{snapshot.active ? `${snapshot.blockedIds?.length || 0} apps blocked · Session details` : 'My Dumb Mode · How it works'}</summary>
           <div className="dm-state-panel">
             <div className="dm-state-title"><span className="dm-lock" aria-hidden="true" /><div><h3>{snapshot.active ? 'Dumb Mode is on' : 'Your phone, simplified'}</h3><p>{snapshot.active ? (isFriendSession ? 'Ask a selected friend for their current code.' : 'Your saved code is needed to turn it off.') : 'Hide distractions. Keep useful apps.'}</p></div></div>
             <dl className="dm-facts">
@@ -211,13 +223,13 @@ const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot },
           {snapshot.active && isFriendSession && <p className="dm-note">Selected friends: {(snapshot.selectedFriendIds || []).map(id => friends.owners?.find(friend => (friend.id || friend.pairingId) === id)?.label || 'Friend').join(', ')}</p>}
           {snapshot.active && <>
             <button className="dm-menu-row" onClick={() => setStep('blocked')}><span>View blocked apps</span><span>{snapshot.blockedIds?.length || 0} <b aria-hidden="true">›</b></span></button>
-            {interrupted && <p className="dm-alert" role="status">Blocking is paused. Restore the settings below.</p>}
           </>}
-          {!snapshot.active && <div className="dm-how"><span>CHOOSE APPS</span><i aria-hidden="true">›</i><span>CHOOSE FRIENDS</span><i aria-hidden="true">›</i><span>TURN ON</span></div>}
+          {!snapshot.active && !recoveryOnly && <div className="dm-how"><span>CHOOSE APPS</span><i aria-hidden="true">›</i><span>CHOOSE FRIENDS</span><i aria-hidden="true">›</i><span>TURN ON</span></div>}
+          {!recoveryOnly && <button className="dm-text-action" onClick={() => { setGuideIndex(0); setStep('guide'); }}>How Dumb Mode works</button>}
+          </details>
           {!inventoryLoaded && snapshot.state !== 'ERROR' && <p role="status" className="dm-note">Loading apps…</p>}
           {snapshot.defaultLauncherAvailable === false && <button className="dm-menu-row" disabled={busy} onClick={() => run(async () => { await openSystemSetting('default-launcher'); })}><span>Set default launcher</span><b aria-hidden="true">›</b></button>}
           {!(snapshot.accessibilityAvailable ?? snapshot.enforcementAvailable) && <button className="dm-menu-row" disabled={busy} onClick={() => setStep('permission')}><span>Enable Accessibility</span><b aria-hidden="true">›</b></button>}
-          <button className="dm-text-action" onClick={() => { setGuideIndex(0); setStep('guide'); }}>How Dumb Mode works</button>
           {!snapshot.enforcementAvailable && <button className="dm-text-action" disabled={busy} onClick={refresh}>Check permission</button>}
         </>}
         {step === 'permission' && <div className="dm-permission">
@@ -281,7 +293,7 @@ const DumbModeFeature = forwardRef(({ onExit, onStateChange, dumbModeSnapshot },
       {busy && <p role="status" className="dm-progress">Please wait…</p>}
       <div className="dm-actions">
         <button className="dm-back" onClick={back}>Back</button>
-        {step === 'overview' && (snapshot.active ? <button className="dm-primary" disabled={busy} onClick={() => { replaceCode(''); setStep(isFriendSession ? 'unlockFriends' : 'unlock'); }}>Turn off Dumb Mode</button> : <button className="dm-primary" disabled={busy || !ready} onClick={choose}>Choose apps</button>)}
+        {step === 'overview' && (snapshot.active ? <button className="dm-primary" disabled={busy} onClick={() => { replaceCode(''); setStep(isFriendSession ? 'unlockFriends' : 'unlock'); }}>Turn off Dumb Mode</button> : !recoveryOnly && <button className="dm-primary" disabled={busy || !ready} onClick={choose}>Choose apps</button>)}
         {step === 'choose' && <button className="dm-primary" disabled={busy || !friendsLoaded} onClick={() => { setSelectedFriends((friends.owners || []).filter(friend => friend.confirmed === true).map(friend => friend.id || friend.pairingId)); setSaved(false); setStep('friends'); }}>Continue</button>}
         {step === 'friends' && <button className="dm-primary" disabled={busy || !selectedFriends.length} onClick={prepare}>Continue</button>}
         {step === 'review' && setup && <button className="dm-primary" disabled={!saved || busy} onClick={activate}>Activate Dumb Mode</button>}

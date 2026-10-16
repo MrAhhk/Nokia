@@ -84,11 +84,13 @@ final class FriendAuthenticatorController {
             if(!"owner".equals(row.getString("role")) || !row.optBoolean("confirmed"))throw fail("friend_not_confirmed");chosen.add(id);}
         return chosen;
     }
-    JSObject operation(String action,JSONObject args,boolean active) throws Exception {
+    JSObject operation(String action,JSONObject args,boolean active,boolean newPairingAllowed,
+            java.util.function.BooleanSupplier commandAllowed) throws Exception {
         if("getFriendAuthenticatorState".equals(action))return snapshot();
         if("getHeldFriendCode".equals(action)) {
             JSONObject row=record(data,args.optString("pairingId",args.optString("id")));available(row);
             if(!"holder".equals(row.getString("role"))||!row.has("secret"))throw fail("code_unavailable");
+            if(!com.nokialauncher.billing.BillingCommandPolicy.permitsHeldFriendCode(row.optBoolean("confirmed"),newPairingAllowed))throw fail("billing_access_required");
             long period=System.currentTimeMillis()/30000;JSObject result=new JSObject();result.put("code",TotpPolicy.code(PairingProtocol.decode(row.getString("secret")),period));result.put("expiresAt",(period+1)*30000);return result;
         }
         if("inspectFriendPairing".equals(action)) {
@@ -132,6 +134,7 @@ final class FriendAuthenticatorController {
             if("cancelFriendPairing".equals(action) && row.optBoolean("confirmed"))throw fail("pairing_already_confirmed");
             JSONArray remaining=new JSONArray(),records=next.getJSONArray("records");for(int i=0;i<records.length();i++)if(!records.getJSONObject(i).getString("id").equals(id))remaining.put(records.getJSONObject(i));next.put("records",remaining);
         } else throw fail("invalid_operation");
+        if(!commandAllowed.getAsBoolean())throw fail("billing_access_required");
         bump(next);commit(next);result.put("state",snapshot());return result;
     }
     private JSONObject response(JSONObject row,String text) throws Exception {

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Consent must be obtained on this installation, never restored from another device. -->
+    <exclude domain="sharedpref" path="nokia_accessibility_consent.xml" />
+</full-backup-content>

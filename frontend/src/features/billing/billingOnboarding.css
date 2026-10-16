@@ -1,0 +1,20 @@
+/* The billing guide extends the shared guide, keeping its keypad and state owner. */
+.nokia-launcher .billing-onboarding { padding: 14px 16px 10px; font-family: "Inter", system-ui, sans-serif; contain: layout paint; }
+.billing-onboarding .onboarding-coach__eyebrow { font-size: 11px; }
+.billing-onboarding .onboarding-coach__eyebrow small { font: 11px/1.3 system-ui, sans-serif; }
+.billing-onboarding .onboarding-coach__progress { margin: 8px 0 10px; }
+.billing-onboarding .onboarding-coach__copy { gap: 10px; }
+.billing-onboarding .onboarding-coach__copy > * { flex-shrink: 0; }
+.nokia-launcher .billing-onboarding h2 { font-size: 25px; white-space: normal; overflow-wrap: anywhere; }
+.nokia-launcher .billing-onboarding p { font: 400 15px/1.45 "Inter", system-ui, sans-serif; }
+.nokia-launcher .billing-onboarding button { min-height: 48px; font: 600 15px/1.3 "Inter", system-ui, sans-serif; padding: 10px 12px; }
+.billing-onboarding .onboarding-preview strong { font: 700 19px/1.2 Consolas, "Courier New", monospace; }
+.billing-onboarding .onboarding-preview small { font: 400 12px/1.4 system-ui, sans-serif; }
+.billing-onboarding .onboarding-preview--welcome > div,
+.billing-onboarding .onboarding-preview li,
+.billing-onboarding .onboarding-preview--keys > div { border-radius: var(--card-radius, 12px); padding: 12px; }
+.nokia-launcher .billing-onboarding .onboarding-coach__hint { font-size: 12px; }
+@media (max-width: 360px) {
+  .nokia-launcher .billing-onboarding h2 { font-size: 23px; }
+  .billing-onboarding .onboarding-coach__copy { gap: 8px; }
+}

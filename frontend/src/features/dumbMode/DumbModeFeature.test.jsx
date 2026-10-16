@@ -5,12 +5,33 @@ import * as api from '@/lib/launcherApps';
 jest.mock('@/lib/launcherApps', () => ({ getDumbModeState: jest.fn(), getDumbModeApps: jest.fn(), prepareDumbMode: jest.fn(), shareDumbModeCode: jest.fn(), activateDumbMode: jest.fn(), cancelDumbModeSetup: jest.fn(), unlockDumbMode: jest.fn(), subscribeToDumbModeUpdates: jest.fn(), openDumbModeAccessibilitySettings: jest.fn(), openSystemSetting: jest.fn(), pasteDumbModeCode: jest.fn(), getFriendAuthenticatorState: jest.fn(), subscribeToFriendAuthenticatorUpdates: jest.fn(), getHeldFriendCode: jest.fn(), beginFriendPairing: jest.fn(), acceptFriendPairing: jest.fn(), inspectFriendPairing: jest.fn(), completeFriendPairing: jest.fn(), acknowledgeFriendPairing: jest.fn(), cancelFriendPairing: jest.fn(), removeFriendPairing: jest.fn(), getFriendPairingQr: jest.fn(), startFriendPairingScan: jest.fn(), stopFriendPairingScan: jest.fn(), pasteFriendPairingText: jest.fn(), shareFriendPairingText: jest.fn() }));
 jest.mock('@/features/sound/nokiaAudioEngine', () => ({ playKeypadTone: jest.fn() }));
 global.IS_REACT_ACT_ENVIRONMENT = true;
+test('restricted recovery preserves exact selected-friend unlock and never scans or creates a lock', async () => {
+  localStorage.removeItem('nokia-launcher.dumb-mode-guide.v2');
+  await render({ ...active, unlockMethod: 'friend_totp', selectedFriendIds: ['alice'] }, { recoveryOnly: true });
+  expect(api.getDumbModeApps).not.toHaveBeenCalled();
+  expect(localStorage.getItem('nokia-launcher.dumb-mode-guide.v2')).toBeNull();
+  await click('Turn off Dumb Mode'); await click('Alice');
+  act(() => '00123456'.split('').forEach(key => ref.current.handleKey(key)));
+  expect(api.unlockDumbMode).not.toHaveBeenCalled();
+  api.unlockDumbMode.mockResolvedValue({ ...off, revision: 3 }); await click('Unlock');
+  expect(api.unlockDumbMode).toHaveBeenCalledWith({ friendId: 'alice', code: '00123456', expectedRevision: 2 });
+  expect(button('Choose apps')).toBeUndefined();
+  expect(api.prepareDumbMode).not.toHaveBeenCalled(); expect(api.activateDumbMode).not.toHaveBeenCalled();
+});
+
+test('restricted recovery keeps the established legacy code unlock', async () => {
+  await render(active, { recoveryOnly: true }); await click('Turn off Dumb Mode');
+  api.pasteDumbModeCode.mockResolvedValue('AbCd1234efGH'); await click('Paste code');
+  api.unlockDumbMode.mockResolvedValue({ ...off, revision: 3 }); await click('Unlock');
+  expect(api.unlockDumbMode).toHaveBeenCalledWith({ code: 'AbCd1234efGH', expectedRevision: 2 });
+  expect(api.getDumbModeApps).not.toHaveBeenCalled();
+});
 let root, container, ref, unsubscribe;
 const off = { state: 'OFF', active: false, revision: 1, blockedIds: [], mandatoryIds: ['snake'], enforcementAvailable: true };
 const active = { ...off, state: 'ACTIVE', active: true, revision: 2, blockedIds: ['snake'] };
 const button = text => [...container.querySelectorAll('button')].find(item => { const copy = item.cloneNode(true); copy.querySelectorAll('[aria-hidden=true]').forEach(node => node.remove()); return copy.textContent.trim() === text; });
 const click = async text => act(async () => button(text).click());
-const render = async state => { api.getDumbModeState.mockResolvedValue(state); api.getDumbModeApps.mockResolvedValue({ snapshot: state, apps: [{ id: 'snake', name: 'Snake', categoryGroup: 'games', mandatory: true, selected: true }, { id: 'music', name: 'Music', categoryGroup: 'audio', selected: false }] }); await act(async () => root.render(<DumbModeFeature ref={ref} />)); };
+const render = async (state, props = {}) => { api.getDumbModeState.mockResolvedValue(state); api.getDumbModeApps.mockResolvedValue({ snapshot: state, apps: [{ id: 'snake', name: 'Snake', categoryGroup: 'games', mandatory: true, selected: true }, { id: 'music', name: 'Music', categoryGroup: 'audio', selected: false }] }); await act(async () => root.render(<DumbModeFeature ref={ref} {...props} />)); };
 beforeEach(() => {
   localStorage.setItem('nokia-launcher.dumb-mode-guide.v2', 'done');
   jest.clearAllMocks(); container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container); ref = createRef(); unsubscribe = jest.fn();

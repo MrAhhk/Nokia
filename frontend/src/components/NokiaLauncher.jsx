@@ -4,9 +4,16 @@ import useWeekCheckIn from "@/features/checkIn/useWeekCheckIn";
 import Screen from "./Screen";
 import useDumbMode from "@/features/dumbMode/useDumbMode";
 import { isDumbModeBlocked, visibleDumbModeApps, dumbModeSettingLabel } from "@/features/dumbMode/dumbModeVisibility";
-import Keypad from "./Keypad";
 import CustomizationFeature from "@/features/customization/CustomizationFeature";
-import { SidephoneShell } from "@/features/customization/SidephoneHardware";
+import PhoneNameFeature from "@/features/customization/PhoneNameFeature";
+import FontFeature from "@/features/customization/FontFeature";
+import { loadKeyboardColor, saveKeyboardColor } from '@/features/customization/keyboardColorStorage';
+import { syncKeyboardColor } from '@/lib/launcherApps';
+import { loadFont, saveFont } from "@/features/customization/fontStorage";
+import { loadPhoneName, normalizePhoneName, savePhoneName } from "@/features/customization/phoneNameStorage";
+import NokiaFrame from "./NokiaFrame";
+import { useBilling } from '@/features/billing/BillingContext';
+import BillingUiBoundary from '@/features/billing/BillingUiBoundary';
 import { loadAppearance, saveAppearance } from "@/features/customization/appearanceStorage";
 import CameraFeature from "@/features/camera/CameraFeature";
 import BrowserFeature from "@/features/browser/BrowserFeature";
@@ -16,8 +23,10 @@ import SoundFeature from "@/features/sound/SoundFeature";
 import ToneSetupPrompt from "@/features/sound/ToneSetupPrompt";
 import OnboardingGuide from "@/features/onboarding/OnboardingGuide";
 import useOnboarding from "@/features/onboarding/useOnboarding";
+import DefaultLauncherNotice from "@/features/onboarding/DefaultLauncherNotice";
+import AccessibilityHomeNotice from "@/features/onboarding/AccessibilityHomeNotice";
 import { pauseAudioEngine, playKeypadTone, preloadKeypadAudio, playNotificationTone } from "@/features/sound/nokiaAudioEngine";
-import { loadSoundSettings } from "@/features/sound/soundStorage";
+import { loadSoundSettings, SOUND_SETTINGS_CHANGED_EVENT, _resetSoundSettingsCache } from "@/features/sound/soundStorage";
 import {
   TONE_SETUP_STATES,
   buildSystemToneSelections,
@@ -48,6 +57,7 @@ import {
   getDeviceStatus,
   getSystemToneAccess,
   launchInstalledApp,
+  openAppRemovalSettings,
   makePhoneCall,
   openDefaultMaps,
   openDefaultPhone,
@@ -61,8 +71,10 @@ import {
   toggleFlashlight,
   lockScreen,
   openRecentApps,
+  subscribeToAccessibilityDisclosureRequests,
   selectDefaultApp,
   triggerHaptic,
+  syncKeyboardSoundSettings,
 } from "@/lib/launcherApps";
 import { getReadMap, markAddressAsRead, isConversationUnread } from "@/lib/smsReadStatus";
 import { createMultiTapComposer } from "@/domain/multiTapComposer";
@@ -94,10 +106,12 @@ import "./AgedHardwareTheme.css";
 import "./ReferenceHardware.css";
 import "@/features/customization/customization.css";
 import "@/features/customization/sidephone.css";
+import "./CalmMiniscreen.css";
 
 // How long (ms) of inactivity before the pending char is auto-committed
 const MULTI_TAP_DELAY = 250;
 const WeekCheckIn = lazy(() => import("@/features/checkIn/WeekCheckIn"));
+const BillingPaywall = lazy(() => import('@/features/billing/BillingPaywall'));
 let dumbModeFeatureModule;
 const loadDumbModeFeature = () => {
   dumbModeFeatureModule ||= import("@/features/dumbMode/DumbModeFeature").catch((error) => {
@@ -109,8 +123,30 @@ const loadDumbModeFeature = () => {
 const HOME_APP_TARGETS = HOME_FOCUS_TARGETS.filter((target) => !["clock", "search"].includes(target));
 
 const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
+  const billing = useBilling();
+  const billingFeatureRef = useRef(null);
   const [appearance, setAppearance] = useState(loadAppearance);
+  const [keyboardColor, setKeyboardColor] = useState(loadKeyboardColor);
+  const changeKeyboardColor = useCallback(async value => {
+    setKeyboardColor(value);
+    const saved = saveKeyboardColor(value);
+    try { return (await syncKeyboardColor(value)).success && saved; } catch { return false; }
+  }, []);
   const customizationFeatureRef = useRef(null);
+  const phoneNameFeatureRef = useRef(null);
+  const fontFeatureRef = useRef(null);
+  const [font, setFont] = useState(loadFont);
+  const changeFont = useCallback(value => {
+    const persisted = saveFont(value);
+    setFont(value);
+    return persisted;
+  }, []);
+  const [phoneName, setPhoneName] = useState(loadPhoneName);
+  const changePhoneName = useCallback(value => {
+    const next = normalizePhoneName(value);
+    if (!savePhoneName(next)) return false;
+    setPhoneName(next); setCurrentView('settings'); return true;
+  }, []);
   const changeAppearance = useCallback((value) => {
     const persisted = saveAppearance(value);
     setAppearance(value);
@@ -119,16 +155,20 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
   const { snapshot: dumbMode, acceptSnapshot: acceptDumbMode } = useDumbMode();
   const apps = useMemo(() => visibleDumbModeApps(installedApps, dumbMode), [installedApps, dumbMode]);
   const dumbModeFeatureRef = useRef(null);
-  const settingsItems = useMemo(() => SETTINGS_ITEMS
+  const settingsItems = useMemo(() => (billing ? [...SETTINGS_ITEMS, { id: 'billing', label: 'Access & payments', internalView: 'billing' }] : SETTINGS_ITEMS)
     .filter((item) => !isDumbModeBlocked(item, dumbMode))
-    .map((item) => item.id === "dumb-mode" ? { ...item, label: "Dumb Mode", switchOn: Boolean(dumbMode.active), switchLabel: dumbModeSettingLabel(dumbMode) } : item), [dumbMode]);
+    .map((item) => item.id === "dumb-mode" ? { ...item, label: "Dumb Mode", switchOn: Boolean(dumbMode.active), switchLabel: dumbModeSettingLabel(dumbMode) } : item), [dumbMode, billing]);
   const onboarding = useOnboarding();
+  const onboardingGuideRef = useRef(null);
+  const [handoffDismissed, setHandoffDismissed] = useState(false);
+  const [homeNoticeDismissed, setHomeNoticeDismissed] = useState(false);
+  const [accessibilityNotice, setAccessibilityNotice] = useState(false);
+  const [homeSetupAttempted, setHomeSetupAttempted] = useState(false);
   const {
     active: onboardingActive,
     choosing: onboardingChoosing,
     next: nextOnboardingStep,
     setChoosing: setOnboardingChoosing,
-    setKeyHint: setOnboardingKeyHint,
   } = onboarding;
   const [currentView, setCurrentView] = useState("home");
   const [DumbModeComponent, setDumbModeComponent] = useState(null);
@@ -235,11 +275,17 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
   const soundPrefsRef = useRef(loadSoundSettings());
 
   useEffect(() => {
+    syncKeyboardSoundSettings(soundPrefsRef.current).catch(() => {});
     const handleStorage = () => {
+      _resetSoundSettingsCache();
       soundPrefsRef.current = loadSoundSettings();
     };
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener(SOUND_SETTINGS_CHANGED_EVENT, handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(SOUND_SETTINGS_CHANGED_EVENT, handleStorage);
+    };
   }, []);
 
   const refreshConversations = useCallback(async (forceRefresh = false) => {
@@ -565,12 +611,19 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
   const [toneSetupBusy, setToneSetupBusy] = useState(false);
   const [toneSetupMessage, setToneSetupMessage] = useState("");
 
+  const defaultLauncherNoticeVisible = currentView === "home" && !onboarding.active && !homeNoticeDismissed
+    && dumbMode.defaultLauncherAvailable === false && dumbMode.state !== "LOADING" && dumbMode.state !== "ERROR"
+    && !searchActive && !dialActive && !dialNumber;
   const toneSetupVisible = nativeToneSetupAvailable
+    && !accessibilityNotice
     && !onboarding.active
+    && !onboarding.finishedThisSession
+    && dumbMode.state !== "LOADING"
+    && !defaultLauncherNoticeVisible && !homeNoticeDismissed && !homeSetupAttempted
     && toneSetupState !== TONE_SETUP_STATES.APPLIED
     && toneSetupState !== TONE_SETUP_STATES.SKIPPED;
 
-  const { visible: weekCheckInVisible, dismiss: dismissWeekCheckIn } = useWeekCheckIn(currentView === "home" && !onboarding.active && !toneSetupVisible && !dialActive && !dialNumber && !searchActive);
+  const { visible: weekCheckInVisible, dismiss: dismissWeekCheckIn } = useWeekCheckIn(currentView === "home" && dumbMode.state !== "LOADING" && !onboarding.active && !onboarding.finishedThisSession && !defaultLauncherNoticeVisible && !homeNoticeDismissed && !homeSetupAttempted && !toneSetupVisible && !dialActive && !dialNumber && !searchActive);
   const checkInRef = useRef(null);
 
   // Shared multi-tap module keeps timing/cycling out of the launcher controller.
@@ -1014,6 +1067,12 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
     window.addEventListener("nokia-home-request", restoreHome);
     return () => window.removeEventListener("nokia-home-request", restoreHome);
   }, [restoreHome]);
+
+  useEffect(() => subscribeToAccessibilityDisclosureRequests(() => {
+    dismissWeekCheckIn();
+    restoreHome();
+    setAccessibilityNotice(true);
+  }), [restoreHome, dismissWeekCheckIn]);
 
   const openSettings = useCallback((returnView = currentView) => {
     searchActiveRef.current = false;
@@ -1815,7 +1874,10 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
   }, [currentView, committedText, pendingChar]);
 
   const featureRefsByView = useMemo(() => ({
+    billing: billingFeatureRef,
     customization: customizationFeatureRef,
+    'phone-name': phoneNameFeatureRef,
+    font: fontFeatureRef,
     camera: cameraFeatureRef,
     clock: clockFeatureRef,
     browser: browserFeatureRef,
@@ -1912,6 +1974,9 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
     }
     const featureRef = featureRefsByView[currentView];
     if (featureRef) {
+      // The lazy payment module may be loading or caught by its error boundary.
+      // Physical Back must still leave the empty feature ref.
+      if (currentView === 'billing' && !featureRef.current) { setCurrentView('settings'); return; }
       featureRef.current?.handleKey(KEY_INTENTS.BACK);
       return;
     }
@@ -2081,24 +2146,34 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
       // Tour practice keys use the same sound and haptic path as normal typing.
       const soundPrefs = soundPrefsRef.current || loadSoundSettings();
       playKeypadTone(key, soundPrefs.keypadTone, soundPrefs.volume, soundPrefs.vibrate);
+      const appOptions = currentView === "menu" && document.querySelector('[data-testid="drawer-options"]');
+      if (appOptions) {
+        const controls = [...appOptions.querySelectorAll('[data-app-options-choice]:not(:disabled)')];
+        if ([KEY_INTENTS.SELECT, KEY_INTENTS.GREEN].includes(key)) (controls.includes(document.activeElement) ? document.activeElement : appOptions.querySelector('[data-app-options-choice][data-selected=true]:not(:disabled)'))?.click();
+        else if ([KEY_INTENTS.SOFT_LEFT, KEY_INTENTS.DELETE].includes(key)) appOptions.querySelector('[data-app-options-delete]')?.click();
+        else if ([KEY_INTENTS.UP, KEY_INTENTS.LEFT, KEY_INTENTS.DOWN, KEY_INTENTS.RIGHT].includes(key)) {
+          const step = [KEY_INTENTS.UP, KEY_INTENTS.LEFT].includes(key) ? -1 : 1;
+          controls[(Math.max(0, controls.indexOf(document.activeElement)) + step + controls.length) % controls.length]?.focus();
+        } else if ([KEY_INTENTS.BACK, KEY_INTENTS.SOFT_RIGHT, KEY_INTENTS.END, KEY_INTENTS.HOME].includes(key)) appOptions.querySelector('[data-app-options-cancel]')?.click();
+        return;
+      }
       if (weekCheckInVisible) {
         const intent = resolveContextualIntent(key, "check-in");
         if ([KEY_INTENTS.BACK, KEY_INTENTS.HOME, KEY_INTENTS.END].includes(intent)) dismissWeekCheckIn();
         else checkInRef.current?.handleKey(intent);
         return;
       }
+      const handoff = currentView === "home" && document.activeElement?.closest?.('[data-home-notice]');
+      if (handoff) {
+        const controls = [...handoff.querySelectorAll('button')];
+        if ([KEY_INTENTS.SELECT, KEY_INTENTS.GREEN].includes(key)) { document.activeElement.click(); return; }
+        if ([KEY_INTENTS.UP, KEY_INTENTS.DOWN, KEY_INTENTS.LEFT, KEY_INTENTS.RIGHT].includes(key)) {
+          controls[(controls.indexOf(document.activeElement) + 1) % controls.length]?.focus(); return;
+        }
+        if ([KEY_INTENTS.HOME, KEY_INTENTS.END, KEY_INTENTS.BACK, KEY_INTENTS.SOFT_RIGHT].includes(key)) { handoff.querySelector('[data-notice-dismiss]')?.click(); return; }
+      }
       if (onboardingActive && !onboardingChoosing) {
-        const intent = resolveContextualIntent(key, "home");
-        const hints = {
-          UP: "↑ on Home opens Menu.", DOWN: "↓ on Home opens Recent Calls.",
-          LEFT: "← selects the previous Home shortcut.", RIGHT: "→ selects the next Home shortcut.",
-          SELECT: "The centre key opens your selected shortcut.", GOTO: "Left softkey: Go to on Home; Delete in lists.",
-          SETTINGS: "Right softkey: Settings on Home; Back in other views.",
-          HOME: "Red returns Home. Hold it to lock the screen.", END: "Red returns Home.",
-          RECENT_APPS: "Green on Home opens Android’s recent apps.", HASH: "# stays # in numbers; changes case in text.",
-          LOCK_SCREEN: "Holding Red requests screen lock. Nothing is locked during this guide.",
-        };
-        setOnboardingKeyHint(hints[intent] || (/^[0-9*]$/.test(key) ? `${key}: a dial key on Home; letters and symbols in text.` : "Use this key in the relevant screen. Nothing is sent during this guide."));
+        onboardingGuideRef.current?.handleKey(key);
         return;
       }
       if (onboardingActive && onboardingChoosing && [KEY_INTENTS.HOME, KEY_INTENTS.END, KEY_INTENTS.SOFT_RIGHT, KEY_INTENTS.BACK].includes(key)) {
@@ -2271,7 +2346,7 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
       handleUniversalRecentApps,
       handleNotificationModeCycle,
       returnHome,
-      onboardingActive, onboardingChoosing, setOnboardingKeyHint, setOnboardingChoosing,
+      onboardingActive, onboardingChoosing, setOnboardingChoosing,
       weekCheckInVisible, dismissWeekCheckIn,
     ]
   );
@@ -2285,11 +2360,7 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="nokia-launcher h-full w-full flex flex-col overflow-hidden select-none" data-testid="nokia-launcher" data-appearance={appearance} data-guide={onboarding.active ? onboarding.step.id : undefined}>
-      <div className="nokia-shell-rim" aria-hidden="true" />
-      {appearance === "sidephone" && <SidephoneShell />}
-      {/* LCD and the brand band share a continuous dark surround. */}
-      <div className="nokia-launcher__screen h-1/2 w-full relative flex flex-col">
+    <NokiaFrame appearance={appearance} phoneName={phoneName} font={font} keyboardColor={keyboardColor} guideId={onboarding.active ? onboarding.step.id : undefined} onKeypadPress={stableKeypadPress}>
         <div className="h-full w-full min-h-0" inert={(onboarding.active && !onboarding.choosing) || weekCheckInVisible ? true : undefined}>
         {toneSetupVisible ? (
           <ToneSetupPrompt
@@ -2298,11 +2369,24 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
             onAccept={acceptToneSetup}
             onSkip={skipToneSetup}
           />
+        ) : currentView === 'billing' && billing ? (
+          <BillingUiBoundary fallback={<section className="lcd-screen"><p>Payments could not open.</p><button onClick={() => setCurrentView('settings')}>Back to Settings</button></section>}>
+          <Suspense fallback={<section className="lcd-screen"><p>Loading payments…</p><button onClick={() => setCurrentView('settings')}>Back to Settings</button></section>}>
+            <BillingPaywall ref={billingFeatureRef} {...billing} initialPage="management" keypadFeedback={false}
+              onExit={() => setCurrentView('settings')} />
+          </Suspense>
+          </BillingUiBoundary>
+        ) : currentView === 'font' ? (
+          <FontFeature ref={fontFeatureRef} font={font} currentTime={currentTime} onChange={changeFont} onExit={() => setCurrentView('settings')} />
+        ) : currentView === 'phone-name' ? (
+          <PhoneNameFeature ref={phoneNameFeatureRef} name={phoneName} currentTime={currentTime} onSave={changePhoneName} onExit={() => setCurrentView('settings')} />
         ) : currentView === "customization" ? (
-          <CustomizationFeature ref={customizationFeatureRef} appearance={appearance}
+          <CustomizationFeature ref={customizationFeatureRef} appearance={appearance} currentTime={currentTime}
+            keyboardColor={keyboardColor} onKeyboardColorChange={changeKeyboardColor}
             onChange={changeAppearance} onExit={() => setCurrentView("settings")} />
         ) : currentView === "camera" ? (
           <CameraFeature
+            currentTime={currentTime}
             ref={cameraFeatureRef}
             onExit={() => setCurrentView(cameraReturnView)}
           />
@@ -2330,11 +2414,21 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
           />
         ) : currentView === "sound" ? (
           <SoundFeature
+            currentTime={currentTime}
             ref={soundFeatureRef}
             onExit={() => setCurrentView("settings")}
           />
         ) : <Screen
           currentView={currentView}
+          homeNotice={accessibilityNotice ?
+            <AccessibilityHomeNotice onDismiss={() => setAccessibilityNotice(false)} /> : defaultLauncherNoticeVisible ?
+            <DefaultLauncherNotice onDismiss={() => setHomeNoticeDismissed(true)} onSetup={() => setHomeSetupAttempted(true)} /> :
+            onboarding.finishedThisSession && !handoffDismissed && !dumbMode.active && dumbMode.state !== "LOADING" && dumbMode.state !== "ERROR" && !searchActive && !dialActive && !dialNumber ?
+            <section className="onboarding-handoff" data-home-notice aria-label="Set up Dumb Mode" data-testid="onboarding-handoff">
+              <strong>Ready for fewer distractions?</strong>
+              <div><button autoFocus onClick={() => { setHandoffDismissed(true); openDumbMode(); }}>Set up Dumb Mode</button>
+                <button data-notice-dismiss onClick={() => setHandoffDismissed(true)}>Later</button></div>
+            </section> : null}
           menuItems={visibleMenuItems}
           selectedIndex={selectedIndex}
           selectedHomeTarget={currentView === "home" ? HOME_FOCUS_TARGETS[selectedIndex] : null}
@@ -2345,6 +2439,7 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
           onClockClick={() => { triggerHaptic(65); setCurrentView("clock"); }}
           onAppClick={(app) => { triggerHaptic(65); handleOpenApp(app); }}
           onAppLongPress={handleAppLongPress}
+          onDeleteApp={openAppRemovalSettings}
           onContactClick={(contact) => {
             triggerHaptic(65);
             if (contact?.number) {
@@ -2395,24 +2490,13 @@ const NokiaLauncher = ({ apps: installedApps, onDrawerOpen }) => {
         />}
         </div>
         {weekCheckInVisible && <Suspense fallback={null}><WeekCheckIn ref={checkInRef} onClose={dismissWeekCheckIn} /></Suspense>}
-        {onboarding.active && <OnboardingGuide tour={onboarding}
+        {onboarding.active && <OnboardingGuide ref={onboardingGuideRef} tour={onboarding}
           onChoose={() => { handleAppLongPress({ id: "messages" }); onboarding.setChoosing(true); }}
           onFinish={() => { restoreHome(); onboarding.finish(); }}
           onNext={() => { if (onboarding.choosing) restoreHome(); onboarding.next(); }}
           onBack={() => { if (onboarding.choosing) restoreHome(); onboarding.back(); }}
         />}
-      </div>
-
-      <div className="nokia-wordmark" aria-label="Nokia">
-        <svg viewBox="0 0 300 52" aria-hidden="true">
-          <path fill="currentColor" fillRule="evenodd" d="M0 0H13L43 34V0H55V52H42L12 18V52H0ZM75 0H112Q123 0 123 11V41Q123 52 112 52H75Q64 52 64 41V11Q64 0 75 0ZM78 11Q76 11 76 14V38Q76 41 79 41H108Q111 41 111 38V14Q111 11 108 11ZM133 0H145V21L171 0H189L158 25L190 52H172L145 29V52H133ZM198 0H210V52H198ZM244 0H263L300 52H284L277 41H231L224 52H209ZM238 30H269L254 8Z" />
-        </svg>
-      </div>
-      {/* Physical tray retains the shared logical keypad interface. */}
-      <div className="nokia-launcher__keypad h-1/2 w-full flex items-center justify-center">
-        <Keypad variant="launcher" appearance={appearance} onKeypadPress={stableKeypadPress} />
-      </div>
-    </div>
+    </NokiaFrame>
   );
 };
 

@@ -12,7 +12,9 @@ test("the keyboard entry stays eager while Home avoids a blank lazy fallback", (
   expect(source).toContain('import NokiaSystemKeyboard from "@/components/NokiaSystemKeyboard"');
   expect(source).not.toContain("Suspense");
   expect(source).not.toContain('lazy(() => import("@/LauncherApp"))');
-  expect(source.indexOf("if (isKeyboardView)")).toBeLessThan(source.indexOf("return <LauncherApp />"));
+  const homeGate = source.indexOf("return <BillingBootstrap><LauncherApp /></BillingBootstrap>");
+  expect(homeGate).toBeGreaterThan(-1);
+  expect(source.indexOf("if (isKeyboardView)")).toBeLessThan(homeGate);
 });
 
 test("the app entry does not initialize an unused query client", () => {

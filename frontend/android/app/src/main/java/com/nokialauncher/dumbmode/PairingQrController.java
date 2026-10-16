@@ -59,14 +59,24 @@ public final class PairingQrController {
     private ImageAnalysis analysis;
     private ProcessCameraProvider provider;
 
-    public PairingQrController(Activity activity) { this.activity = activity; }
+    private final java.util.function.BooleanSupplier paidAccess;
+
+    public PairingQrController(Activity activity, java.util.function.BooleanSupplier paidAccess) {
+        this.activity = activity; this.paidAccess = java.util.Objects.requireNonNull(paidAccess);
+    }
+    private boolean requirePaid(PluginCall call) {
+        if (paidAccess.getAsBoolean()) return true;
+        call.reject("billing_access_required"); return false;
+    }
 
     public void renderQr(PluginCall call) {
         String payload = call.getString("payload", "");
         if (!validPayload(payload)) { call.reject("invalid_pairing_payload"); return; }
+        if (!requirePaid(call)) return;
         if (destroyed) { call.reject("pairing_scanner_closed"); return; }
         try {
             worker.execute(() -> {
+                if (!requirePaid(call)) return;
                 Bitmap bitmap = null;
                 try {
                     PairingProtocol.validatePublicPayload(payload);
@@ -94,6 +104,7 @@ public final class PairingQrController {
     /** Bounds are CSS pixels, relative to the activity content viewport. Resolves when a QR is read. */
     public void start(PluginCall call) {
         if (Looper.myLooper() != Looper.getMainLooper()) { activity.runOnUiThread(() -> start(call)); return; }
+        if (!requirePaid(call)) return;
         if (destroyed) { call.reject("pairing_scanner_closed"); return; }
         if (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             call.reject("camera_permission_denied"); return;
@@ -129,6 +140,7 @@ public final class PairingQrController {
             ListenableFuture<ProcessCameraProvider> future = ProcessCameraProvider.getInstance(activity);
             future.addListener(() -> {
                 if (destroyed || current != generation || pending != call) return;
+                if (!paidAccess.getAsBoolean()) { release("billing_access_required"); return; }
                 try {
                     provider = future.get();
                     preview = new Preview.Builder().build();

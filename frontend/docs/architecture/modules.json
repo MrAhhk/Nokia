@@ -2,6 +2,106 @@
   "schemaVersion": 1,
   "modules": [
     {
+      "id": "billing",
+      "aliases": [
+        "monetization",
+        "purchase",
+        "entitlement"
+      ],
+      "trace": "App/bootstrap policy -> pre-writer legacy seal -> process BillingRuntime/cache/journal -> public SDK normalization/controller -> strict launcherApps facade and startup access gate; explicit catalog/Restore and provider-independent Manage recovery; checkout incomplete, rollout default false",
+      "files": [
+        "src/features/billing/billingContract.js",
+        "src/features/billing/__fixtures__/billing-v1.json",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingSnapshot.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingPolicy.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingProviderConfig.java",
+        "android/app/src/main/java/com/nokialauncher/billing/RevenueCatAdapter.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingStore.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingAttempt.java",
+        "src/features/billing/README.md",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingCatalogRevision.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingController.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingPlatformTime.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingCacheCodec.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingCacheStorage.java",
+        "android/app/src/main/java/com/nokialauncher/billing/RevenueCatNormalizer.java",
+        "android/app/src/main/java/com/nokialauncher/billing/RevenueCatProvider.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingAttemptCodec.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingAttemptStorage.java",
+        "public/billing-legacy-capture.js",
+        "src/features/billing/billingLegacyEvidence.js",
+        "android/app/src/main/java/com/nokialauncher/billing/LegacyGrantStore.java",
+        "src/App.js",
+        "public/index.html",
+        "src/lib/launcherApps.js",
+        "src/features/billing/BillingBootstrap.jsx",
+        "src/features/billing/BillingPaywall.jsx",
+        "src/features/billing/BillingOnboarding.jsx",
+        "src/features/billing/BillingEntry.jsx",
+        "src/features/billing/BillingFriendRecovery.jsx",
+        "src/features/billing/BillingRecoveryFrame.jsx",
+        "src/features/billing/BillingContext.js",
+        "src/features/billing/BillingUiBoundary.jsx",
+        "src/features/billing/billing.css",
+        "src/components/NokiaFrame.jsx",
+        "src/features/billing/billingBootstrap.css",
+        "android/app/src/main/java/com/nokialauncher/LauncherAppsPlugin.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingRuntime.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingBridgeAuthority.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingCommandPolicy.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingShellReadiness.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingRecoveryView.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingManagementReturn.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingSupportSummary.java",
+        "android/app/src/main/java/com/nokialauncher/billing/RevenueCatCatalog.java",
+        "android/app/src/main/java/com/nokialauncher/billing/RevenueCatCatalogProvider.java",
+        "android/app/src/main/java/com/nokialauncher/billing/RevenueCatCheckoutPreflight.java",
+        "android/app/src/main/java/com/nokialauncher/billing/RevenueCatReceiptMapper.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingPurchaseHost.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingActivity.java",
+        "android/app/src/main/java/com/nokialauncher/billing/BillingPurchaseInput.java"
+      ],
+      "tests": [
+        "src/features/billing/billingContract.test.js",
+        "src/features/billing/BillingPaywall.test.jsx",
+        "src/features/billing/BillingRecoveryFrame.test.jsx",
+        "scripts/test_billing_release_guard.py",
+        "src/features/billing/BillingOnboarding.test.jsx",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingPolicyTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingProviderConfigTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingWireFixture.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingStoreTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingAttemptTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingCatalogRevisionTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingControllerTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingCheckoutTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/RevenueCatPurchaseErrorTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingPurchaseHostTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingCacheCodecTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/RevenueCatNormalizerTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/RevenueCatProviderTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingAttemptStorageTest.java",
+        "src/features/billing/billingLegacyCapture.test.js",
+        "src/features/billing/billingLegacyEvidence.test.js",
+        "android/app/src/test/java/com/nokialauncher/billing/LegacyGrantStoreTest.java",
+        "src/features/billing/BillingBootstrap.test.jsx",
+        "src/components/NokiaLauncher.billingFailure.test.jsx",
+        "src/features/billing/billingFacade.test.js",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingRuntimeTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingPurchaseInputTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingBridgeAuthorityTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingCommandPolicyTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingShellReadinessTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingManagementReturnTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/BillingSupportSummaryTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/RevenueCatCatalogTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/RevenueCatCatalogProviderTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/RevenueCatCheckoutPreflightTest.java",
+        "android/app/src/test/java/com/nokialauncher/billing/RevenueCatReceiptMapperTest.java",
+        "android/app/src/test/java/android/text/TextUtils.java"
+      ]
+    },
+    {
       "id": "onboarding",
       "aliases": [
         "first-run",
@@ -13,11 +113,20 @@
         "src/features/onboarding/onboardingState.js",
         "src/features/onboarding/useOnboarding.js",
         "src/features/onboarding/OnboardingGuide.jsx",
+        "src/features/onboarding/accessibilityDisclosure.js",
+        "src/features/onboarding/OnboardingPreview.jsx",
+        "src/features/onboarding/DefaultLauncherNotice.jsx",
+        "src/features/onboarding/AccessibilityHomeNotice.jsx",
+        "src/lib/launcherApps.js",
+        "android/app/src/main/java/com/nokialauncher/LauncherAppsPlugin.java",
         "src/features/onboarding/onboarding.css",
         "src/components/NokiaLauncher.jsx"
       ],
       "tests": [
         "src/features/onboarding/onboardingState.test.js",
+        "src/features/onboarding/accessibilityConsent.test.jsx",
+        "src/features/onboarding/AccessibilityHomeNotice.test.jsx",
+        "src/lib/launcherApps.accessibility.test.js",
         "src/features/onboarding/onboarding.test.jsx"
       ]
     },
@@ -59,7 +168,9 @@
         "src/components/Screen.jsx",
         "src/domain/launcherMenus.js",
         "android/app/src/main/java/com/nokialauncher/MainActivity.java",
-        "android/app/src/main/java/com/nokialauncher/LauncherEntryActivity.java"
+        "android/app/src/main/java/com/nokialauncher/LauncherEntryActivity.java",
+        "src/components/CalmMiniscreen.css",
+        "src/components/MiniscreenClock.jsx"
       ],
       "tests": [
         "src/App.performance.test.js",
@@ -144,14 +255,18 @@
         "src/features/camera/cameraState.js",
         "src/features/camera/cameraCommands.js",
         "android/app/src/main/java/com/nokialauncher/camera/BuiltInCameraController.java",
+        "android/app/src/main/java/com/nokialauncher/camera/CameraChromeGeometry.java",
         "android/app/src/main/java/com/nokialauncher/camera/BitmapDecodePolicy.java",
         "android/app/src/main/java/com/nokialauncher/SessionGeneration.java"
       ],
       "tests": [
         "src/features/camera/cameraState.test.js",
+        "src/features/camera/CameraFeature.test.jsx",
+        "android/app/src/androidTest/java/com/nokialauncher/CameraGalleryUiTest.java",
         "src/lib/launcherApps.camera.test.js",
         "src/auditRegression.test.js",
         "android/app/src/test/java/com/nokialauncher/camera/BitmapDecodePolicyTest.java",
+        "android/app/src/test/java/com/nokialauncher/camera/CameraChromeGeometryTest.java",
         "android/app/src/test/java/com/nokialauncher/SessionGenerationTest.java"
       ]
     },
@@ -198,7 +313,7 @@
         "tone",
         "dtmf"
       ],
-      "trace": "SoundFeature -> soundState/config/storage -> nokiaAudioEngine -> launcherApps/native ToneGenerator OR IME bridge OR WebAudio fallback",
+      "trace": "SoundFeature switches/customization -> soundState/config/storage -> launcherApps (phone defaults + shared keyboard preferences); NokiaSystemKeyboard -> native shared preferences -> nokiaAudioEngine -> native ToneGenerator OR IME bridge OR WebAudio fallback",
       "files": [
         "src/features/sound/SoundFeature.jsx",
         "src/features/sound/soundState.js",
@@ -319,7 +434,9 @@
         "scripts/tests/test_verify_android_components.py",
         "scripts/tests/capacitor-lifecycle.test.cjs",
         "src/startupSafety.test.js",
-        "android/app/src/androidTest/java/com/nokialauncher/WebViewRecoveryTest.java"
+        "android/app/src/androidTest/java/com/nokialauncher/WebViewRecoveryTest.java",
+        "android/app/src/androidTest/java/com/nokialauncher/DisplayInsetsTest.java",
+        "android/app/src/optimizedSmoke/java/com/nokialauncher/OptimizedSmokeRunner.java"
       ]
     },
     {
@@ -367,9 +484,13 @@
         "src/lib/launcherApps.js",
         "src/components/NokiaLauncher.jsx",
         "android/app/src/main/java/com/nokialauncher/dumbmode/DumbModeController.java",
+        "android/app/src/main/java/com/nokialauncher/dumbmode/DumbModeLaunchGate.java",
         "android/app/src/main/java/com/nokialauncher/dumbmode/DumbModePolicy.java",
         "android/app/src/main/java/com/nokialauncher/dumbmode/DumbModeStore.java",
         "android/app/src/main/java/com/nokialauncher/NokiaAccessibilityService.java",
+        "android/app/src/main/java/com/nokialauncher/AccessibilityConsent.java",
+        "android/app/src/main/res/xml/backup_rules.xml",
+        "android/app/src/main/res/xml/data_extraction_rules.xml",
         "src/features/dumbMode/FriendAuthenticatorScreens.jsx",
         "src/features/dumbMode/pairingFlow.js",
         "src/features/dumbMode/snapshot.js",
@@ -387,6 +508,7 @@
         "src/components/NokiaLauncher.dumbMode.test.jsx",
         "src/features/dumbMode/FriendAuthenticatorScreens.test.jsx",
         "android/app/src/test/java/com/nokialauncher/dumbmode/TotpPolicyTest.java",
+        "android/app/src/test/java/com/nokialauncher/dumbmode/DumbModeLaunchGateTest.java",
         "android/app/src/test/java/com/nokialauncher/dumbmode/PairingQrControllerTest.java",
         "android/app/src/androidTest/java/com/nokialauncher/dumbmode/FriendAuthenticatorTest.java"
       ]
@@ -401,13 +523,25 @@
       "trace": "Settings -> CustomizationFeature -> appearanceStorage -> NokiaLauncher/SidephoneShell -> scalable Sidephone layers; shared Keypad accepts appearance for vector legends and retains input behavior",
       "files": [
         "src/features/customization/CustomizationFeature.jsx",
+          "src/features/customization/KeyboardColorFeature.jsx",
+          "src/features/customization/keyboardColorStorage.js",
+          "src/features/customization/keyboardColors.css",
+          "src/features/customization/polishedMetal.css",
+        "src/features/customization/PhoneNameFeature.jsx",
+        "src/features/customization/FontFeature.jsx",
+        "src/features/customization/fontStorage.js",
+        "src/features/customization/font.css",
+        "src/features/customization/phoneNameStorage.js",
         "src/features/customization/SidephoneHardware.jsx",
         "src/features/customization/appearanceStorage.js",
         "src/features/customization/customization.css",
         "src/features/customization/sidephone.css"
       ],
       "tests": [
-        "src/features/customization/CustomizationFeature.test.jsx"
+        "src/features/customization/CustomizationFeature.test.jsx",
+          "src/features/customization/KeyboardColorFeature.test.jsx",
+        "src/features/customization/PhoneNameFeature.test.jsx"
+        ,"src/features/customization/FontFeature.test.jsx"
       ]
     }
   ],

@@ -388,7 +388,8 @@ public class NokiaIME extends InputMethodService {
         View decorView = imeWindow.getDecorView();
         if (!mWindowChromeConfigured) {
             imeWindow.setWindowAnimations(0);
-            imeWindow.setNavigationBarColor(Color.TRANSPARENT);
+            // The IME hides navigation through its existing inset controller;
+            // Android owns the transient bar surface on API 35+.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 imeWindow.setNavigationBarContrastEnforced(false);
             }
@@ -437,11 +438,29 @@ public class NokiaIME extends InputMethodService {
     public class NokiaIMEBridge {
 
         @JavascriptInterface
+        public String getKeyboardColor() {
+            return getSharedPreferences("nokia_keyboard_appearance", MODE_PRIVATE).getString("color", "black");
+        }
+
+        @JavascriptInterface
+        public String getSoundSettings() {
+            android.content.SharedPreferences prefs = getSharedPreferences("nokia_keyboard_sound", MODE_PRIVATE);
+            org.json.JSONObject settings = new org.json.JSONObject();
+            try {
+                settings.put("keypadTone", prefs.getString("keypadTone", "dtmf"));
+                settings.put("volume", prefs.getInt("volume", 4));
+                settings.put("vibrate", prefs.getBoolean("vibrate", true));
+            } catch (org.json.JSONException ignored) { }
+            return settings.toString();
+        }
+
+        @JavascriptInterface
         public void playKeypadTone(final String key, final int durationMs, final boolean haptic) {
             postToMainThread(new Runnable() {
                 @Override
                 public void run() {
                     if (haptic) triggerKeyHaptic(60);
+                    if ("off".equals(getSharedPreferences("nokia_keyboard_sound", MODE_PRIVATE).getString("keypadTone", "dtmf"))) return;
                     int tone = resolveKeypadTone(key);
                     ToneGenerator generator = getToneGenerator();
                     if (tone >= 0 && generator != null) {

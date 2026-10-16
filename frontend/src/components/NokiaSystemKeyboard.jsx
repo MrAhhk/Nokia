@@ -11,11 +11,18 @@ import {
   resolveNextCaseMode,
 } from "@/domain/keyGrammar";
 import { pauseAudioEngine, playKeypadTone, preloadKeypadAudio } from "@/features/sound/nokiaAudioEngine";
-import { loadSoundSettings } from "@/features/sound/soundStorage";
+import { loadSoundSettings, sanitizeSoundSettings } from "@/features/sound/soundStorage";
 import "./NokiaLauncher.css";
 import "./AgedHardwareTheme.css";
 import "./ReferenceHardware.css";
 import "./NokiaSystemKeyboard.css";
+import '@/features/customization/keyboardColors.css';
+import { loadKeyboardColor, sanitizeKeyboardColor } from '@/features/customization/keyboardColorStorage';
+
+const readKeyboardColor = () => {
+  try { return sanitizeKeyboardColor(getIMEBridge()?.getKeyboardColor?.() ?? loadKeyboardColor()); }
+  catch { return 'black'; }
+};
 
 const MULTI_TAP_DELAY = 250;
 
@@ -26,6 +33,7 @@ const getIMEBridge = () => {
 };
 
 const NokiaSystemKeyboard = () => {
+  const [keyboardColor, setKeyboardColor] = useState(readKeyboardColor);
   const [inputMode, setInputMode] = useState(CASE_MODES.LOWER); // "abc" | "Abc" | "ABC" | "123" | "NAV"
   const inputModeRef = useRef(CASE_MODES.LOWER);
   inputModeRef.current = inputMode;
@@ -73,6 +81,7 @@ const NokiaSystemKeyboard = () => {
     if (typeof window !== "undefined") {
       window.resetNokiaKeyboard = () => {
         multiTapComposerRef.current?.reset();
+        setKeyboardColor(readKeyboardColor());
       };
     }
     return () => {
@@ -118,7 +127,11 @@ const NokiaSystemKeyboard = () => {
 
   const handleKeyPress = useCallback((key) => {
     const bridge = getIMEBridge();
-    const soundPrefs = loadSoundSettings();
+    let soundPrefs = loadSoundSettings();
+    if (bridge?.getSoundSettings) {
+      try { soundPrefs = sanitizeSoundSettings(JSON.parse(bridge.getSoundSettings())); }
+      catch (_err) { soundPrefs = { ...soundPrefs, keypadTone: "off" }; }
+    }
     playKeypadTone(key, soundPrefs.keypadTone, soundPrefs.volume, soundPrefs.vibrate);
     const semanticKey = resolveContextualIntent(key, "default");
 
@@ -182,6 +195,7 @@ const NokiaSystemKeyboard = () => {
     <div
       className="nokia-launcher nokia-system-keyboard h-full w-full flex flex-col overflow-hidden select-none"
       data-testid="nokia-system-keyboard"
+      data-keyboard-color={keyboardColor}
       data-input-mode={inputMode}
     >
       <div className="nokia-shell-rim" aria-hidden="true" />

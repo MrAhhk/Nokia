@@ -1,0 +1,66 @@
+/* Dumb Mode's typography, destination cards and deliberate controls in the shared LCD. */
+.nokia-launcher .billing-lcd {
+  --billing-display: "Consolas", "Courier New", monospace;
+  --billing-body: "Inter", system-ui, sans-serif;
+  position: absolute; top: 3.2cqh; bottom: 0; left: 4.7%; right: 4.7%;
+  width: auto; height: auto; display: flex; flex-direction: column; min-height: 0;
+  padding: 14px 16px 10px; border-radius: var(--control-radius, 8px); contain: layout paint;
+  color: var(--ink); font-family: var(--billing-body); touch-action: pan-y;
+}
+.billing-lcd *, .billing-lcd *::before, .billing-lcd *::after { box-sizing: border-box; }
+.billing-lcd__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; padding-bottom: 9px; margin-bottom: 14px; border-bottom: 1px solid var(--ink); font: 700 11px/1.2 var(--billing-display); letter-spacing: .04em; }
+.billing-lcd__header > span:last-child { padding: 5px 7px; border: 1px solid var(--ink); border-radius: var(--control-radius, 8px); font: 700 10px/1.2 var(--billing-body); letter-spacing: .08em; }
+.billing-lcd__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 10px; padding: 2px 2px 14px; }
+.billing-lcd__body > * { flex-shrink: 0; }
+.nokia-launcher .billing-lcd h2 { margin: 0 0 4px; font: 700 clamp(23px, 6vw, 28px)/1.12 var(--billing-display); letter-spacing: -.035em; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+.billing-lcd h2:focus { outline: none; }
+.nokia-launcher .billing-lcd p { margin: 0; font: 15px/1.45 var(--billing-body); overflow-wrap: anywhere; }
+.nokia-launcher .billing-lcd .billing-lcd__small { font-size: 12px; }
+.nokia-launcher .billing-lcd .billing-lcd__price { font-size: 26px; font-weight: 700; letter-spacing: -.03em; }
+.nokia-launcher .billing-lcd .billing-lcd__period { border-bottom: 1px solid var(--ink); padding-bottom: 12px; }
+.nokia-launcher .billing-lcd button { min-height: 48px; flex-shrink: 0; padding: 12px; border: 1px solid var(--ink); border-radius: var(--control-radius, 8px); background: transparent; color: inherit; font: 600 15px/1.3 var(--billing-body); text-align: left; cursor: pointer; overflow-wrap: anywhere; touch-action: manipulation; }
+.billing-lcd button:disabled { opacity: .5; cursor: default; }
+.billing-lcd__plans { display: flex; flex-direction: column; gap: 9px; margin: 4px 0; }
+.nokia-launcher .billing-lcd__plans button { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 5px 10px; min-height: 76px; padding: 13px 14px; border: 2px solid var(--ink); border-radius: var(--card-radius, 12px); }
+.billing-lcd__plans strong { font: 700 22px/1.1 var(--billing-display); letter-spacing: -.04em; }
+.billing-lcd__plans button > span { font: 700 18px/1.25 var(--billing-body); letter-spacing: -.03em; }
+.billing-lcd__plans button > span { text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.billing-lcd__plans small { font-size: 12px; line-height: 1.35; font-weight: 400; }
+.billing-lcd__plans small:last-child { text-align: right; }
+.nokia-launcher .billing-lcd .billing-lcd__intro { font-size: 13px; }
+.billing-lcd__utilities { display: flex; flex-wrap: wrap; gap: 0 16px; border-top: 1px solid var(--ink); padding-top: 6px; }
+.nokia-launcher .billing-lcd__utilities button { padding: 8px 0; border: 0; border-radius: 0; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.billing-lcd__status-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 4px 0; }
+.billing-lcd__status-actions [data-primary] { grid-column: 1 / -1; }
+.nokia-launcher .billing-lcd .billing-lcd__notice { padding: 9px 12px; border: 0; border-left: 3px solid var(--ink); border-radius: 0; font-size: 13px; line-height: 1.45; }
+.nokia-launcher .billing-lcd[data-page="status"] .billing-lcd__body > p[role="status"] { padding: 16px 14px; border: 2px solid var(--ink); border-radius: var(--card-radius, 12px); font-size: 16px; }
+.billing-lcd[data-page="management"] .billing-lcd__body > p:first-of-type { padding: 14px; border: 2px solid var(--ink); border-radius: var(--card-radius, 12px); }
+.billing-lcd[data-page="gift"] .billing-lcd__body > p:first-of-type { padding: 14px; border: 2px solid var(--ink); border-radius: var(--card-radius, 12px); }
+.nokia-launcher .billing-lcd p[role="alert"] { padding: 8px 10px; border-left: 3px solid var(--ink); font-size: 15px; line-height: 1.45; }
+.nokia-launcher .billing-lcd button[data-primary] { background: var(--ink); color: var(--lcd); text-align: center; }
+.nokia-launcher .billing-lcd button:focus-visible, .nokia-launcher .billing-lcd button[data-billing-focused="true"] { background: var(--ink); color: var(--lcd); outline: 2px solid var(--ink); outline-offset: 2px; }
+.billing-lcd input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.billing-lcd__ack { display: flex; align-items: flex-start; gap: 10px; min-height: 48px; padding: 12px; border: 1px solid var(--ink); border-radius: var(--control-radius, 8px); font: 15px/1.45 var(--billing-body); }
+.billing-lcd__ack input { appearance: none; width: 22px; height: 22px; flex-shrink: 0; margin: 0; border: 1px solid var(--ink); background: transparent; }
+.billing-lcd__ack input:checked { background: var(--ink); box-shadow: inset 0 0 0 4px var(--lcd); }
+.billing-lcd pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.4 var(--billing-display); margin: 0; padding: 12px; border: 1px solid var(--ink); border-radius: var(--control-radius, 8px); user-select: text; }
+.billing-lcd__footer { display: flex; gap: 10px; padding-top: 8px; border-top: 1px solid var(--ink); flex-shrink: 0; }
+.nokia-launcher .billing-lcd__footer button { min-height: 48px; padding: 8px 10px; }
+.nokia-launcher .billing-lcd__footer > button:first-child { border: 0; font-family: var(--billing-display); }
+.nokia-launcher .billing-lcd__footer [data-primary] { flex: 1; }
+.billing-lcd input[readonly] { width: 100%; min-width: 0; border: 1px solid var(--ink); border-radius: var(--control-radius, 8px); padding: 10px; background: transparent; color: var(--ink); font: 12px/1.4 var(--billing-display); user-select: text; }
+/* Preserve the reference hierarchy within a smaller physical LCD. */
+@media (max-height: 700px), (max-width: 480px) {
+  .nokia-launcher .billing-lcd { padding: 12px; }
+  .billing-lcd__header { padding-bottom: 6px; margin-bottom: 7px; }
+  .billing-lcd__body { gap: 7px; }
+  .nokia-launcher .billing-lcd h2 { font-size: 23px; }
+  .billing-lcd[data-page="plans"] .billing-lcd__body { gap: 4px; }
+  .nokia-launcher .billing-lcd[data-page="plans"] h2 { font-size: 20px; margin: 0; }
+  .nokia-launcher .billing-lcd .billing-lcd__intro { font-size: 12px; line-height: 1.3; }
+  .billing-lcd__plans { gap: 5px; margin: 2px 0; }
+  .nokia-launcher .billing-lcd__plans button { min-height: 58px; padding: 8px 11px; gap: 3px 8px; }
+  .billing-lcd__plans strong { font-size: 20px; }
+  .billing-lcd__plans button > span { font-size: 15px; }
+  .billing-lcd__plans small { font-size: 10px; }
+}

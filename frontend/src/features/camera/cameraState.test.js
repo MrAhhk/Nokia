@@ -53,13 +53,20 @@ describe("camera keypad commands", () => {
     expect(getCameraCommand(recording, "END")).toEqual({ type: "STOP_VIDEO_AND_EXIT" });
   });
 
-  test("white Back follows the current camera surface instead of acting like red Home", () => {
+  test("Back matches Exit in gallery and Back in the viewer", () => {
     const camera = createCameraState();
     const gallery = { ...camera, view: CAMERA_VIEWS.GALLERY };
     const viewer = { ...camera, view: CAMERA_VIEWS.VIEWER };
     expect(getCameraCommand(camera, "BACK")).toEqual({ type: "EXIT_CAMERA" });
-    expect(getCameraCommand(gallery, "BACK")).toEqual({ type: "BACK_TO_CAMERA" });
+    expect(getCameraCommand(gallery, "BACK")).toEqual({ type: "EXIT_CAMERA" });
     expect(getCameraCommand(viewer, "BACK")).toEqual({ type: "BACK_TO_GALLERY" });
+  });
+
+  test('center matches Next for photos and playback for videos; Send returns to Camera', () => {
+    const viewer = { ...createCameraState(), view: CAMERA_VIEWS.VIEWER, selectedMedia: { type: 'photo' } };
+    expect(getCameraCommand(viewer, 'SELECT')).toEqual({ type: 'NEXT_MEDIA' });
+    expect(getCameraCommand({ ...viewer, selectedMedia: { type: 'video' } }, 'SELECT')).toEqual({ type: 'TOGGLE_PLAYBACK' });
+    expect(getCameraCommand({ ...viewer, view: CAMERA_VIEWS.GALLERY }, 'SEND')).toEqual({ type: 'BACK_TO_CAMERA' });
   });
 
   test("star toggles the composition grid only while idle", () => {

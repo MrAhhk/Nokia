@@ -3,6 +3,7 @@ import {
   _resetSoundSettingsCache,
   loadSoundSettings,
   saveSoundSettings,
+  sanitizeSoundSettings,
 } from "./soundStorage";
 import { DEFAULT_SOUND_SETTINGS, KEYPAD_TONE_TYPES, RINGTONE_TYPES } from "./soundConfig";
 import { setDefaultTone } from "../../lib/launcherApps";
@@ -39,6 +40,12 @@ describe("soundStorage", () => {
   test("loads default sound settings when storage is empty", () => {
     const settings = loadSoundSettings(mockStorage);
     expect(settings).toEqual(DEFAULT_SOUND_SETTINGS);
+  });
+
+  test("sanitizes native keyboard settings including Off independently of the browser cache", () => {
+    loadSoundSettings(mockStorage);
+    expect(sanitizeSoundSettings({ keypadTone: "off", volume: 2, vibrate: false })).toEqual(expect.objectContaining({ keypadTone: "off", volume: 2, vibrate: false }));
+    expect(sanitizeSoundSettings({ keypadTone: "click" }).keypadTone).toBe("click");
   });
 
   test("saves and loads updated sound settings", () => {

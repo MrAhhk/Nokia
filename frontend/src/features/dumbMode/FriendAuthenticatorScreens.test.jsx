@@ -4,6 +4,16 @@ import FriendAuthenticatorScreens from './FriendAuthenticatorScreens';
 import * as api from '@/lib/launcherApps';
 jest.mock('@/lib/launcherApps', () => Object.fromEntries(['getFriendAuthenticatorState', 'getHeldFriendCode', 'beginFriendPairing', 'acceptFriendPairing', 'inspectFriendPairing', 'completeFriendPairing', 'acknowledgeFriendPairing', 'cancelFriendPairing', 'removeFriendPairing', 'getFriendPairingQr', 'startFriendPairingScan', 'stopFriendPairingScan', 'pasteFriendPairingText', 'shareFriendPairingText'].map(name => [name, jest.fn()])));
 global.IS_REACT_ACT_ENVIRONMENT = true;
+test('restricted recovery exposes confirmed held codes but no pending, add, remove or pairing workflow', async () => {
+  api.getHeldFriendCode.mockResolvedValue({ code: '00123456', expiresAt: Date.now() + 30000 });
+  await render({ recoveryOnly: true, role: 'holder', state: { ...empty,
+    holders: [{ id: 'pair', label: 'Alice', confirmed: true }],
+    pending: [{ id: 'pending', role: 'holder', label: 'Pending' }] } });
+  expect(button('Add person')).toBeUndefined(); expect(container.textContent).not.toContain('Pending');
+  await act(async () => container.querySelector('.dm-menu-row').click());
+  expect(container.textContent).toContain('0012 3456'); expect(button('Remove Alice')).toBeUndefined();
+  expect(api.beginFriendPairing).not.toHaveBeenCalled(); expect(api.acceptFriendPairing).not.toHaveBeenCalled();
+});
 let root, container, ref;
 const empty = { revision: 4, owners: [], holders: [], pending: [] };
 const button = text => [...container.querySelectorAll('button')].find(node => node.textContent.trim() === text);

@@ -43,6 +43,8 @@ const DRAWER_PRIORITY = [
 
 export const SETTINGS_ITEMS = Object.freeze([
   { id: "customization", label: "Customization", internalView: "customization" },
+  { id: "phone-name", label: "Phone name", internalView: "phone-name" },
+  { id: "font", label: "Font", internalView: "font" },
   { id: "snake", label: "Snake", internalView: "snake" },
   { id: "dumb-mode", label: "Dumb Mode", internalView: "dumb-mode" },
   { id: "default-launcher", label: "Default Launcher", nativeSetting: "default-launcher" },
@@ -128,6 +130,11 @@ export const isAddictiveApp = (app) => {
 };
 
 export const matchesKeyword = (text, keyword) => {
+  // Generic short words must be tokens: Gmail is not AI, Outline is not Line,
+  // and Roadmap is not Map. Brand names still match their package identifiers.
+  if (["ai", "map", "maps", "cam", "line", "phone", "audio", "calc"].includes(keyword)) {
+    return new RegExp(`(^|[^a-z0-9])${keyword}([^a-z0-9]|$)`, "i").test(text);
+  }
   if (keyword === "call") {
     return /\bcall/i.test(text) || /truedialer|truecaller/i.test(text);
   }
@@ -293,7 +300,7 @@ export const setDefaultApp = (category, app, storage = defaultAppStorage()) => {
 export const findMatchingApp = (apps, matches) =>
   apps.find((app) => {
     const searchable = getSearchText(app);
-    return matches.some((match) => searchable.includes(match));
+    return matches.some((match) => matchesKeyword(searchable, match));
   });
 
 export const createHomeShortcuts = (apps, storage = defaultAppStorage()) =>
@@ -345,7 +352,7 @@ export const orderDrawerApps = (apps) => {
   DRAWER_PRIORITY.forEach(({ label, matches, action }) => {
     const matchIndex = remaining.findIndex((app) => {
       const searchable = getSearchText(app);
-      return matches.some((match) => searchable.includes(match));
+      return matches.some((match) => matchesKeyword(searchable, match));
     });
 
     if (matchIndex >= 0) {

@@ -1,0 +1,11 @@
+# Copy to billing.properties after the actual Play/RevenueCat catalog is verified.
+# PUBLIC values only. Never put service-account JSON or RevenueCat secret keys here.
+# Product and base-plan identifiers must fit the durable journal: at most 128 ASCII characters.
+# Keep false until current-cohort migration and real Play/RevenueCat acceptance pass.
+rolloutEnabled=false
+publicSdkKey=
+subscriptionProductId=
+monthlyBasePlanId=
+yearlyBasePlanId=
+lifetimeProductId=
+offeringId=

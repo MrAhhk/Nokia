@@ -6,5 +6,12 @@
     <string name="package_name">com.nokialauncher</string>
     <string name="custom_url_scheme">com.nokialauncher</string>
     <string name="accessibility_service_label">Nokia Launcher Key Shortcuts</string>
-    <string name="accessibility_service_description">Enables Nokia key navigation, Recent Apps, and screen lock. When you turn on Dumb mode, it reads the foreground app package on window changes and returns Home from blocked apps. Dumb mode does not read screen text or send app usage data.</string>
+    <string name="accessibility_service_description">Optional access for Nokia-key focus, scrolling and selection, Back, Recent Apps and screen lock. It accesses interface content and the foreground app. While Dumb Mode is active, selected blocked apps return to Home even when Nokia Launcher is not on screen. This Accessibility data is processed locally, not stored as a screen history or sent to the developer or billing providers. Consent is requested inside Nokia Launcher before activation. You can disable this service here at any time.</string>
+    <string name="billing_recovery_title">Nokia Launcher recovery</string>
+    <string name="billing_recovery_message">The launcher screen could not start. Phone and Android settings are still available. Your app data has not been reset.</string>
+    <string name="billing_recovery_phone">Phone</string>
+    <string name="billing_recovery_home">Home settings</string>
+    <string name="billing_recovery_settings">Android settings</string>
+    <string name="billing_recovery_keyboard">Keyboard settings</string>
+    <string name="billing_recovery_action_failed">%1$s could not open. Swipe from the screen edge to use Android navigation or quick settings.</string>
 </resources>
